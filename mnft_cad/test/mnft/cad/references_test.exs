@@ -161,6 +161,45 @@ defmodule Mnft.Cad.ReferencesTest do
     assert tc > 0
   end
 
+  # --- vector outline block -----------------------------------------------------
+
+  @pdfprofile_json """
+  {"loops": [{"page": 1, "closed": true,
+              "points": [[0.0, 128.41], [2.8, 128.41], [305.36, 0.0]],
+              "bbox": [305.36, 128.41],
+              "callouts": ["23.8", "17.8", "6", "M4"]}]}
+  """
+
+  test "format_vector_block: renders header, callouts and vertices" do
+    block = References.format_vector_block(@pdfprofile_json)
+
+    assert block =~ "[Vector outline extracted"
+    assert block =~ "calibrate"
+    assert block =~ "dimension callouts near it: 23.8 17.8 6 M4"
+    assert block =~ "closed, 3 pts, bbox 305.36 x 128.41 pt"
+    assert block =~ "(0.00, 128.41) -> (2.80, 128.41) -> (305.36, 0.00) [closes]"
+  end
+
+  test "format_vector_block: empty loops or malformed json yield empty block" do
+    assert References.format_vector_block(~s({"loops": []})) == ""
+    assert References.format_vector_block("not json") == ""
+    assert References.format_vector_block("") == ""
+  end
+
+  @tag :poppler
+  test "pdf_to_parts: vector block degrades to empty string without ink" do
+    cfg =
+      Config.all()
+      |> Keyword.put(:references,
+        python_bin: Path.expand("../../../cad_worker/.venv/bin/python", __DIR__)
+      )
+
+    Application.put_env(:mnft_cad, :cad, cfg)
+
+    %{vector: vector} = References.pdf_to_parts(@url, @pdf_bytes)
+    assert is_binary(vector)
+  end
+
   defp page_count do
     if System.find_executable("pdftoppm"), do: 1, else: 0
   end

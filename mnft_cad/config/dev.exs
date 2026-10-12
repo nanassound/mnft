@@ -23,6 +23,13 @@ config :mnft_cad, :cad,
     bin: System.get_env("OPENSCAD_BIN", "openscad"),
     timeout_s: String.to_integer(System.get_env("OPENSCAD_TIMEOUT_S", "60"))
   ],
+  # Only the keys that differ from Mnft.Cad.References' @defaults (pdf_dpi is
+  # already 300 there). The trim helper needs the cad_worker venv python for
+  # Pillow; relative like :worker_python because `mix run` here runs with the
+  # mnft_cad dir as cwd.
+  references: [
+    python_bin: System.get_env("REF_PYTHON_BIN", "../cad_worker/.venv/bin/python")
+  ],
   llm: [
     provider: String.to_atom(System.get_env("LLM_PROVIDER", "openai")),
     base_url: System.get_env("LLM_BASE_URL", "https://api.z.ai/api/paas/v4"),

@@ -35,7 +35,8 @@ defmodule Mnft.Cad.References do
     fetch_timeout_s: 30,
     max_pdf_mb: 20,
     max_pages: 3,
-    pdf_dpi: 150,
+    pdf_dpi: 300,
+    python_bin: "python3",
     max_text_chars: 4000,
     max_urls_per_turn: 2
   ]
@@ -99,18 +100,23 @@ defmodule Mnft.Cad.References do
   Render fetched PDF bytes into LLM image parts + extracted text.
 
   Writes the bytes to a temp file (always removed), runs `pdftoppm -png` for
-  at most `max_pages` pages at `pdf_dpi` DPI, and `pdftotext -layout`. Image
-  caps match `Mnft.Cad.Images` (4 MiB per page, 8 MiB per turn); pages beyond
-  a cap are dropped.
+  at most `max_pages` pages at `pdf_dpi` DPI, trims each page to its content
+  bbox (`cad_worker.pngtrim`), extracts text (`pdftotext -layout`) and vector
+  section outlines (`cad_worker.pdfprofile`). Image caps match
+  `Mnft.Cad.Images` (4 MiB per page, 8 MiB per turn); pages beyond a cap are
+  dropped.
 
-  Returns `%{images: [image()], text: String.t(), meta: map()}` where `meta`
-  reports `url`, rendered `pages`, `text_chars`, and the `tool` actually used
-  (`"poppler"`, `"pdftotext"` when only text extraction is available, or
-  `"none"` when both poppler binaries are missing).
+  Returns `%{images: [image()], text: String.t(), vector: String.t(),
+  meta: map()}` where `meta` reports `url`, rendered `pages`, `text_chars`,
+  and the `tool` actually used (`"poppler"`, `"pdftotext"` when only text
+  extraction is available, or `"none"` when both poppler binaries are
+  missing). `vector` is the formatted vector-outline block for the LLM (or
+  ""). Trim/outline failures degrade with a log warning, never an error.
   """
   @spec pdf_to_parts(String.t(), binary()) :: %{
           images: [map()],
           text: String.t(),
+          vector: String.t(),
           meta: map()
         }
   def pdf_to_parts(url, bytes) when is_binary(bytes) do
@@ -121,6 +127,7 @@ defmodule Mnft.Cad.References do
     try do
       pages = render_pages(tmp, c)
       text = extract_text(tmp, c)
+      vector = extract_profile(tmp, c)
 
       tool =
         cond do
@@ -132,6 +139,7 @@ defmodule Mnft.Cad.References do
       %{
         images: pages,
         text: text,
+        vector: vector,
         meta: %{url: url, pages: length(pages), text_chars: String.length(text), tool: tool}
       }
     after
@@ -178,8 +186,10 @@ defmodule Mnft.Cad.References do
 
   defp handle_url(url, {msg, images, refs, failed}) do
     case fetch_one(url) do
-      {:ok, %{images: page_images, text: text, pages: pages}} ->
-        note = "\n\n[Reference datasheet #{url} — #{pages} page(s) attached as images]\n" <> text
+      {:ok, %{images: page_images, text: text, vector: vector, pages: pages}} ->
+        note =
+          "\n\n[Reference datasheet #{url} — #{pages} page(s) attached as images]\n" <>
+            text <> vector
 
         {msg <> note, images ++ page_images,
          refs ++ [%{"url" => url, "pages" => pages, "text" => text}], failed}
@@ -205,8 +215,9 @@ defmodule Mnft.Cad.References do
       {mod, fun, args} = Config.get(:references_fetch_fun, @fetch_default)
 
       with {:ok, bytes} <- apply(mod, fun, [url | args]),
-           %{images: images, text: text, meta: %{pages: pages}} <- pdf_to_parts(url, bytes) do
-        {:ok, %{images: images, text: text, pages: pages}}
+           %{images: images, text: text, vector: vector, meta: %{pages: pages}} <-
+             pdf_to_parts(url, bytes) do
+        {:ok, %{images: images, text: text, vector: vector, pages: pages}}
       end
     rescue
       e -> {:error, error_reason(e)}
@@ -256,8 +267,13 @@ defmodule Mnft.Cad.References do
         |> then(&Path.wildcard(&1 <> "*.png"))
         |> Enum.sort_by(&page_number/1)
 
-      pages = paths |> Enum.map(&read_page/1) |> cap_images()
-      Enum.each(paths, &File.rm/1)
+      # Trim each page to its content bbox (cad_worker.pngtrim) so the vision
+      # model sees the drawing, not the A4 margin. Any failure keeps the
+      # untrimmed page — a broken trim must never drop a datasheet page.
+      read_paths = Enum.map(paths, &trim_page(&1, c))
+
+      pages = read_paths |> Enum.map(&read_page/1) |> cap_images()
+      Enum.each(read_paths, &File.rm/1)
       pages
     else
       nil ->
@@ -266,6 +282,113 @@ defmodule Mnft.Cad.References do
       {output, code} ->
         Logger.warning("pdftoppm failed (exit #{code}): #{String.slice(output, 0, 300)}")
         []
+    end
+  end
+
+  # Trim one rendered page to its content bbox via `python -m
+  # cad_worker.pngtrim` (Pillow, in the cad_worker venv). Returns the path to
+  # read — the trimmed file on success, the original page otherwise.
+  defp trim_page(path, c) do
+    trimmed = path <> "-trimmed.png"
+
+    case find_python(c[:python_bin]) do
+      nil ->
+        Logger.warning("pngtrim skipped: python_bin #{c[:python_bin]} not found")
+        path
+
+      exe ->
+        case System.cmd(exe, ["-m", "cad_worker.pngtrim", path, trimmed],
+               stderr_to_stdout: true
+             ) do
+          {_, 0} ->
+            if File.exists?(trimmed) do
+              File.rm(path)
+              trimmed
+            else
+              Logger.warning("pngtrim produced no output for #{Path.basename(path)}")
+              path
+            end
+
+          {output, code} ->
+            Logger.warning("pngtrim failed (exit #{code}): #{String.slice(output, 0, 300)}")
+            path
+        end
+    end
+  end
+
+  # Bare names ("python3") resolve via PATH. Slash paths are cwd-relative
+  # config values (like :worker_python) — find_executable/1 ignores relative
+  # paths containing a slash, so expand them against the cwd first.
+  defp find_python(bin) when is_binary(bin) do
+    if String.contains?(bin, "/") do
+      bin |> Path.expand(File.cwd!()) |> System.find_executable()
+    else
+      System.find_executable(bin)
+    end
+  end
+
+  defp find_python(_), do: nil
+
+  @doc """
+  Format `cad_worker.pdfprofile` JSON into the LLM vector-outline block, ""
+  when the JSON is empty or malformed. Pure: safe to test without a venv.
+  """
+  @spec format_vector_block(String.t()) :: String.t()
+  def format_vector_block(json) when is_binary(json) do
+    with {:ok, %{"loops" => loops}} when is_list(loops) and loops != [] <- Jason.decode(json) do
+      header =
+        "[Vector outline extracted from the datasheet drawing ink — exact page " <>
+          "coordinates, y up, origin at each outline's min corner. The sheet " <>
+          "draws each view at its own scale — calibrate with ONE factor: pair " <>
+          "the outline's LONGEST bbox side with the LARGEST dimension callout " <>
+          "listed for it (the overall dimension is the biggest number, never a " <>
+          "sum of segment callouts) and scale both axes by it. Build the 2D " <>
+          "cross-section from EXACTLY these vertices in order — do not add, " <>
+          "drop, or straighten edges.]"
+
+      body =
+        Enum.map_join(loops, "\n", fn loop ->
+          pts = loop["points"] || []
+          [w, h] = loop["bbox"] || [0.0, 0.0]
+          callouts = Enum.join(loop["callouts"] || [], " ")
+
+          coords =
+            pts
+            |> Enum.map(fn [x, y] -> "(#{f2(x)}, #{f2(y)})" end)
+            |> Enum.join(" -> ")
+
+          "Outline (closed, #{length(pts)} pts, bbox #{f2(w)} x #{f2(h)} pt; " <>
+            "dimension callouts near it: #{callouts})\n#{coords} [closes]"
+        end)
+
+      header <> "\n" <> String.slice(body, 0, 8000)
+    else
+      _ -> ""
+    end
+  end
+
+  defp f2(x), do: :erlang.float_to_binary(x * 1.0, decimals: 2)
+
+  # Run cad_worker.pdfprofile over the fetched PDF and format the block.
+  # Any failure (venv python missing, pymupdf missing, no closed ink) yields ""
+  # — the turn proceeds on images + text alone.
+  defp extract_profile(tmp, c) do
+    case find_python(c[:python_bin]) do
+      nil ->
+        ""
+
+      exe ->
+        case System.cmd(exe, ["-m", "cad_worker.pdfprofile", tmp, to_string(c[:max_pages])],
+               stderr_to_stdout: true
+             ) do
+          {out, 0} ->
+            format_vector_block(out)
+
+          {output, code} ->
+            Logger.warning("pdfprofile failed (exit #{code}): #{String.slice(output, 0, 300)}")
+
+            ""
+        end
     end
   end
 

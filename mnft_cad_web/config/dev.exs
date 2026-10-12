@@ -104,5 +104,10 @@ config :mnft_cad, :cad,
     pdftotext_bin: getenv.("PDFTOTEXT_BIN", "pdftotext"),
     fetch_timeout_s: String.to_integer(getenv.("REF_FETCH_TIMEOUT_S", "30")),
     max_pages: String.to_integer(getenv.("REF_MAX_PAGES", "3")),
-    pdf_dpi: String.to_integer(getenv.("REF_PDF_DPI", "150"))
+    pdf_dpi: String.to_integer(getenv.("REF_PDF_DPI", "300")),
+    python_bin:
+      getenv.(
+        "REF_PYTHON_BIN",
+        Path.expand("../../cad_worker/.venv/bin/python", __DIR__)
+      )
   ]
