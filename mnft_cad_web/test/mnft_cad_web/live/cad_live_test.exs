@@ -106,6 +106,62 @@ defmodule MnftCadWeb.CadLiveTest do
     assert eventually(fn -> has_element?(view, "#model-info") end)
   end
 
+  test "reopening a part mid-turn restores the pending message and timer", %{
+    conn: conn,
+    session: session
+  } do
+    LLMFake.set_script([
+      {:hold,
+       {:ok,
+        %{
+          reply: "Here.\n```python\npart = Box(30,30,30)\n```",
+          reasoning: "",
+          finish_reason: :stop
+        }}}
+    ])
+
+    EngineFake.set_script([
+      %{
+        ok: true,
+        stage: :exec,
+        error: nil,
+        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil},
+        mesh: %{"triangles" => 12, "bbox_mm" => [30.0, 30.0, 30.0], "volume_mm3" => 27_000.0},
+        exec_ms: 5
+      }
+    ])
+
+    {:ok, view, _html} = live(conn, ~p"/app/s/#{session.id}")
+    render_hook(view, "send", %{"message" => "a 30 mm cube", "photos" => [], "current" => nil})
+
+    assert eventually(fn -> LLMFake.held() != [] end)
+
+    # Re-open the same part on a fresh conn, built exactly like setup does.
+    conn2 =
+      build_conn()
+      |> Plug.Test.init_test_session(%{})
+      |> Plug.Conn.put_session(:owner_id, @owner)
+
+    {:ok, view2, html2} = live(conn2, ~p"/app/s/#{session.id}")
+
+    # the in-flight user message renders in the initial HTML (no connected? gate)
+    assert html2 =~ "a 30 mm cube"
+    assert has_element?(view2, "#turn-status")
+    assert render(view2) =~ "working"
+
+    # the timer continues from the real start, not from the remount
+    Process.sleep(1100)
+    status_html = render(element(view2, "#turn-status"))
+    [elapsed] = Regex.run(~r/(\d+)s/, status_html, capture: :all_but_first)
+    assert String.to_integer(elapsed) >= 1
+
+    LLMFake.release(hd(LLMFake.held()))
+
+    assert eventually(fn -> not has_element?(view2, "#turn-status") end)
+    assert render(view2) =~ "a 30 mm cube"
+    assert has_element?(view2, "#model-info")
+  end
+
   defp eventually(fun, tries \\ 100) do
     cond do
       fun.() -> true

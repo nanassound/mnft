@@ -28,11 +28,16 @@ defmodule MnftCadWeb.CadLive do
   end
 
   defp do_mount(socket, session) do
-    running? = connected?(socket) && agent_running?(session.id)
-
+    # Subscribe before reading the agent state: a turn that finishes in
+    # between still delivers its turn_done to this view.
     if connected?(socket), do: PubSubBridge.subscribe(session.id)
 
-    messages = Cad.list_messages(session.id)
+    info = Sessions.turn_info(session.id)
+    running? = info.running
+
+    # Reconnect mid-turn: the in-flight user message lives only in the
+    # sending LiveView until the turn persists; rebuild it from turn info.
+    {messages, pending_id} = append_pending(Cad.list_messages(session.id), info)
 
     {:ok,
      socket
@@ -44,7 +49,9 @@ defmodule MnftCadWeb.CadLive do
      |> assign(:model, model_view(Cad.latest_model(session.id)))
      |> assign(:running?, running?)
      |> assign(:stage, if(running?, do: "working", else: nil))
-     |> assign(:elapsed_s, 0)
+     |> assign(:turn_started_ms, if(running?, do: info.started_ms, else: nil))
+     |> assign(:elapsed_s, if(running?, do: elapsed_s(info.started_ms), else: 0))
+     |> assign(:pending_id, pending_id)
      |> assign(:last_message, last_user_text(messages))
      |> assign(:error, nil)
      |> assign(:form, to_form(%{"message" => ""}, as: :chat))
@@ -85,6 +92,7 @@ defmodule MnftCadWeb.CadLive do
              socket
              |> assign(:running?, true)
              |> assign(:stage, "starting")
+             |> assign(:turn_started_ms, System.system_time(:millisecond))
              |> assign(:elapsed_s, 0)
              |> assign(:error, nil)
              |> assign(:last_message, message)
@@ -108,6 +116,13 @@ defmodule MnftCadWeb.CadLive do
   end
 
   @impl true
+  def handle_info(:tick, %{assigns: %{running?: true, turn_started_ms: started_ms}} = socket)
+      when is_integer(started_ms) do
+    # Recompute from the real start time so the timer survives tab sleep.
+    Process.send_after(self(), :tick, 1000)
+    {:noreply, assign(socket, :elapsed_s, elapsed_s(started_ms))}
+  end
+
   def handle_info(:tick, %{assigns: %{running?: true}} = socket) do
     Process.send_after(self(), :tick, 1000)
     {:noreply, update(socket, :elapsed_s, &(&1 + 1))}
@@ -121,8 +136,16 @@ defmodule MnftCadWeb.CadLive do
   def handle_info(%{event: "exec_started"}, socket),
     do: {:noreply, assign(socket, :stage, "building")}
 
-  def handle_info(%{event: "turn_started"}, socket),
-    do: {:noreply, assign(socket, :running?, true) |> tick_if(true)}
+  def handle_info(%{event: "turn_started", payload: payload}, socket) do
+    started_ms = payload[:started_ms] || System.system_time(:millisecond)
+
+    {:noreply,
+     socket
+     |> assign(:running?, true)
+     |> assign(:turn_started_ms, started_ms)
+     |> assign(:elapsed_s, elapsed_s(started_ms))
+     |> tick_if(true)}
+  end
 
   def handle_info(%{event: event}, socket) when event in ["llm_done", "exec_done"],
     do: {:noreply, socket}
@@ -149,6 +172,7 @@ defmodule MnftCadWeb.CadLive do
      socket
      |> assign(:running?, false)
      |> assign(:stage, nil)
+     |> assign(:turn_started_ms, nil)
      |> assign(:pending_id, nil)
      |> assign(:model, model)
      |> assign(:new_model?, model != socket.assigns.model && socket.assigns.tab == "chat")
@@ -167,18 +191,25 @@ defmodule MnftCadWeb.CadLive do
 
   defp tick_if(socket, _), do: socket
 
-  defp agent_running?(session_id) do
-    case Sessions.whereis(session_id) do
-      nil ->
-        false
+  # Reconnect mid-turn: the in-flight user message lives only in the sending
+  # LiveView until the turn persists; rebuild it from the agent's turn info.
+  defp append_pending(messages, %{running: true} = info) do
+    pending = %Message{
+      id: "pending-#{System.unique_integer([:positive])}",
+      role: :user,
+      content: info.message,
+      meta: %{"photos" => info.photos}
+    }
 
-      server ->
-        case Jido.AgentServer.state(server) do
-          {:ok, state} -> state.agent.state.status != :idle
-          _ -> false
-        end
-    end
+    {messages ++ [pending], pending.id}
   end
+
+  defp append_pending(messages, %{running: false}), do: {messages, nil}
+
+  defp elapsed_s(nil), do: 0
+
+  defp elapsed_s(started_ms) when is_integer(started_ms),
+    do: max(0, System.system_time(:millisecond) - started_ms) |> div(1000)
 
   defp last_user_text(messages) do
     messages

@@ -15,7 +15,11 @@ defmodule Mnft.Cad.Agent do
       session_id: [type: :string, default: ""],
       owner_id: [type: :string, default: ""],
       status: [type: :atom, default: :idle],
-      turn_started_ms: [type: :integer, default: 0]
+      turn_started_ms: [type: :integer, default: 0],
+      # In-flight turn context so UIs can rebuild the pending bubble and the
+      # elapsed timer on reconnection; display-only, cleared by turn.finish.
+      turn_message: [type: :string, default: ""],
+      turn_photos: [type: {:list, {:map, :string, :any}}, default: []]
     ],
     signal_routes: [
       {"turn.start", Mnft.Cad.Actions.TurnStart},
@@ -47,7 +51,7 @@ defmodule Mnft.Cad.Actions.TurnStart do
       current: [type: {:map, :string, :any}, default: %{}]
     ]
 
-  alias Mnft.Cad.{Events, Turn}
+  alias Mnft.Cad.{Events, Images, Turn}
 
   def run(_params, %{state: %{status: status}} = _context) when status != :idle do
     # Keep verbatim in sync with Mnft.Cad.Sessions.@busy_message.
@@ -65,12 +69,15 @@ defmodule Mnft.Cad.Actions.TurnStart do
            )
          end) do
       {:ok, _pid} ->
-        Events.emit(params.session_id, "turn_started", %{})
+        started_ms = System.system_time(:millisecond)
+        Events.emit(params.session_id, "turn_started", %{started_ms: started_ms})
 
         {:ok,
          %{
            status: :generating,
-           turn_started_ms: System.system_time(:millisecond),
+           turn_started_ms: started_ms,
+           turn_message: params.message,
+           turn_photos: display_photos(params.photos),
            session_id: params.session_id,
            owner_id: params.owner_id
          }}
@@ -79,6 +86,11 @@ defmodule Mnft.Cad.Actions.TurnStart do
         {:error, "could not start the turn: #{inspect(reason)}"}
     end
   end
+
+  # Display-only photo meta (label + ≤64 KB thumbnail data URL) so a
+  # reconnecting UI can rebuild the pending bubble without the raw uploads.
+  defp display_photos(photos),
+    do: Enum.map(photos, &%{"label" => &1["label"], "thumb" => Images.thumbnail(&1)})
 end
 
 defmodule Mnft.Cad.Actions.TurnFinish do
@@ -92,6 +104,6 @@ defmodule Mnft.Cad.Actions.TurnFinish do
     ]
 
   def run(_params, _context) do
-    {:ok, %{status: :idle, turn_started_ms: 0}}
+    {:ok, %{status: :idle, turn_started_ms: 0, turn_message: "", turn_photos: []}}
   end
 end

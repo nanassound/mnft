@@ -12,6 +12,7 @@ defmodule MnftCadWeb.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
+      listeners: [Phoenix.CodeReloader],
       name: "mnft_cad_web"
     ]
   end

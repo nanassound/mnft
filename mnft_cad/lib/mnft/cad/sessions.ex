@@ -4,9 +4,10 @@ defmodule Mnft.Cad.Sessions do
   registered with the Jido instance as `"cad_session:<session_id>"`.
 
   Stage events go through `Mnft.Cad.Events.emit/3` (hosts bridge to their own
-  PubSub); event names are `turn_started`, `llm_started`, `llm_done`,
-  `exec_started`, `exec_done`, `turn_done` (payload = full result map),
-  `turn_failed`, on topic `"cad_session:" <> session_id`.
+  PubSub); event names are `turn_started` (payload `%{started_ms: ...}`),
+  `llm_started`, `llm_done`, `exec_started`, `exec_done`, `turn_done`
+  (payload = full result map), `turn_failed`, on topic
+  `"cad_session:" <> session_id`.
   """
 
   alias Mnft.Cad.Events
@@ -48,6 +49,41 @@ defmodule Mnft.Cad.Sessions do
   def whereis(session_id) do
     Mnft.Cad.Jido.whereis(agent_id(session_id))
   end
+
+  @doc """
+  In-flight turn context for UI reconnection: %{running: boolean,
+  started_ms: non_neg_integer, message: String.t() | nil,
+  photos: [%{"label" => term, "thumb" => term}]} (display-only meta).
+  Safe when no agent is running.
+  """
+  def turn_info(session_id) do
+    case whereis(session_id) do
+      nil ->
+        not_running()
+
+      server ->
+        case Jido.AgentServer.state(server) do
+          {:ok, state} ->
+            turn = state.agent.state
+
+            if turn.status != :idle and turn.turn_started_ms > 0 do
+              %{
+                running: true,
+                started_ms: turn.turn_started_ms,
+                message: turn.turn_message,
+                photos: turn.turn_photos
+              }
+            else
+              not_running()
+            end
+
+          _ ->
+            not_running()
+        end
+    end
+  end
+
+  defp not_running, do: %{running: false, started_ms: 0, message: nil, photos: []}
 
   @doc """
   Request a turn. Returns `{:ok, :started}` or `{:error, reason}` (busy /
@@ -120,6 +156,13 @@ defmodule Mnft.Cad.Sessions do
   def broadcast(session_id, event, payload), do: Events.emit(session_id, event, payload)
 
   defp initial_state(session) do
-    %{session_id: session.id, owner_id: session.owner_id, status: :idle, turn_started_ms: 0}
+    %{
+      session_id: session.id,
+      owner_id: session.owner_id,
+      status: :idle,
+      turn_started_ms: 0,
+      turn_message: "",
+      turn_photos: []
+    }
   end
 end
