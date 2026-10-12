@@ -11,6 +11,9 @@ defmodule Mnft.Cad.Events do
 
   Events: `turn_started`, `llm_started`, `llm_done`, `exec_started`,
   `exec_done`, `turn_done` (payload = full result map), `turn_failed`.
+  Reference fetching adds `fetch_started` (`%{count: n}`) and `fetch_done`
+  (`%{fetched:, pages:, failed: [%{url:, reason:}]}`) before the first
+  `llm_started`.
   Also emits `[:mnft_cad, :cad, :event]` telemetry.
   """
 

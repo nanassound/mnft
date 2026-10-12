@@ -33,6 +33,7 @@ defmodule Mnft.Cad.MixProject do
     [
       {:jido, "~> 2.4"},
       {:req_llm, "~> 1.27"},
+      {:req, "~> 0.7"},
       {:jason, "~> 1.2"},
       {:telemetry, "~> 1.2"}
     ]

@@ -98,4 +98,11 @@ config :mnft_cad, :cad,
     timeout_s: String.to_integer(getenv.("LLM_TIMEOUT_S", "600")),
     max_tokens: String.to_integer(getenv.("LLM_MAX_TOKENS", "32768")),
     repair_max_elapsed_s: String.to_integer(getenv.("REPAIR_MAX_ELAPSED_S", "240"))
+  ],
+  references: [
+    pdftoppm_bin: getenv.("PDFTOPPM_BIN", "pdftoppm"),
+    pdftotext_bin: getenv.("PDFTOTEXT_BIN", "pdftotext"),
+    fetch_timeout_s: String.to_integer(getenv.("REF_FETCH_TIMEOUT_S", "30")),
+    max_pages: String.to_integer(getenv.("REF_MAX_PAGES", "3")),
+    pdf_dpi: String.to_integer(getenv.("REF_PDF_DPI", "150"))
   ]

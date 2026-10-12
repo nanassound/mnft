@@ -295,6 +295,135 @@ defmodule Mnft.Cad.TurnTest do
            ]
   end
 
+  test "datasheet URL turn: fetched page joins images, enriches the prompt, vision model wins", %{
+    session: session
+  } do
+    LLMFake.set_script([llm_ok("```python\npart = Box(427, 30, 30)\n```")])
+    EngineFake.set_script([ok_worker()])
+
+    message = "Model this rails https://example.com/z-rails.pdf, length 84HP"
+    result = Turn.run(session.id, session.owner_id, message, [], %{})
+
+    assert result.ok
+    assert result.meta.vision
+    assert result.meta.model == "test-vision"
+
+    call = hd(LLMFake.calls())
+    assert call.message =~ "[Reference datasheet https://example.com/z-rails.pdf — 1 page(s)"
+    assert call.message =~ "84 HP = 427 mm"
+    assert [%{label: "reference", media_type: "image/png"}] = call.images
+    assert call.vision?
+
+    # fetch stage events, in order, before the LLM
+    assert_receive %{event: "fetch_started", payload: %{count: 1}}
+    assert_receive %{event: "fetch_done", payload: %{fetched: 1, pages: 1, failed: []}}
+    assert_receive %{event: "llm_started"}
+
+    # persisted: original content, references in meta, page in photos meta
+    user_msg = Cad.list_messages(session.id) |> hd()
+    assert user_msg.content == message
+
+    assert user_msg.meta["references"] == [
+             %{
+               "url" => "https://example.com/z-rails.pdf",
+               "pages" => 1,
+               "text" => "Tiptop z-rails: 84 HP = 427 mm length, 23.8 mm deep"
+             }
+           ]
+
+    assert user_msg.meta["photos"] == [
+             %{"label" => "reference", "media_type" => "image/png", "bytes" => 4}
+           ]
+  end
+
+  test "non-PDF reference stays a text turn: skip leaves message untouched", %{session: session} do
+    # ReferencesFake only handles URLs; a URL-less message exercises the
+    # no-reference passthrough: no fetch events, text model, no images.
+    LLMFake.set_script([llm_ok("Sure.")])
+
+    result = Turn.run(session.id, session.owner_id, "what dimensions fit 84HP?", [], %{})
+
+    assert result.ok
+    refute result.meta.vision
+    assert result.meta.model == "test-text"
+    assert hd(LLMFake.calls()).message == "what dimensions fit 84HP?"
+    assert hd(LLMFake.calls()).images == []
+    user_msg = Cad.list_messages(session.id) |> hd()
+    assert user_msg.meta["references"] == []
+    refute_receive %{event: "fetch_started"}
+  end
+
+  test "photo-less follow-up carries the previous photos as \"earlier\" (prompt-only)", %{
+    session: session
+  } do
+    photo = %{data_url: "data:image/png;base64," <> Base.encode64("png"), label: "reference"}
+
+    LLMFake.set_script([
+      llm_ok("```python\npart = Box(30,30,30)\n```"),
+      llm_ok("```python\npart = Box(60,30,30)\n```")
+    ])
+
+    EngineFake.set_script([
+      ok_worker(),
+      %{
+        ok: true,
+        stage: :exec,
+        error: nil,
+        artifacts: %{model_id: "2222222222222222", stl: "/tmp/x", step: "/tmp/x", glb: nil},
+        mesh: %{"triangles" => 24, "bbox_mm" => [60.0, 30.0, 30.0], "volume_mm3" => 54_000.0},
+        exec_ms: 1
+      }
+    ])
+
+    Turn.run(session.id, session.owner_id, "a cube", [photo], %{})
+    result = Turn.run(session.id, session.owner_id, "make it bigger", [], %{})
+
+    assert result.ok
+    assert result.meta.vision
+    assert result.meta.model == "test-vision"
+
+    [first, second] = LLMFake.calls()
+    assert first.vision?
+    [%{label: "earlier"}] = second.images
+    assert second.vision?
+
+    # carried photos are prompt-only: journal shows none for the carry turn
+    user_msgs = Cad.list_messages(session.id) |> Enum.filter(&(&1.role == :user))
+    assert Enum.at(user_msgs, 1).meta["photos"] == []
+    assert Enum.at(user_msgs, 1).meta["references"] == []
+  end
+
+  test "a turn with its own photos does not receive carried images", %{session: session} do
+    p1 = %{data_url: "data:image/png;base64," <> Base.encode64("p1"), label: "reference"}
+    p2 = %{data_url: "data:image/png;base64," <> Base.encode64("p2"), label: "current"}
+
+    LLMFake.set_script([
+      llm_ok("```python\npart = Box(30,30,30)\n```"),
+      llm_ok("```python\npart = Box(90,30,30)\n```")
+    ])
+
+    EngineFake.set_script([
+      ok_worker(),
+      %{
+        ok: true,
+        stage: :exec,
+        error: nil,
+        artifacts: %{model_id: "3333333333333333", stl: "/tmp/x", step: "/tmp/x", glb: nil},
+        mesh: %{"triangles" => 48, "bbox_mm" => [90.0, 30.0, 30.0], "volume_mm3" => 81_000.0},
+        exec_ms: 1
+      }
+    ])
+
+    Turn.run(session.id, session.owner_id, "first", [p1], %{})
+    Turn.run(session.id, session.owner_id, "second", [p2], %{})
+
+    [first, second] = LLMFake.calls()
+    assert length(first.images) == 1
+    assert length(second.images) == 1
+    assert hd(second.images).label == "current"
+    refute hd(second.images).label == "earlier"
+  end
+
   test "invalid photo short-circuits with the validator's message", %{session: session} do
     bad = [%{data_url: "data:image/gif;base64," <> Base.encode64("GIF"), label: "reference"}]
 
@@ -497,6 +626,45 @@ defmodule Mnft.Cad.TurnTest do
       end)
 
     assert status == :idle
+  end
+
+  test "turn_info reports the in-flight turn and resets after it finishes", %{
+    session: session
+  } do
+    # No agent server yet
+    assert Sessions.turn_info(session.id) == %{
+             running: false,
+             started_ms: 0,
+             message: nil,
+             photos: []
+           }
+
+    LLMFake.set_script([{:hold, llm_ok("```python\npart = Box(30,30,30)\n```")}])
+    EngineFake.set_script([ok_worker()])
+
+    assert {:ok, :started} = Sessions.request_turn(session, "a 30 mm cube", [], %{})
+
+    assert Enum.find_value(1..100, fn _ ->
+             if LLMFake.held() != [], do: :held, else: Process.sleep(20) && nil
+           end)
+
+    info = Sessions.turn_info(session.id)
+    assert info.running == true
+    assert info.started_ms > 0
+    assert info.message == "a 30 mm cube"
+    assert info.photos == []
+
+    LLMFake.release(hd(LLMFake.held()))
+    assert_receive %{event: "turn_done"}, 3000
+
+    # turn.finish is a cast; poll until the agent processed it
+    assert Enum.find_value(1..100, fn _ ->
+             if Sessions.turn_info(session.id).running == false,
+               do: :idle,
+               else: Process.sleep(20) && nil
+           end)
+
+    assert Sessions.turn_info(session.id).message == nil
   end
 
   test "busy session rejects a second turn (action contract)", %{session: session} do

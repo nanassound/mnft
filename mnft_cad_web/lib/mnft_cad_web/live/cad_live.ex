@@ -130,6 +130,13 @@ defmodule MnftCadWeb.CadLive do
 
   def handle_info(:tick, socket), do: {:noreply, socket}
 
+  def handle_info(%{event: "fetch_started"}, socket),
+    do: {:noreply, assign(socket, :stage, "reading reference")}
+
+  def handle_info(%{event: "fetch_done"}, socket),
+    # the stage chip stays on "reading reference" until llm_started flips it
+    do: {:noreply, socket}
+
   def handle_info(%{event: "llm_started"}, socket),
     do: {:noreply, assign(socket, :stage, "thinking")}
 

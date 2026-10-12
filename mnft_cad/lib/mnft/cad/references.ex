@@ -1,0 +1,335 @@
+defmodule Mnft.Cad.References do
+  @moduledoc """
+  Deterministic pre-LLM fetch stage for reference datasheets.
+
+  A message like "Model this rails https://…/z-rails.pdf, length 84HP" used to
+  reach the LLM as inert text: nothing fetched the URL, so the model had to
+  guess the dimensions (and slow text models stalled on the datasheet-class
+  reasoning). `enrich/2` runs before the LLM call: it detects URLs in the
+  message, downloads PDFs, renders pages to PNG (poppler `pdftoppm`) and
+  extracts text (`pdftotext`), then appends the text to the prompt and returns
+  the rendered pages as images for the vision model.
+
+  Scope: PDF references only (`application/pdf` content type or `.pdf` path).
+  HTML and image URLs are left as plain text.
+
+  Nothing here ever raises: every failure degrades to a note appended to the
+  prompt asking the user for the key dimensions, and the turn proceeds.
+
+  Config under `:mnft_cad, :cad, :references` (all optional, defaults shown in
+  `@defaults`); the fetch call itself is replaceable via
+  `:references_fetch_fun` (`{Mod, fun, args}`, called with the URL) — that
+  seam exists for tests.
+  """
+
+  require Logger
+
+  alias Mnft.Cad.Config
+  alias Mnft.Cad.Events
+
+  @url_re ~r{https?://[^\s<>"')\]]+}i
+
+  @defaults [
+    pdftoppm_bin: "pdftoppm",
+    pdftotext_bin: "pdftotext",
+    fetch_timeout_s: 30,
+    max_pdf_mb: 20,
+    max_pages: 3,
+    pdf_dpi: 150,
+    max_text_chars: 4000,
+    max_urls_per_turn: 2
+  ]
+
+  # Same limits as Mnft.Cad.Images for a single turn's images.
+  @max_image_bytes 4 * 1024 * 1024
+  @max_total_image_bytes 8 * 1024 * 1024
+
+  @fetch_default {__MODULE__, :fetch_pdf, []}
+
+  @doc """
+  Ordered, unique URLs in the message, capped at `max_urls_per_turn`.
+  Trailing sentence punctuation is not part of the URL.
+  """
+  @spec detect(term()) :: [String.t()]
+  def detect(message) when is_binary(message) do
+    @url_re
+    |> Regex.scan(message, capture: :first)
+    |> List.flatten()
+    |> Enum.map(&Regex.replace(~r/[.,;:!?]+\z/, &1, ""))
+    |> Enum.uniq()
+    |> Enum.take(cfg()[:max_urls_per_turn])
+  end
+
+  def detect(_), do: []
+
+  @doc """
+  Download a PDF reference. Returns `{:ok, bytes}`, `:skip` (not a PDF: the
+  final content type is not `application/pdf` and the URL path does not end
+  in `.pdf`), or `{:error, reason}`.
+  """
+  @spec fetch_pdf(String.t()) :: {:ok, binary()} | {:error, String.t()} | :skip
+  def fetch_pdf(url) when is_binary(url) do
+    c = cfg()
+    timeout_ms = c[:fetch_timeout_s] * 1000
+    max_mb = c[:max_pdf_mb] * 1.0
+    max_bytes = trunc(max_mb * 1_048_576)
+
+    try do
+      case Req.get(url, redirect: :follow, receive_timeout: timeout_ms) do
+        {:ok, %Req.Response{status: 200, headers: headers, body: body}} ->
+          cond do
+            over_content_length?(headers, max_bytes) -> {:error, too_large(max_mb)}
+            byte_size(body) > max_bytes -> {:error, too_large(max_mb)}
+            pdf?(headers, url) -> {:ok, body}
+            true -> :skip
+          end
+
+        {:ok, %Req.Response{status: status}} ->
+          {:error, "HTTP #{status}"}
+
+        {:error, exception} ->
+          {:error, error_reason(exception)}
+      end
+    rescue
+      e -> {:error, error_reason(e)}
+    end
+  end
+
+  @doc """
+  Render fetched PDF bytes into LLM image parts + extracted text.
+
+  Writes the bytes to a temp file (always removed), runs `pdftoppm -png` for
+  at most `max_pages` pages at `pdf_dpi` DPI, and `pdftotext -layout`. Image
+  caps match `Mnft.Cad.Images` (4 MiB per page, 8 MiB per turn); pages beyond
+  a cap are dropped.
+
+  Returns `%{images: [image()], text: String.t(), meta: map()}` where `meta`
+  reports `url`, rendered `pages`, `text_chars`, and the `tool` actually used
+  (`"poppler"`, `"pdftotext"` when only text extraction is available, or
+  `"none"` when both poppler binaries are missing).
+  """
+  @spec pdf_to_parts(String.t(), binary()) :: %{
+          images: [map()],
+          text: String.t(),
+          meta: map()
+        }
+  def pdf_to_parts(url, bytes) when is_binary(bytes) do
+    c = cfg()
+    tmp = Path.join(System.tmp_dir!(), "mnft-ref-#{:rand.uniform(1_000_000)}.pdf")
+    File.write!(tmp, bytes)
+
+    try do
+      pages = render_pages(tmp, c)
+      text = extract_text(tmp, c)
+
+      tool =
+        cond do
+          pages != [] -> "poppler"
+          System.find_executable(c[:pdftotext_bin]) != nil -> "pdftotext"
+          true -> "none"
+        end
+
+      %{
+        images: pages,
+        text: text,
+        meta: %{url: url, pages: length(pages), text_chars: String.length(text), tool: tool}
+      }
+    after
+      File.rm!(tmp)
+    end
+  end
+
+  @doc """
+  The fetch stage for one turn. Returns
+  `{llm_message, images, references_meta}`:
+
+    * `llm_message` — the original message with a reference block appended
+      per fetched PDF (page count + extracted text), or a failure note when a
+      URL could not be fetched. Non-PDF URLs change nothing.
+    * `images` — rendered datasheet pages (same shape as
+      `Mnft.Cad.Images.validate/1` entries, no `:thumb`).
+    * `references_meta` — `%{"url" =>, "pages" =>, "text" =>}` per fetched
+      reference, string-keyed for journal persistence.
+
+  Emits `fetch_started` / `fetch_done` events around the fetches. With no
+  URLs detected: `{message, [], []}` and no events.
+  """
+  @spec enrich(String.t(), String.t()) :: {String.t(), [map()], [map()]}
+  def enrich(session_id, message) when is_binary(message) do
+    case detect(message) do
+      [] ->
+        {message, [], []}
+
+      urls ->
+        Events.emit(session_id, "fetch_started", %{count: length(urls)})
+
+        {llm_message, images, refs, failed} =
+          Enum.reduce(urls, {message, [], [], []}, &handle_url/2)
+
+        Events.emit(session_id, "fetch_done", %{
+          fetched: length(refs),
+          pages: refs |> Enum.map(& &1["pages"]) |> Enum.sum(),
+          failed: failed
+        })
+
+        {llm_message, images, refs}
+    end
+  end
+
+  defp handle_url(url, {msg, images, refs, failed}) do
+    case fetch_one(url) do
+      {:ok, %{images: page_images, text: text, pages: pages}} ->
+        note = "\n\n[Reference datasheet #{url} — #{pages} page(s) attached as images]\n" <> text
+
+        {msg <> note, images ++ page_images,
+         refs ++ [%{"url" => url, "pages" => pages, "text" => text}], failed}
+
+      :skip ->
+        {msg, images, refs, failed}
+
+      {:error, reason} ->
+        Logger.warning("reference fetch failed: #{url} — #{reason}")
+
+        note =
+          "\n\n[Reference #{url} could not be fetched (#{reason}) — " <>
+            "ask the user for the key dimensions]"
+
+        {msg <> note, images, refs, failed ++ [%{url: url, reason: reason}]}
+    end
+  end
+
+  # One URL: fetch + parse. Any internal error becomes a fetch failure, never
+  # a crash — the turn must proceed.
+  defp fetch_one(url) do
+    try do
+      {mod, fun, args} = Config.get(:references_fetch_fun, @fetch_default)
+
+      with {:ok, bytes} <- apply(mod, fun, [url | args]),
+           %{images: images, text: text, meta: %{pages: pages}} <- pdf_to_parts(url, bytes) do
+        {:ok, %{images: images, text: text, pages: pages}}
+      end
+    rescue
+      e -> {:error, error_reason(e)}
+    end
+  end
+
+  defp over_content_length?(headers, max_bytes) do
+    case headers |> Map.get("content-length", []) |> List.first() do
+      nil -> false
+      len ->
+        case Integer.parse(to_string(len)) do
+          {n, _} -> n > max_bytes
+          _ -> false
+        end
+    end
+  end
+
+  defp too_large(max_mb), do: "pdf larger than #{mb(max_mb)} MB"
+
+  defp pdf?(headers, url) do
+    mime =
+      headers |> Map.get("content-type", []) |> List.first("") |> String.downcase() |> String.trim()
+
+    String.starts_with?(mime, "application/pdf") or path_pdf?(url)
+  end
+
+  defp path_pdf?(url) do
+    case URI.parse(url).path do
+      path when is_binary(path) -> String.ends_with?(String.downcase(path), ".pdf")
+      _ -> false
+    end
+  end
+
+  defp render_pages(tmp, c) do
+    bin = System.find_executable(c[:pdftoppm_bin])
+    prefix = tmp <> "-page"
+
+    with bin when is_binary(bin) <- bin,
+         {_, 0} <-
+           System.cmd(
+             bin,
+             ["-png", "-r", to_string(c[:pdf_dpi]), "-l", to_string(c[:max_pages]), tmp, prefix],
+             stderr_to_stdout: true
+           ) do
+      paths =
+        prefix
+        |> then(&Path.wildcard(&1 <> "*.png"))
+        |> Enum.sort_by(&page_number/1)
+
+      pages = paths |> Enum.map(&read_page/1) |> cap_images()
+      Enum.each(paths, &File.rm/1)
+      pages
+    else
+      nil ->
+        []
+
+      {output, code} ->
+        Logger.warning("pdftoppm failed (exit #{code}): #{String.slice(output, 0, 300)}")
+        []
+    end
+  end
+
+  defp read_page(path) do
+    case File.read(path) do
+      {:ok, raw} ->
+        %{
+          data_url: "data:image/png;base64," <> Base.encode64(raw),
+          media_type: "image/png",
+          bytes: raw,
+          size: byte_size(raw),
+          label: "reference"
+        }
+
+      _ ->
+        nil
+    end
+  end
+
+  # Sequential caps: the first page over a cap drops the rest.
+  defp cap_images(pages) do
+    {kept, _, _} =
+      Enum.reduce(pages, {[], 0, false}, fn page, {acc, total, full} ->
+        cond do
+          full -> {acc, total, true}
+          page.size > @max_image_bytes -> {acc, total, true}
+          total + page.size > @max_total_image_bytes -> {acc, total, true}
+          true -> {[page | acc], total + page.size, false}
+        end
+      end)
+
+    Enum.reverse(kept)
+  end
+
+  defp page_number(path) do
+    case Regex.run(~r/(\d+)\.png\z/, path) do
+      [_, n] -> String.to_integer(n)
+      _ -> 0
+    end
+  end
+
+  defp extract_text(tmp, c) do
+    case System.find_executable(c[:pdftotext_bin]) do
+      nil ->
+        ""
+
+      bin ->
+        case System.cmd(bin, ["-layout", tmp, "-"], stderr_to_stdout: true) do
+          {text, 0} -> text |> String.trim() |> String.slice(0, c[:max_text_chars])
+          {output, code} ->
+            Logger.warning("pdftotext failed (exit #{code}): #{String.slice(output, 0, 300)}")
+            ""
+        end
+    end
+  end
+
+  defp error_reason(e) do
+    case Exception.message(e) do
+      "" -> "internal error"
+      msg -> msg
+    end
+  end
+
+  defp mb(mega_bytes), do: :erlang.float_to_binary(mega_bytes / 1.0, decimals: 1)
+
+  defp cfg, do: Keyword.merge(@defaults, Config.get(:references, []))
+end

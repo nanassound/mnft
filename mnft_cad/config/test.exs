@@ -11,6 +11,7 @@ config :mnft_cad, :cad,
   turn_budget_s: 900,
   llm_module: Mnft.Cad.LLMFake,
   engine: Mnft.Cad.EngineFake,
+  references_module: Mnft.Cad.ReferencesFake,
   events: {Mnft.Cad.TestEvents, :emit, []},
   llm: [
     base_url: "https://example.test/v4",

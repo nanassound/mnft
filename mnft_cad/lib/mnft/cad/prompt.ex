@@ -196,6 +196,9 @@ defmodule Mnft.Cad.Prompt do
   @doc "Short text label placed before each reference image part, verbatim."
   def reference_image_label, do: "Reference photo from the user:"
 
+  @doc "Short text label placed before each carried photo from an earlier turn, verbatim."
+  def earlier_photo_label, do: "Reference photo from earlier in this conversation:"
+
   @doc "Label for the attached render of the current model, verbatim."
   def current_render_label,
     do:

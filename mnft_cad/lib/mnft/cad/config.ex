@@ -6,7 +6,11 @@ defmodule Mnft.Cad.Config do
   `:data_dir`, `:worker_python`, `:worker_cwd`, `:exec_concurrency`,
   `:exec_timeout_s`, `:turn_budget_s`, `:openscad`, `:llm` (keyword:
   `:provider`, `:base_url`, `:api_key`, `:text_model`, `:vision_model`,
-  `:timeout_s`, `:max_tokens`, `:repair_max_elapsed_s`).
+  `:timeout_s`, `:max_tokens`, `:repair_max_elapsed_s`), `:references`
+  (keyword: `:pdftoppm_bin`, `:pdftotext_bin`, `:fetch_timeout_s`,
+  `:max_pdf_mb`, `:max_pages`, `:pdf_dpi`, `:max_text_chars`,
+  `:max_urls_per_turn`), `:references_module` and `:references_fetch_fun`
+  (test seams).
   """
 
   @spec all() :: keyword()

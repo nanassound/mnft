@@ -12,7 +12,7 @@ defmodule Mnft.Cad.Turn do
   require Logger
 
   alias Mnft.Cad
-  alias Mnft.Cad.{CodeGen, Config, Events, Images, Model, Sessions}
+  alias Mnft.Cad.{CodeGen, Config, Events, Images, Model, PhotoCache, Sessions}
 
   @truncated_headline "the model's answer was cut off before the code block finished (token limit)"
   @fence_headline "the model's reply contained a code fence but no complete code block"
@@ -51,7 +51,25 @@ defmodule Mnft.Cad.Turn do
   defp process(session, message, photos, current, t0) do
     cfg = Config.llm()
 
-    with {:ok, images} <- Images.validate(photos) do
+    with {:ok, user_photos} <- Images.validate(photos),
+         {llm_message, ref_images, references} <-
+           Cad.references_module().enrich(session.id, message) do
+      # fetched datasheet pages take precedence over user photos at the cap
+      fetched = Enum.take(ref_images ++ user_photos, 5)
+
+      # No photos and no fetched pages this turn: carry the session's most
+      # recent image set (one generation deep, prompt-only). Carried images
+      # were validated in their origin turn and are never re-validated.
+      images =
+        if fetched == [] do
+          session.id
+          |> PhotoCache.take()
+          |> Enum.map(&Map.put(&1, :label, "earlier"))
+          |> Enum.take(5)
+        else
+          fetched
+        end
+
       vision? = images != []
       model_used = if vision?, do: cfg[:vision_model], else: cfg[:text_model]
       history = Cad.llm_history(session.id)
@@ -64,23 +82,33 @@ defmodule Mnft.Cad.Turn do
           owner_id: session.owner_id,
           model: model_used,
           vision: vision?,
-          photos_meta:
-            Enum.map(images, fn img ->
-              meta = %{label: img.label, media_type: img.media_type, bytes: img.size}
-              if img.thumb, do: Map.put(meta, :thumb, img.thumb), else: meta
-            end)
+          references: references,
+          photos_meta: Enum.map(fetched, &photo_meta/1)
         })
-        |> ask_and_build(message, history, images, current, vision?, t0)
+        |> ask_and_build(llm_message, history, images, current, vision?, t0)
 
       result_1 =
-        maybe_recheck_noop(result_1, prev_model, message, history, images, current, vision?, t0)
+        maybe_recheck_noop(result_1, prev_model, llm_message, history, images, current, vision?, t0)
 
-      maybe_repair(result_1, session, message, history, images, current, vision?, model_used, t0)
+      result =
+        maybe_repair(result_1, session, llm_message, history, images, current, vision?, model_used, t0)
+
+      if images != [], do: PhotoCache.put(session.id, images)
+
+      result
     else
       {:error, reason} ->
         base_result(%{session_id: session.id, owner_id: session.owner_id})
         |> Map.put(:error, reason)
     end
+  end
+
+  # Journal keeps photo METADATA only (never bytes): label, media type, size,
+  # and the small client thumbnail when present. Fetched datasheet pages have
+  # no thumb — the chat UI falls back to the photo count.
+  defp photo_meta(img) do
+    meta = %{label: img.label, media_type: img.media_type, bytes: img.size}
+    if img[:thumb], do: Map.put(meta, :thumb, img[:thumb]), else: meta
   end
 
   defp ask_and_build(base, message, history, images, current, vision?, t0) do
@@ -398,7 +426,11 @@ defmodule Mnft.Cad.Turn do
         "photos" =>
           Enum.map(result[:photos_meta] || [], fn m ->
             Map.new(m, fn {k, v} -> {to_string(k), v} end)
-          end)
+          end),
+        # fetched reference datasheets: url + page count + extracted text
+        # (already capped at fetch time). Lets later turns — and post-restart
+        # turns — see the extracted dimensions instead of a bare URL.
+        "references" => result.references || []
       }
     }
 
@@ -507,7 +539,8 @@ defmodule Mnft.Cad.Turn do
       first_code: nil,
       first_err: nil,
       repairable: false,
-      photos_meta: []
+      photos_meta: [],
+      references: []
     }
     |> Map.merge(Map.new(over))
   end

@@ -3,9 +3,11 @@ defmodule Mnft.Cad.Images do
   Uploaded-image validation for a chat turn, ported from the PoC
   (`backend/main.py`).
 
-  Privacy invariant: image BYTES are held in the turn process only -- decoded
-  here, passed to the LLM for this single turn, then dropped. They are never
-  written to the model store, never persisted, never logged; error strings
+  Privacy invariant: image BYTES are held in the turn process and in the
+  in-memory `Mnft.Cad.PhotoCache` (the session's most recent image set, so a
+  photo-less follow-up turn can re-send them once) -- decoded here, passed to
+  the LLM, then dropped from the process. They are never written to disk or
+  the model store, never persisted to the journal, never logged; error strings
   below carry media types and sizes only.
   """
 

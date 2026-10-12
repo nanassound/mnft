@@ -31,6 +31,7 @@ defmodule Mnft.Cad.Application do
 
   defp base_children(cfg) do
     [
+      Mnft.Cad.PhotoCache,
       Mnft.Cad.Jido,
       {Mnft.Cad.ExecLimiter, [capacity: cfg[:exec_concurrency] || 2]},
       {Task.Supervisor, name: Mnft.Cad.TurnSupervisor}

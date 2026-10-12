@@ -21,6 +21,9 @@ defmodule Mnft.Cad do
   @spec llm_module() :: module()
   def llm_module, do: Config.get(:llm_module, Mnft.Cad.LLM)
 
+  @spec references_module() :: module()
+  def references_module, do: Config.get(:references_module, Mnft.Cad.References)
+
   # --- sessions ----------------------------------------------------------------
 
   @spec list_sessions(String.t()) :: [Session.t()]
@@ -73,14 +76,40 @@ defmodule Mnft.Cad do
         _entry, acc -> acc
       end)
 
-    Enum.map(Enum.with_index(entries), fn {%{role: role, content: content}, idx} ->
+    Enum.map(Enum.with_index(entries), fn {%{role: role, content: content, meta: meta}, idx} ->
       content =
         if role == :assistant and idx != newest_assistant_idx,
           do: code_gen().strip_code_blocks(content),
           else: content
 
-      %{role: role, content: String.slice(content, 0, max_chars)}
+      content = String.slice(content, 0, max_chars)
+
+      # Fetched reference text re-enters after the slice so it is never cut:
+      # a later (or post-restart) turn must see the extracted dimensions
+      # instead of a bare URL it cannot read.
+      content =
+        if role == :user,
+          do: append_references(content, meta),
+          else: content
+
+      %{role: role, content: content}
     end)
+  end
+
+  defp append_references(content, meta) do
+    refs = (is_map(meta) && Map.get(meta, "references")) || []
+
+    if is_list(refs) do
+      Enum.reduce(refs, content, fn
+        %{"url" => url, "text" => text}, acc when is_binary(url) and is_binary(text) ->
+          acc <> "\n\n[Reference datasheet text extracted from " <> url <> "]\n" <> text
+
+        _ref, acc ->
+          acc
+      end)
+    else
+      content
+    end
   end
 
   # --- models ------------------------------------------------------------------

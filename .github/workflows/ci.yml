@@ -35,6 +35,13 @@ jobs:
           uv pip install -e . pytest
       - name: Compile core
         run: cd mnft_cad && mix deps.get && mix compile --warnings-as-errors
+      - name: Install poppler (reference-PDF tests)
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install poppler
+          else
+            sudo apt-get update && sudo apt-get install -y poppler-utils
+          fi
       - name: Core tests
         run: cd mnft_cad && mix test
       - name: Reference web app

@@ -188,9 +188,11 @@ defmodule Mnft.Cad.CodeGen do
     parts =
       Enum.reduce(images, parts, fn img, acc ->
         label =
-          if img[:label] == "current" or img[:label] == :current,
-            do: Prompt.current_render_label(),
-            else: Prompt.reference_image_label()
+          cond do
+            img[:label] in ["current", :current] -> Prompt.current_render_label()
+            img[:label] in ["earlier", :earlier] -> Prompt.earlier_photo_label()
+            true -> Prompt.reference_image_label()
+          end
 
         acc ++ [%{type: :text, text: label}, image_part(img)]
       end)
