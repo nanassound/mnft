@@ -1,0 +1,16 @@
+[project]
+name = "cad-worker"
+version = "0.1.0"
+description = "Guarded build123d execution service for the mnft CAD core"
+requires-python = ">=3.11,<3.13"
+dependencies = ["build123d==0.13.0"]
+
+[project.scripts]
+cad-worker = "cad_worker.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cad_worker"]

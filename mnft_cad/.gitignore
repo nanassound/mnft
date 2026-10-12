@@ -1,0 +1,13 @@
+# Mix artifacts
+/_build/
+/deps/
+/.elixir_ls/
+
+# Local runtime data
+/data/
+
+# Environment
+/.env
+
+# BEAM crash dumps
+*.dump

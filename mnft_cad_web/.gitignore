@@ -1,0 +1,6 @@
+/_build/
+/deps/
+/data/
+/priv/static/assets/
+npm-debug.log
+.elixir_ls/

@@ -1,0 +1,88 @@
+# mnft
+
+Say it out loud and your mouth already knows the word: manufacture.
+
+The word started life as Latin *manu factus*, made by hand. It travelled far
+and refused to change much along the way. The English say manufacture, the
+Estonians manufaktuur, the Indonesians manufaktur. Germans kept Manufaktur,
+the French manufacture, Italians manifattura, Spaniards manufactura, and the
+Portuguese trimmed it to manufatura. You will hear manufactuur in Dutch,
+manufaktur in Swedish, manufaktuuri in Finnish, manufaktura in Polish, and
+мануфактура in Russian. Different alphabets, same idea, and the same four
+letters hiding in every single one of them: m, n, f, t.
+
+That idea was making things by hand. This project keeps the making and hands
+the manual labour to something else. You describe a part in plain language.
+A language model writes CAD code. A guarded engine runs it, and you get an
+STL, a STEP file, and a 3D preview you can turn around in your browser.
+Made by prompt, checked by machine, downloaded in the formats a machine shop
+actually wants.
+
+Everything here is open source, Apache-2.0.
+
+```
+mnft_cad/       the core. Turn pipeline, pluggable engines (build123d,
+                OpenSCAD), pluggable storage (an ETS table backed by an
+                fsynced journal by default), BYO-key multi-provider LLM.
+                No Phoenix, no auth, no database server.
+mnft_cad_web/   a reference Phoenix app. Chat UI, 3D viewer, anonymous cookie
+                owner, no accounts. Run it and see.
+cad_worker/     a small Python CLI that runs build123d code behind static
+                checks, rlimits and a hard wall clock. The build123d
+                engine's runtime.
+```
+
+## Try it
+
+```bash
+cd cad_worker && uv venv --python 3.12 && uv pip install -e . pytest && cd ..
+cp .env.example mnft_cad_web/.env      # then add your LLM_API_KEY
+cd mnft_cad_web && mix setup
+mix phx.server                            # http://localhost:4200
+```
+
+Engines are configuration, not religion. The default is build123d (full
+fidelity, STEP included, runs through cad_worker). If you would rather not
+install a gigabyte of OpenCascade wheels, switch to the OpenSCAD engine: one
+forty-megabyte binary, everything else done in pure Elixir. OpenSCAD gives
+you meshes, so no STEP file there; it is the 3D-printing path, not the
+machining path.
+
+## Building on the core
+
+`mnft_cad/README.md` has the embedding guide. The short version: the core
+never asks who you are. You hand it an opaque owner id, your choice of
+storage adapter, your choice of engine, and an event handler to carry
+progress wherever you want. API keys come with a resolver callback, so you
+can keep them wherever your host keeps secrets. Provider, endpoint and
+models are config only.
+
+Environment variables, if you just want to run it: `LLM_API_KEY`,
+`LLM_BASE_URL`, `LLM_TEXT_MODEL`, `LLM_VISION_MODEL`, `LLM_TIMEOUT_S`,
+`CAD_WORKER_PYTHON`, `CAD_WORKER_CWD`, `OPENSCAD_BIN`, `MNFT_DATA_DIR`.
+
+## Tests
+
+```bash
+cd cad_worker && .venv/bin/python -m pytest -q
+cd mnft_cad && mix test
+cd mnft_cad_web && mix test
+```
+
+CI runs all three on Linux and macOS.
+
+## Acknowledgement
+
+This project is designed, built, and maintained by Nanas Sound using AI
+coding agents. The commits tell the truth: most of the code was written in
+conversation, reviewed by a human, and shipped the same day. Fitting, for a
+tool about describing things in plain language and getting real objects back.
+
+## A word of caution
+
+The engines run code a language model wrote. The worker puts real fences
+around it: static gates, restricted interpreter, memory and CPU limits, a
+wall clock, and a process-group kill when time runs out. That protects you
+from mistakes and prompt slips. It is not a sandbox, and it does not pretend
+to be one. Run it locally or behind your own auth, and if you ever expose it
+to strangers, put kernel-level isolation between them and the worker first.
