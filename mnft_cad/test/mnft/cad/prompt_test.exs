@@ -49,6 +49,7 @@ defmodule Mnft.Cad.PromptTest do
 
       system = Prompt.system() <> Prompt.skills_block()
 
+      assert system =~ "# build123d quick reference"
       assert system =~ "# Subtracted features"
       assert system =~ "# 2D before 3D"
       assert system =~ "# Sketch planes and object selection"

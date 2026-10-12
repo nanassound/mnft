@@ -11,7 +11,10 @@ defmodule Mnft.Cad.References do
   the rendered pages as images for the vision model.
 
   Scope: PDF references only (`application/pdf` content type or `.pdf` path).
-  HTML and image URLs are left as plain text.
+  HTML and image URLs are left as plain text. Datasheet portals (LCSC et al.)
+  serve an HTML viewer shell at the `.pdf` URL with the real file linked
+  inside: that link is followed exactly once, and HTML that yields no PDF is
+  a visible fetch failure — never a silent 0-page reference.
 
   Nothing here ever raises: every failure degrades to a note appended to the
   prompt asking the user for the key dimensions, and the turn proceeds.
@@ -187,25 +190,33 @@ defmodule Mnft.Cad.References do
   defp handle_url(url, {msg, images, refs, failed}) do
     case fetch_one(url) do
       {:ok, %{images: page_images, text: text, vector: vector, pages: pages}} ->
-        note =
-          "\n\n[Reference datasheet #{url} — #{pages} page(s) attached as images]\n" <>
-            text <> vector
+        if pages == 0 and String.trim(text) == "" and String.trim(vector) == "" do
+          reason = "fetched but no readable pages or text (portal shell or unsupported PDF)"
 
-        {msg <> note, images ++ page_images,
-         refs ++ [%{"url" => url, "pages" => pages, "text" => text}], failed}
+          Logger.warning("reference fetch empty: #{url} — #{reason}")
+          {msg <> failure_note(url, reason), images, refs,
+           failed ++ [%{url: url, reason: reason}]}
+        else
+          note =
+            "\n\n[Reference datasheet #{url} — #{pages} page(s) attached as images]\n" <>
+              text <> vector
+
+          {msg <> note, images ++ page_images,
+           refs ++ [%{"url" => url, "pages" => pages, "text" => text}], failed}
+        end
 
       :skip ->
         {msg, images, refs, failed}
 
       {:error, reason} ->
         Logger.warning("reference fetch failed: #{url} — #{reason}")
-
-        note =
-          "\n\n[Reference #{url} could not be fetched (#{reason}) — " <>
-            "ask the user for the key dimensions]"
-
-        {msg <> note, images, refs, failed ++ [%{url: url, reason: reason}]}
+        {msg <> failure_note(url, reason), images, refs, failed ++ [%{url: url, reason: reason}]}
     end
+  end
+
+  defp failure_note(url, reason) do
+    "\n\n[Reference #{url} could not be fetched (#{reason}) — " <>
+      "ask the user for the key dimensions]"
   end
 
   # One URL: fetch + parse. Any internal error becomes a fetch failure, never
@@ -213,10 +224,12 @@ defmodule Mnft.Cad.References do
   defp fetch_one(url) do
     try do
       {mod, fun, args} = Config.get(:references_fetch_fun, @fetch_default)
+      fetch = fn u -> apply(mod, fun, [u | args]) end
 
-      with {:ok, bytes} <- apply(mod, fun, [url | args]),
+      with {:ok, bytes} <- fetch.(url),
+           pdf_bytes when is_binary(pdf_bytes) <- ensure_pdf_bytes(url, bytes, fetch),
            %{images: images, text: text, vector: vector, meta: %{pages: pages}} <-
-             pdf_to_parts(url, bytes) do
+             pdf_to_parts(url, pdf_bytes) do
         {:ok, %{images: images, text: text, vector: vector, pages: pages}}
       end
     rescue
@@ -233,6 +246,65 @@ defmodule Mnft.Cad.References do
           _ -> false
         end
     end
+  end
+
+  # A fetched "PDF" must actually be PDF bytes. An HTML shell at a .pdf URL is
+  # a fetch failure (never a silent 0-page reference) unless the page links
+  # the real file — then follow it exactly once.
+  defp ensure_pdf_bytes(url, bytes, fetch) do
+    if pdf_bytes?(bytes) do
+      bytes
+    else
+      follow_linked_pdf(url, bytes, fetch)
+    end
+  end
+
+  defp follow_linked_pdf(url, bytes, fetch) do
+    case embedded_pdf_urls(bytes, url) do
+      [] ->
+        {:error, "got an HTML page, not a PDF"}
+
+      [link | _] ->
+        Logger.warning("reference #{url} is an HTML shell; following linked PDF #{link}")
+
+        case fetch.(link) do
+          {:ok, pdf} ->
+            if pdf_bytes?(pdf) do
+              pdf
+            else
+              {:error, "linked PDF #{link} also returned non-PDF content"}
+            end
+
+          :skip ->
+            {:error, "linked PDF #{link} unavailable"}
+
+          {:error, reason} ->
+            {:error, "linked PDF #{link}: #{reason}"}
+        end
+    end
+  end
+
+  # %PDF magic within the leading 1 KiB (some producers prepend junk).
+  defp pdf_bytes?(bytes) when is_binary(bytes) do
+    String.contains?(binary_part(bytes, 0, min(byte_size(bytes), 1024)), "%PDF")
+  end
+
+  defp pdf_bytes?(_), do: false
+
+  @linked_pdf_re ~r{https?://[^\s<>"')\]]+\.pdf(?:\?[^\s<>"')\]]*)?}i
+
+  @doc """
+  Absolute PDF URLs embedded in an HTML page, minus `exclude` (the URL we
+  already tried), deduplicated, in order. Pure: safe to test without a venv.
+  """
+  @spec embedded_pdf_urls(String.t(), String.t() | nil) :: [String.t()]
+  def embedded_pdf_urls(html, exclude \\ nil) when is_binary(html) do
+    @linked_pdf_re
+    |> Regex.scan(html, capture: :first)
+    |> List.flatten()
+    |> Enum.map(&String.replace(&1, "&amp;", "&"))
+    |> Enum.uniq()
+    |> Enum.reject(&(&1 == exclude))
   end
 
   defp too_large(max_mb), do: "pdf larger than #{mb(max_mb)} MB"

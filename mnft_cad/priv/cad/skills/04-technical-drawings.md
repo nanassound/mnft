@@ -1,5 +1,16 @@
 # Technical drawings and datasheets
 
+- Symbols: `Ø` diameter (not radius), `R` radius, `M3`/`M4` threaded, `⌵`
+  countersink, `⌴` counterbore; `4× Ø6.6 THRU` = count × diameter × depth.
+  Concentric circles in one view + an angle callout in the section =
+  countersink.
+- Dashed lines are hidden internal features (holes, pockets); centerlines
+  mark hole centres and symmetry.
+- Cross-check every feature in at least two views before trusting it.
+- Printed callouts are the real part in mm — never scale them by the drawing
+  scale, never replace them with pixel-derived values.
+- Self-check: after each boolean the face count must change; a no-op cut
+  means the tool missed the body — recheck datum alignment.
 - If the message contains a "[Vector outline extracted ...]" block, its
   vertices ARE the section outline, read from the PDF's own vector data.
   Scale the vertex list with ONE factor: pair the outline's LONGEST bbox
@@ -24,8 +35,10 @@
   extrusion, e.g. `part -= Pos(x, 0, 0) * Cylinder(r, depth)`.
   Never pass a BuildLine object to make_face; never call
   `.translate(x, y, z)` — use `.translate((dx, dy, dz))` or `Pos(...)`.
-- There is NO `Hole(...)` helper and no arithmetic on `bounding_box()` (it is
-  a method: `part.bounding_box()` returns a box, do not subtract it). If a
+- `Hole(radius=, depth=)` exists ONLY inside BuildPart, positioned by an
+  enclosing `Locations`/`GridLocations` context — never positional args; see
+  the quick reference for signatures. No arithmetic on `bounding_box()` (it
+  is a method: `part.bounding_box()` returns a box, do not subtract it). If a
   feature needs an API you are not certain of, build it from only these
   verified pieces: `Box`, `Cylinder`, `Cone`, `Polyline`, `Circle`,
   `Pos`, `extrude`, and boolean `+`/`-`.

@@ -37,6 +37,7 @@ defmodule Mnft.Cad.ReferencesTest do
       :skip -> :skip
       {:error, reason} -> {:error, reason}
       :raise -> raise "boom in fetch"
+      %{} = routes -> Map.get(routes, url, {:error, "unexpected fetch URL #{inspect(url)}"})
     end
   end
 
@@ -98,8 +99,77 @@ defmodule Mnft.Cad.ReferencesTest do
     assert images == []
     assert refs == []
 
-    assert_receive %{event: "fetch_started", payload: %{count: 1}}
-    assert_receive %{event: "fetch_done", payload: %{fetched: 0, failed: [%{url: ^url}]}}
+    assert_receive %{
+      event: "fetch_done",
+      payload: %{fetched: 0, failed: [%{url: ^url, reason: "HTTP 500"}]}
+    }
+  end
+
+  # --- HTML datasheet portal shells ---------------------------------------------
+
+  @shell_url "https://www.lcsc.com/datasheet/C5171427.pdf"
+
+  @linked_pdf "https://datasheet.lcsc.com/datasheet/pdf/2c877f359f4f188d0b3546dbf275eeff.pdf?productCode=C5171427"
+
+  @lcsc_shell """
+  <html><head><link rel="canonical" href="#{@shell_url}"/></head><body>
+  <script>window.location = '#{@linked_pdf}';</script>
+  <a href="#{@linked_pdf}">Download datasheet</a>
+  </body></html>
+  """
+
+  test "embedded_pdf_urls: extracts the real datasheet link from a portal shell" do
+    assert References.embedded_pdf_urls(@lcsc_shell, @shell_url) == [@linked_pdf]
+    assert References.embedded_pdf_urls("<html><body>login wall</body></html>") == []
+  end
+
+  @tag :poppler
+  test "enrich: HTML shell at a .pdf URL follows the linked datasheet PDF" do
+    set_fetch(%{@shell_url => {:ok, @lcsc_shell}, @linked_pdf => {:ok, @pdf_bytes}})
+
+    {msg, images, refs} = References.enrich("sess-1", "model #{@shell_url}")
+
+    pages = page_count()
+
+    assert msg =~
+             "[Reference datasheet #{@shell_url} — #{pages} page(s) attached as images]"
+
+    assert length(images) == pages
+    assert [%{"url" => @shell_url, "pages" => ^pages}] = refs
+  end
+
+  test "enrich: HTML shell without a PDF link degrades to the failure note" do
+    set_fetch(%{@shell_url => {:ok, "<html><body>login required</body></html>"}})
+    url = @shell_url
+
+    {msg, images, refs} = References.enrich("sess-1", "model #{@shell_url}")
+
+    assert msg =~
+             "[Reference #{@shell_url} could not be fetched (got an HTML page, not a PDF)"
+
+    assert msg =~ "ask the user for the key dimensions"
+    assert images == []
+    assert refs == []
+
+    assert_receive %{
+      event: "fetch_done",
+      payload: %{fetched: 0, failed: [%{url: ^url, reason: "got an HTML page, not a PDF"}]}
+    }
+  end
+
+  test "enrich: linked PDF that also returns HTML stays a fetch failure" do
+    set_fetch(%{
+      @shell_url => {:ok, @lcsc_shell},
+      @linked_pdf => {:ok, "<html>still html</html>"}
+    })
+
+    {msg, images, refs} = References.enrich("sess-1", "model #{@shell_url}")
+
+    assert msg =~
+             "could not be fetched (linked PDF #{@linked_pdf} also returned non-PDF content)"
+
+    assert images == []
+    assert refs == []
   end
 
   test "enrich: a raising fetcher degrades to the failure note (never raises)" do
