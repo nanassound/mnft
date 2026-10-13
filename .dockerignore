@@ -1,0 +1,12 @@
+.git
+.github
+images
+**/_build
+**/deps
+**/data
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.env
+mnft_cad_headless
+mnft_cad_web/priv/static/assets

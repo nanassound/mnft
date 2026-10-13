@@ -1,15 +1,24 @@
 import Config
 
+# MNFT_DOCKER=1 (set by the repo Dockerfile): listen on all interfaces so the
+# published port is reachable, and skip the asset watchers / code reloader
+# (assets are prebuilt into the image).
+in_docker = System.get_env("MNFT_DOCKER") == "1"
+
 config :mnft_cad_web, MnftCadWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: 4200],
+  http: [ip: if(in_docker, do: {0, 0, 0, 0}, else: {127, 0, 0, 1}), port: 4200],
   check_origin: false,
-  code_reloader: true,
+  code_reloader: not in_docker,
   debug_errors: true,
   secret_key_base: "dxV1cKfnRKfFP3tZYwCSPX4EZ5FPnYBMTJjnCjqUg7mOR9yzsWqE6L3PjqCVRxQM",
-  watchers: [
-    esbuild: {Esbuild, :install_and_run, [:mnft_cad_web, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:mnft_cad_web, ~w(--watch)]}
-  ]
+  watchers:
+    if(in_docker,
+      do: [],
+      else: [
+        esbuild: {Esbuild, :install_and_run, [:mnft_cad_web, ~w(--sourcemap=inline --watch)]},
+        tailwind: {Tailwind, :install_and_run, [:mnft_cad_web, ~w(--watch)]}
+      ]
+    )
 
 config :logger, :default_formatter, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
