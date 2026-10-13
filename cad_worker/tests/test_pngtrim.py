@@ -55,6 +55,18 @@ def test_full_page_content_passes_through(tmp_path):
     assert Image.open(dst).size == (1000, 1000)
 
 
+def test_full_page_content_over_3000px_still_resized(tmp_path):
+    # Regression: a full-bleed sheet (crop keeps > 90%) passed through
+    # UNRESIZED, so a large-format datasheet page rendered at 300 dpi
+    # (~9900x7000) reached the LLM and Anthropic rejected it (> 8000 px
+    # per side). The size cap must apply on the passthrough path too.
+    src, dst = tmp_path / "page.png", tmp_path / "trimmed.png"
+    _write(src, (4000, 2800), 0)
+    proc = _run(src, dst)
+    assert proc.returncode == 0, proc.stderr
+    assert Image.open(dst).size == (3000, 2100)
+
+
 def test_oversize_crop_resized_to_3000_longest_side(tmp_path):
     src, dst = tmp_path / "page.png", tmp_path / "trimmed.png"
     # Crop would be 3049x249 -> longest side scaled down to 3000.

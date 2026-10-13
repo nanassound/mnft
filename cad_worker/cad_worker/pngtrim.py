@@ -14,10 +14,12 @@ content. Edge rows/columns that are uniformly blank or uniformly dark
 skipped, so the bbox covers the actual drawing. The content bbox is
 cropped with 24 px padding per side, clamped to the page. A blank page
 or a crop that keeps > 90% of the page passes the original through
-unchanged, and a result longer than 3000 px on its longest side is
-proportionally resized to 3000 px (LANCZOS) to stay under the per-image
-byte caps. Exit 0 on success; any failure writes a message to stderr and
-exits 3. The input file is never modified or deleted.
+unchanged. Every result — cropped or passed through — longer than
+3000 px on its longest side is proportionally resized to 3000 px
+(LANCZOS) to stay under the per-image byte caps and provider pixel
+limits (e.g. Anthropic's 8000 px). Exit 0 on success; any failure
+writes a message to stderr and exits 3. The input file is never
+modified or deleted.
 """
 from __future__ import annotations
 
@@ -102,23 +104,26 @@ def trim(src: Path, dst: Path) -> None:
     with Image.open(src) as im:
         bbox = _content_bbox(im.convert("L"))
         if bbox is None:
-            im.save(dst, format="PNG", optimize=True)
-            return
+            # Blank page: nothing to crop, but the size cap still applies.
+            out = im
+        else:
+            w, h = im.size
+            left, top, right, bottom = bbox
+            left = max(0, left - PADDING_PX)
+            top = max(0, top - PADDING_PX)
+            right = min(w, right + PADDING_PX)
+            bottom = min(h, bottom + PADDING_PX)
 
-        w, h = im.size
-        left, top, right, bottom = bbox
-        left = max(0, left - PADDING_PX)
-        top = max(0, top - PADDING_PX)
-        right = min(w, right + PADDING_PX)
-        bottom = min(h, bottom + PADDING_PX)
+            crop_w, crop_h = right - left, bottom - top
+            if crop_w * crop_h > MAX_KEEP_RATIO * w * h:
+                # Content covers (nearly) the whole page: nothing to gain,
+                # but the size cap still applies (a full-bleed A1 sheet at
+                # 300 dpi is ~9900x7000 px — over the 8000 px hard limit
+                # some providers reject).
+                out = im
+            else:
+                out = im.crop((left, top, right, bottom))
 
-        crop_w, crop_h = right - left, bottom - top
-        if crop_w * crop_h > MAX_KEEP_RATIO * w * h:
-            # Content covers (nearly) the whole page: nothing to gain.
-            im.save(dst, format="PNG", optimize=True)
-            return
-
-        out = im.crop((left, top, right, bottom))
         longest = max(out.size)
         if longest > MAX_LONGEST_SIDE:
             scale = MAX_LONGEST_SIDE / longest
