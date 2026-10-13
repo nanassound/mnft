@@ -24,12 +24,13 @@ Everything here is open source, Apache-2.0.
 mnft_cad/       the core. Turn pipeline, pluggable engines (build123d,
                 OpenSCAD), pluggable storage (an ETS table backed by an
                 fsynced journal by default), BYO-key multi-provider LLM.
-                No Phoenix, no auth, no database server.
+                Pure Elixir/OTP: it ships without a web framework, an auth
+                layer, or a database server.
 mnft_cad_web/   a reference Phoenix app. Chat UI, 3D viewer, anonymous cookie
-                owner, no accounts. Run it and see.
+                owner. Run it and see.
 mnft_cad_headless/
-                a headless reference: the core with no UI — many owners,
-                many sessions, all turns at once.
+                a headless reference: the core with the UI stripped away,
+                running many owners, many sessions, and all turns at once.
 cad_worker/     a small Python CLI that runs build123d code behind static
                 checks, rlimits and a hard wall clock. The build123d
                 engine's runtime.
@@ -45,15 +46,38 @@ mix phx.server                            # http://localhost:4200
 ```
 
 ```bash
-# no UI? cd mnft_cad_headless && mix deps.get && MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"
+# no UI?
+cd mnft_cad_headless && mix deps.get && MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"
 ```
 
-Engines are configuration, not religion. The default is build123d (full
+The engine choice is one line of config. The default is build123d (full
 fidelity, STEP included, runs through cad_worker). If you would rather not
-install a gigabyte of OpenCascade wheels, switch to the OpenSCAD engine: one
-forty-megabyte binary, everything else done in pure Elixir. OpenSCAD gives
-you meshes, so no STEP file there; it is the 3D-printing path, not the
-machining path.
+install a gigabyte of OpenCascade wheels, switch to the OpenSCAD engine:
+one forty-megabyte binary, everything else done in pure Elixir. OpenSCAD
+produces meshes only, so it gives you STL and GLB but never STEP. It is
+the 3D-printing path; build123d covers machining.
+
+## Examples
+
+Three real turns from the reference web app: the ask, then what the code
+built.
+
+**A CNC-machined robotic arm, asked for in plain language.**
+
+![A pin-jointed robotic arm modelled for CNC machining](images/example-1.png)
+
+**A TE 583861-5 card-edge connector, from a datasheet URL and a photo.**
+
+![A TE 583861-5 card-edge connector modelled from a datasheet and a photo](images/example-2.png)
+
+**A Seymour Duncan SSL-7 single-coil pickup, from its spec sheet.**
+
+![A Seymour Duncan SSL-7 single-coil pickup modelled from its spec sheet](images/example-3.png)
+
+Your results will differ: the CAD that comes back depends on the LLM you
+bring, and models write build123d and OpenSCAD with different skill.
+Experiment. Swapping `LLM_PROVIDER` or `LLM_TEXT_MODEL` is one line of
+config, and sometimes that is all a tricky part needs.
 
 ## Building on the core
 
@@ -81,7 +105,7 @@ CI runs all three on Linux and macOS.
 
 ## Acknowledgement
 
-This project is designed, built, and maintained by Nanas Sound using AI
+This project is designed, built, and maintained by [Nanas Sound](https://www.nanas.ee) using AI
 coding agents. The commits tell the truth: most of the code was written in
 conversation, reviewed by a human, and shipped the same day. Fitting, for a
 tool about describing things in plain language and getting real objects back.
@@ -91,6 +115,6 @@ tool about describing things in plain language and getting real objects back.
 The engines run code a language model wrote. The worker puts real fences
 around it: static gates, restricted interpreter, memory and CPU limits, a
 wall clock, and a process-group kill when time runs out. That protects you
-from mistakes and prompt slips. It is not a sandbox, and it does not pretend
-to be one. Run it locally or behind your own auth, and if you ever expose it
-to strangers, put kernel-level isolation between them and the worker first.
+from mistakes and prompt slips. It is still not a sandbox. Run it locally or
+behind your own auth, and if you ever expose it to strangers, put
+kernel-level isolation between them and the worker first.

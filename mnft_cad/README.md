@@ -2,12 +2,9 @@
 
 Open core for chat-to-CAD modelling on the BEAM. Describe a part in plain
 language, an LLM writes CAD code, a guarded engine builds it, you get
-STL / STEP / GLB. No web framework, no auth, no external database — pure
-Elixir/OTP, embeddable in any host application.
-
-Open-core split: `mnft_cad` (this, Apache-2.0),
-`mnft_cad_web` (reference Phoenix UI, Apache-2.0), and a closed SaaS built on
-top.
+STL / STEP / GLB. The core is pure Elixir/OTP and embeds in any host
+application: it brings the modelling pipeline and its own storage, and the
+host brings the web framework, the auth, and any heavier database.
 
 ## What's inside
 
@@ -16,11 +13,12 @@ top.
   all budget-capped. Runs in a supervised task; one Jido agent per session
   owns the busy gate.
 - **Engine behaviour** (`Mnft.Cad.Engine`), selected by config:
-  - `Mnft.Cad.Engines.Build123d` — Python worker (`cad_worker/` in the repo)
+  - `Mnft.Cad.Engines.Build123d`: Python worker (`cad_worker/` in the repo)
     over a Port; full fidelity, STEP/STL/GLB, Python-AST static gate.
-  - `Mnft.Cad.Engines.OpenScad` — the `openscad` binary over a Port; pure
+  - `Mnft.Cad.Engines.OpenScad`: the `openscad` binary over a Port; pure
     Elixir STL measurement + GLB preview, zero Python, ~40 MB install.
-    Mesh-only: **no STEP** (use it for 3D-printing workflows, not CAM).
+    Mesh-only, so **no STEP**: use it for 3D-printing workflows; CAM work
+    needs build123d.
 
   | | build123d | OpenSCAD |
   |---|---|---|
@@ -31,22 +29,22 @@ top.
   | LLM target | Python (build123d) | OpenSCAD DSL |
 
 - **Storage behaviour** (`Mnft.Cad.Store`): default adapter is
-  `Mnft.Cad.Store.Ets` — ETS for reads, an fsynced append-only JSONL journal
-  for durability (`data/mnft_cad.jsonl`). One journal line per turn; crash at
-  any point loses at most the in-flight turn; boot replay rebuilds ETS;
-  compaction is automatic. Hosts plug in their own adapter (the closed SaaS
-  runs Ecto/Postgres behind the same callbacks).
+  `Mnft.Cad.Store.Ets`, ETS for reads with an fsynced append-only JSONL
+  journal for durability (`data/mnft_cad.jsonl`). One journal line per turn;
+  a crash at any point loses at most the in-flight turn; boot replay
+  rebuilds ETS; compaction is automatic. Hosts plug in their own adapter
+  (the closed SaaS runs Ecto/Postgres behind the same callbacks).
 - **LLM client** (`Mnft.Cad.LLM`, via req_llm): any OpenAI-compatible
   endpoint or native driver (Anthropic/Claude, and other req_llm providers)
-  by config; BYO key via a resolver — a string,
+  by config; BYO key via a resolver, which can be a string,
   `{:system, "VAR"}`, or `{Mod, fun, args}`. Per-turn text/vision model
-  routing. Provider, endpoint and models are config only; nothing is
-  hardcoded to a vendor. Error strings are redacted; image bytes never touch
+  routing. Provider, endpoint and models are config only, and the core
+  stays vendor-neutral. Error strings are redacted; image bytes never touch
   storage or logs.
 - **Events** (`Mnft.Cad.Events`): stage events (`turn_started`, `llm_started`,
   `llm_done`, `exec_started`, `exec_done`, `turn_done`, `turn_failed`)
-  delivered to a `{mod, fun, args}` handler — bridge to your own PubSub.
-  Plus `[:mnft_cad, :cad, :turn]` telemetry.
+  delivered to a `{mod, fun, args}` handler, ready to bridge into your own
+  PubSub. Plus `[:mnft_cad, :cad, :turn]` telemetry.
 
 ## Quick start (library)
 
@@ -80,13 +78,13 @@ config :mnft_cad, :cad,
 # progress arrives via your event handler; the finished turn is persisted
 ```
 
-A complete runnable version of this — multiple owners, multiple sessions,
-turns in flight at once, an event collector with `await` — lives in
-`../mnft_cad_headless` in the repo. Run it offline with
+A complete runnable version of this, with multiple owners, multiple
+sessions, turns in flight at once, and an event collector with `await`,
+lives in `../mnft_cad_headless` in the repo. Run it offline with
 `MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"`.
 
 `owner_id` is an opaque string you control (a user id, an anonymous cookie
-id, …). The core never authenticates — auth, quotas and billing belong to
+id, …). The core never authenticates; auth, quotas and billing belong to
 the host.
 
 ## Python worker (build123d engine)
@@ -107,10 +105,10 @@ Config keys: `CAD_WORKER_PYTHON`, `CAD_WORKER_CWD`, `CAD_EXEC_CONCURRENCY`,
 
 LLM-generated code runs in a guarded worker subprocess: static allow/deny
 gates, `python -I -B`, rlimits, wall clock, process-group kill. This is
-defence in depth against accidents — **not** a hardened sandbox. Do not
-expose it to untrusted, anonymous users without kernel-enforced isolation
-(containers/gVisor) at the host layer. The OpenSCAD engine has a smaller
-surface (DSL with no exec/network), but treat it the same way.
+defence in depth against accidents; it is **not** a hardened sandbox. Do
+not expose it to untrusted, anonymous users without kernel-enforced
+isolation (containers/gVisor) at the host layer. The OpenSCAD engine has a
+smaller surface (a DSL with no exec or network), but treat it the same way.
 
 ## License
 
