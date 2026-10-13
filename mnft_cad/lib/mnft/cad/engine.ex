@@ -35,5 +35,7 @@ defmodule Mnft.Cad.Engine do
   @doc "Health probe for the engine's runtime (worker --health, binary presence)."
   @callback healthy?() :: boolean()
 
-  @optional_callbacks [healthy?: 0]
+  @callback dialect() :: atom()
+
+  @optional_callbacks [healthy?: 0, dialect: 0]
 end

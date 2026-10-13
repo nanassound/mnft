@@ -148,6 +148,51 @@ defmodule Mnft.Cad.CodeGen do
     |> String.trim_trailing()
   end
 
+  @doc "Dialect-aware repair message. Existing 2-arg build123d form is unaffected."
+  def build_repair_message(:smlibpy, code, error) do
+    tail = error |> repair_error() |> String.slice(-2000, 2000)
+
+    """
+    Your smlibpy code failed.
+
+    Error:
+    #{tail}
+
+    Code you generated:
+    ```python
+    #{code}
+    ```
+
+    Fix the problem and reply with 1-3 plain sentences plus exactly one
+    corrected, complete ```python block that binds the final shape to `part`.
+    Follow the gotchas in your instructions (no module-level `fuse` — use the
+    `+` operator or `part.fuse(other)` method; `fillet`/`chamfer` are methods;
+    `ModelingError`/`KernelError` hints explain the fix; list RHS is fine for
+    booleans: `part - [a, b]`).
+    """
+    |> String.trim_trailing()
+  end
+
+  def build_repair_message(dialect, code, error) when dialect in [:build123d, nil] do
+    build_repair_message(code, error)
+  end
+
+  def build_truncated_repair_message(:smlibpy, partial) do
+    build_truncated_repair_message(partial)
+  end
+
+  def build_truncated_repair_message(dialect, partial) when dialect in [:build123d, nil] do
+    build_truncated_repair_message(partial)
+  end
+
+  def build_noop_message(:smlibpy, user_message, stats_line) do
+    build_noop_message(user_message, stats_line)
+  end
+
+  def build_noop_message(dialect, user_message, stats_line) when dialect in [:build123d, nil] do
+    build_noop_message(user_message, stats_line)
+  end
+
   @doc """
   The on-screen model's numbers as text -- the render may show UI, so the
   model gets the real numbers directly.

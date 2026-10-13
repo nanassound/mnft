@@ -25,6 +25,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from . import dialects as _dialects
 
 ALLOWED_IMPORTS = frozenset({"build123d", "math"})
 ALLOWED_FILENAMES = frozenset({"model.stl", "model.step", "model.glb"})
@@ -150,40 +151,25 @@ def _dotted(node: ast.expr) -> tuple[str | None, str]:
     return None, ""
 
 
-def static_check(source: str) -> str | None:
+def static_check(source: str, dialect: str = "build123d") -> str | None:
     """Return a rejection reason, or None if the source may run."""
-    if len(source) > MAX_SOURCE_CHARS:
-        return f"generated code too large: {len(source)} chars (limit {MAX_SOURCE_CHARS})"
-    if not re.search(r"\bpart\b", source):
-        return "generated code never defines `part`"
-    try:
-        tree = ast.parse(source)
-    except SyntaxError as exc:
-        # free information: hand the repair pass a precise complaint instead of
-        # letting a runtime traceback be the first thing anyone sees
-        where = f" (line {exc.lineno})" if exc.lineno else ""
-        return f"generated code has a syntax error{where}: {(exc.msg or 'invalid syntax').strip()}"
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                root = alias.name.split(".")[0]
-                if root not in ALLOWED_IMPORTS:
-                    return f"import not allowed: {alias.name} (only build123d and math)"
-        elif isinstance(node, ast.ImportFrom):
-            if node.level or node.module is None:
-                return "relative imports are not allowed (only build123d and math)"
-            root = node.module.split(".")[0]
-            if root not in ALLOWED_IMPORTS:
-                return f"import not allowed: {node.module} (only build123d and math)"
-        elif isinstance(node, ast.Call):
-            func = node.func
-            root, dotted = _dotted(func)
-            if root in _DENY_FUNCS or (isinstance(func, ast.Attribute) and func.attr == "open"):
-                return f"{dotted or '?'}() is not allowed (no file I/O, no eval/exec/__import__)"
-        elif isinstance(node, ast.Name) and node.id == "random":
-            # exact identifier: `randomness` or `my_random_var` must not trip
-            return "random is not allowed (models must be deterministic)"
-    return None
+    mod = _get_dialect_mod(dialect)
+    return mod.static_check(
+        source,
+        deny_funcs=_DENY_FUNCS,
+        max_chars=MAX_SOURCE_CHARS,
+        dotted_fn=_dotted,
+    )
+
+
+def _get_dialect_mod(dialect: str):
+    if dialect == "build123d":
+        from .dialects import build123d as _b
+        return _b
+    elif dialect == "smlibpy":
+        from .dialects import smlibpy as _s
+        return _s
+    raise ValueError(f"unknown dialect: {dialect!r}")
 
 
 def error_summary(error: str | None) -> str:
@@ -204,7 +190,7 @@ def valid_filename(filename: str) -> bool:
     return filename in ALLOWED_FILENAMES
 
 
-def execute(source: str, model_dir: Path) -> dict:
+def execute(source: str, model_dir: Path, dialect: str = "build123d") -> dict:
     """Run *source* through the harness inside *model_dir* (created here).
 
     Never raises; returns a result dict. Concurrency and retention are owned by
@@ -218,7 +204,7 @@ def execute(source: str, model_dir: Path) -> dict:
     t0 = time.monotonic()  # harness runtime only — queueing happens upstream
     try:
         (model_dir / "_user_code.py").write_text(source, encoding="utf-8")
-        (model_dir / "_harness.py").write_text(_HARNESS, encoding="utf-8")
+        (model_dir / "_harness.py").write_text(_get_dialect_mod(dialect).HARNESS, encoding="utf-8")
         raw = _run_harness(model_dir)
     except Exception as exc:  # runner-level failure: report, never raise
         raw = {"ok": False, "error": f"runner failure: {type(exc).__name__}: {exc}"}

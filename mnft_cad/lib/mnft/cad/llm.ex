@@ -18,7 +18,7 @@ defmodule Mnft.Cad.LLM do
 
   import ReqLLM.Context
   alias ReqLLM.Message.ContentPart
-  alias Mnft.Cad.{CodeGen, Config, Prompt}
+  alias Mnft.Cad.{CodeGen, Config, Prompt, PromptSmlibpy}
 
   @type history :: [%{required(:role) => :user | :assistant, required(:content) => String.t()}]
   @type image :: %{
@@ -86,7 +86,7 @@ defmodule Mnft.Cad.LLM do
 
     context =
       ReqLLM.Context.new([
-        system(Prompt.system() <> Prompt.skills_block())
+        system(system_prompt())
         | Enum.map(history, fn %{role: role, content: content} -> text(role, content) end) ++
             [user_message(message, images, current)]
       ])
@@ -115,6 +115,22 @@ defmodule Mnft.Cad.LLM do
 
       {:error, error} ->
         {:error, classify_error(error, cfg)}
+    end
+  end
+
+  defp system_prompt do
+    engine = Mnft.Cad.Config.get(:engine)
+
+    dialect =
+      if is_atom(engine) and function_exported?(engine, :dialect, 0) do
+        engine.dialect()
+      else
+        :build123d
+      end
+
+    case dialect do
+      :smlibpy -> PromptSmlibpy.system() <> PromptSmlibpy.skills_block()
+      _ -> Prompt.system() <> Prompt.skills_block()
     end
   end
 
