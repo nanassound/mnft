@@ -194,6 +194,55 @@ defmodule Mnft.Cad.Engines.PythonWorkerTest do
     assert result == true
   end
 
+  # -------------------------------------------------------------------------
+  # healthy?/1 must be about THIS dialect's package, not just "worker answered"
+  # -------------------------------------------------------------------------
+
+  test "health_key/1 maps each dialect to its own reply key; unknown has none" do
+    assert PythonWorker.health_key("build123d") == "build123d"
+    assert PythonWorker.health_key("smlibpy") == "smlibpy"
+    assert PythonWorker.health_key("openscad") == nil
+  end
+
+  describe "health_reply_ok?/2" do
+    test "true only when ok and the dialect's own key is non-null" do
+      line = ~s({"ok": true, "build123d": "0.13.0", "smlibpy": "0.2.3", "python": "3.12"})
+      assert PythonWorker.health_reply_ok?(line, "smlibpy")
+      assert PythonWorker.health_reply_ok?(line, "build123d")
+    end
+
+    test "missing package (null) is false for that dialect even though ok: true" do
+      line = ~s({"ok": true, "build123d": "0.13.0", "smlibpy": null, "python": "3.12"})
+      refute PythonWorker.health_reply_ok?(line, "smlibpy")
+      assert PythonWorker.health_reply_ok?(line, "build123d")
+
+      line = ~s({"ok": true, "build123d": null, "smlibpy": "0.2.3"})
+      refute PythonWorker.health_reply_ok?(line, "build123d")
+      assert PythonWorker.health_reply_ok?(line, "smlibpy")
+    end
+
+    test "absent key, ok: false, unknown dialect and garbage are all false" do
+      refute PythonWorker.health_reply_ok?(~s({"ok": true, "python": "3.12"}), "smlibpy")
+      refute PythonWorker.health_reply_ok?(~s({"ok": false, "smlibpy": "0.2.3"}), "smlibpy")
+      refute PythonWorker.health_reply_ok?(~s({"ok": true, "openscad": "1"}), "openscad")
+      refute PythonWorker.health_reply_ok?("not json", "smlibpy")
+    end
+  end
+
+  test "healthy?/1 returns false when the worker replies ok but the dialect's package is null" do
+    body = """
+        import sys, json
+        sys.stdout.write(json.dumps({"ok": True, "build123d": "0.13.0", "smlibpy": None}) + "\\n")
+        sys.stdout.flush()
+    """
+
+    dir = mock_worker_dir(body)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    assert with_mock_cfg(dir, fn -> PythonWorker.healthy?("smlibpy") end) == false
+    assert with_mock_cfg(dir, fn -> PythonWorker.healthy?("build123d") end) == true
+  end
+
   test "healthy?/1 returns false (never raises) when worker_python is nil" do
     original = Mnft.Cad.Config.all()
     # Deliberately blank out worker_python

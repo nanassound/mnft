@@ -21,25 +21,41 @@ defmodule Mnft.Cad.Engines.PythonWorker do
       %{ok: false, stage: :exec, error: "runner failure: #{kind} #{inspect(value)}", artifacts: nil, mesh: nil, exec_ms: 0}
   end
 
+  @doc """
+  `true` when the worker answers `--health` AND reports the given dialect's
+  package as installed. The worker's health line is
+  `{"ok": true, "build123d": "<ver>" | null, "smlibpy": "<ver>" | null, ...}`;
+  a null (package missing) or absent key means this dialect is not usable on
+  this host, whatever the other dialect says.
+  """
   def healthy?(dialect) do
     cfg = Mnft.Cad.Config.all()
     port = open_port(cfg, ["--health", "--dialect", dialect])
-    reply = collect(port, "", deadline(cfg))
 
-    case reply do
-      {:ok, line} ->
-        case Jason.decode(line) do
-          {:ok, %{"ok" => true}} -> true
-          _ -> false
-        end
-
-      _ ->
-        false
+    case collect(port, "", deadline(cfg)) do
+      {:ok, line} -> health_reply_ok?(line, dialect)
+      _ -> false
     end
   rescue
     _ -> false
   catch
     _, _ -> false
+  end
+
+  @doc "The key of the worker's health reply that carries `dialect`'s package version."
+  def health_key("build123d"), do: "build123d"
+  def health_key("smlibpy"), do: "smlibpy"
+  def health_key(_), do: nil
+
+  @doc "Interpret one `--health` reply line for `dialect`; unknown shape means `false`."
+  def health_reply_ok?(line, dialect) do
+    with key when is_binary(key) <- health_key(dialect),
+         {:ok, %{"ok" => true} = reply} <- Jason.decode(line),
+         version when not is_nil(version) <- Map.get(reply, key) do
+      true
+    else
+      _ -> false
+    end
   end
 
   defp port_roundtrip(cfg, dialect, request) do

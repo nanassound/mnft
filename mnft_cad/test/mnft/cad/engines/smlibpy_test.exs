@@ -51,54 +51,6 @@ defmodule Mnft.Cad.Engines.SmlibpyTest do
   end
 
   # -------------------------------------------------------------------------
-  # Config engine-selection logic
-  # -------------------------------------------------------------------------
-
-  test "MNFT_ENGINE=smlibpy maps to Smlibpy" do
-    engine =
-      case "smlibpy" do
-        "openscad" -> Mnft.Cad.Engines.OpenScad
-        "smlibpy" -> Mnft.Cad.Engines.Smlibpy
-        _ -> Mnft.Cad.Engines.Build123d
-      end
-
-    assert engine == Smlibpy
-  end
-
-  test "MNFT_ENGINE=build123d maps to Build123d" do
-    engine =
-      case "build123d" do
-        "openscad" -> Mnft.Cad.Engines.OpenScad
-        "smlibpy" -> Mnft.Cad.Engines.Smlibpy
-        _ -> Mnft.Cad.Engines.Build123d
-      end
-
-    assert engine == Mnft.Cad.Engines.Build123d
-  end
-
-  test "MNFT_ENGINE=openscad maps to OpenScad" do
-    engine =
-      case "openscad" do
-        "openscad" -> Mnft.Cad.Engines.OpenScad
-        "smlibpy" -> Mnft.Cad.Engines.Smlibpy
-        _ -> Mnft.Cad.Engines.Build123d
-      end
-
-    assert engine == Mnft.Cad.Engines.OpenScad
-  end
-
-  test "unknown MNFT_ENGINE falls back to Build123d" do
-    engine =
-      case "unknown_engine" do
-        "openscad" -> Mnft.Cad.Engines.OpenScad
-        "smlibpy" -> Mnft.Cad.Engines.Smlibpy
-        _ -> Mnft.Cad.Engines.Build123d
-      end
-
-    assert engine == Mnft.Cad.Engines.Build123d
-  end
-
-  # -------------------------------------------------------------------------
   # Static check failures — fast path (no harness subprocess)
   # -------------------------------------------------------------------------
 

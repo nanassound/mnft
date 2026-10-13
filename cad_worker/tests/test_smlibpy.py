@@ -228,23 +228,27 @@ def test_cli_health_reports_smlibpy():
     assert "build123d" in health
 
 
-def test_cli_health_missing_smlibpy_still_ok(monkeypatch, tmp_path):
-    """A host without smlibpy must still report ok:true for build123d."""
-    # We simulate by patching health_info in the smlibpy dialect module
-    import cad_worker.dialects.smlibpy as sml_mod
-    original = sml_mod.health_info
-    try:
-        sml_mod.health_info = lambda pv: {"smlibpy": None}
-        proc = subprocess.run(
-            [sys.executable, "-m", "cad_worker.cli", "--health"],
-            capture_output=True,
-            text=True,
-        )
-        assert proc.returncode == 0
-        health = json.loads(proc.stdout.strip())
-        assert health["ok"] is True
-    finally:
-        sml_mod.health_info = original
+_BLOCKED_HEALTH = (
+    "import sys; sys.modules[{pkg!r}] = None; sys.argv = ['cli', '--health']; "
+    "from cad_worker.cli import main; sys.exit(main())"
+)
+
+
+@pytest.mark.parametrize("missing,present", [("smlibpy", "build123d"), ("build123d", "smlibpy")])
+def test_cli_health_with_one_package_missing_still_replies(missing, present):
+    """`sys.modules[pkg] = None` makes `import pkg` raise ImportError inside a
+    real CLI process: the other dialect must still report, the missing one is null."""
+    proc = subprocess.run(
+        [sys.executable, "-c", _BLOCKED_HEALTH.format(pkg=missing)],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert proc.returncode == 0, proc.stderr
+    health = json.loads(proc.stdout.strip())
+    assert health["ok"] is True
+    assert health[missing] is None
+    assert health[present] is not None
 
 
 def test_cli_static_check_rejects_bad_import(tmp_path):

@@ -17,7 +17,10 @@ Features that depend on faces (`.on(face)`) come after the face exists in its fi
 ## Plate + holes (GridLocations)
 
 Build the plate, round the vertical edges, then subtract a grid of through-holes.
-Through-hole tools should be taller than the plate so no thin skin remains.
+The base sits on Z=0, so a hole tool centred at the origin only cuts the lower half
+(a blind hole with a skin on top). Reposition it to mid-height,
+`Cylinder(r, t + 4).moved(Pos(0, 0, t / 2))`, so it starts below Z=0 and ends above
+the top face. Check the volume: a through hole of radius r removes π·r²·t.
 
 ---
 
@@ -45,7 +48,10 @@ A profile that crosses the axis raises `ModelingError`.
 
 ## Sweeps along helices
 
-Use `Helix(pitch, height, radius)` as the path. Place the profile at the helix radius before sweeping.
+Use `Helix(pitch, height, radius)` as the path. `sweep` puts the profile's centre at
+the START of the path; a profile cannot be offset from its path, so
+`profile.moved(Pos(r, 0, 0))` does nothing. Move the PATH instead: for a tube of
+radius `t` whose crest should reach `R`, set the helix radius to `R − t`.
 For thread ridges: keep threaded length ≤ 20 mm; never fillet a swept-thread solid.
 
 ---

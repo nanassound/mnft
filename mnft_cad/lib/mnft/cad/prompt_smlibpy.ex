@@ -49,20 +49,40 @@ defmodule Mnft.Cad.PromptSmlibpy do
     Indices change whenever the model changes; index selection is always wrong.
   - Primitives are centred on the origin by default. To base on Z=0 use
     `align=(Align.CENTER, Align.CENTER, Align.MIN)` or `.moved(Pos(0, 0, h/2))`.
+  - HOLES: because the base sits on Z=0, a hole tool centred at the origin only
+    cuts the lower half and leaves a blind hole with a skin on top. For a through
+    hole of a part of thickness t, reposition the tool to mid-height and make it
+    taller than the part: `plate -= Cylinder(r, t + 4).moved(Pos(x, y, t / 2))`
+    (or `align=(Align.CENTER, Align.CENTER, Align.MIN)` with a below-zero offset).
+    A through hole of radius r removes π·r²·t from the volume — check it.
+  - `sweep` puts the profile's centre at the START of the path; a profile cannot
+    be offset from its path (`profile.moved(Pos(r, 0, 0))` does nothing). Move the
+    PATH instead: for a tube of radius t whose crest should reach R, the helix
+    radius is R − t.
   - For threaded fasteners (screw/bolt), model the thread as a swept ridge on a
     bare shank. The shank is the MINOR diameter; the ridge brings it to the MAJOR
-    diameter. Use `Helix` as the sweep path. Keep threaded length ≤ 20 mm.
-    Verified M3 pattern (pitch 0.5, 8 mm long):
+    diameter (crest radius). Use `Helix` as the sweep path. Keep threaded length
+    ≤ 20 mm. Verified M3 pattern (pitch 0.5, 8 mm long, bbox 3.0 across the
+    threads):
 
     ```python
     from smlibpy import *
     import math
-    pitch, length, r_minor = 0.5, 8.0, 1.2
-    helix = Helix(pitch=pitch, height=length, radius=r_minor)
-    profile = Circle(0.15).moved(Pos(r_minor + 0.15, 0, 0))
-    ridge = sweep(profile, path=helix)
-    part = Cylinder(r_minor, length, align=(Align.CENTER, Align.CENTER, Align.MIN)) + ridge.moved(Pos(0, 0, 0))
+    pitch, length, r_minor, t, r_mid = 0.5, 8.0, 1.2, 0.2, 1.3   # crest r_mid + t = 1.5 => 3.0 mm major
+    helix = Helix(pitch=pitch, height=length, radius=r_mid)      # the PATH carries the offset
+    ridge = sweep(Circle(t), path=helix)                         # tube spans 1.10..1.50, overlaps the shank
+    part = Cylinder(r_minor, length, align=(Align.CENTER, Align.CENTER, Align.MIN)) + ridge
     ```
+
+    Two traps. (1) The tube must OVERLAP the shank: a tangent tube
+    (`radius = r_minor + t`) is refused with `KernelError: fuse failed (SM_ERR):
+    the operands may touch only along an edge, at a point or tangentially`; so
+    `t` must exceed half the thread height and the helix radius is `crest − t`.
+    (2) Other tube sizes can "succeed" yet silently return the bare shank (for
+    this M3 thread `t = 0.23 … 0.3` gave bbox 2.4 and the cylinder's volume
+    alone) — keep the verified `t = 0.2` and `r_mid = 1.3` for M3, and for any
+    other thread check that the bbox across the threads reads ≈ the major
+    diameter and the volume exceeds the bare shank's π·r_minor²·length.
 
   - Edge treatment on threaded parts: NEVER call `.fillet()` or `.chamfer()` on a
     part that contains a swept thread ridge — the kernel calls are expensive and

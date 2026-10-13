@@ -140,5 +140,10 @@ def static_check(
 
 
 def health_info(python_ver: str) -> dict:
-    import build123d
+    # A host with only the smlibpy extra must still answer --health; the
+    # Elixir side reads a null value as "this dialect is not installed".
+    try:
+        import build123d
+    except ImportError:
+        return {"build123d": None, "python": python_ver}
     return {"build123d": getattr(build123d, "__version__", "unknown"), "python": python_ver}

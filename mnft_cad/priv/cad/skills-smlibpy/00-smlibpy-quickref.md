@@ -3,7 +3,10 @@
 
 # smlibpy quick reference
 
-Each block is a complete, runnable program that defines `part`.
+Each block is a complete, runnable program that defines `part`. The base sits on
+Z=0, so a cutting tool centred at the origin only reaches the LOWER half of the
+part: move hole tools to mid-height (`.moved(Pos(x, y, thickness / 2))`) and make
+them taller than the part, or the hole is blind and leaves a skin on top.
 
 ---
 
@@ -14,7 +17,9 @@ from smlibpy import *
 import math
 plate = Box(80, 60, 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
 plate = plate.fillet(plate.edges().parallel_to(Z), 5)
-plate -= Cylinder(8, 12)          # 8 mm radius through-hole (diameter 16 mm → halved to 8)
+# 16 mm diameter -> 8 mm radius. Tool is 14 tall, centred at z=5 => spans -2..12,
+# so it passes through the 10 mm plate (a centred, unmoved tool would be blind).
+plate -= Cylinder(8, 14).moved(Pos(0, 0, 5))
 part = plate
 ```
 
@@ -26,7 +31,8 @@ part = plate
 from smlibpy import *
 import math
 flange = Cylinder(30, 12, align=(Align.CENTER, Align.CENTER, Align.MIN))
-flange -= GridLocations(20, 20, 2, 2) * Cylinder(3, 14)   # 2×2 grid, 3 mm radius holes
+# Ø6 holes -> 3 mm radius; tool 16 tall centred at z=6 => spans -2..14 (through)
+flange -= GridLocations(20, 20, 2, 2) * Cylinder(3, 16).moved(Pos(0, 0, 6))
 part = flange
 ```
 
@@ -58,8 +64,8 @@ part = section.revolve(Axis((0, 0, 0), (0, 1, 0)))
 ```python
 from smlibpy import *
 import math
-path = Helix(pitch=20, height=60, radius=15)
-profile = Circle(3).moved(Pos(15, 0, 0))   # wire cross-section, offset to coil radius
+path = Helix(pitch=20, height=60, radius=15)   # coil radius lives in the PATH
+profile = Circle(3)                            # sweep centres the profile on the path start
 part = sweep(profile, path=path)
 ```
 
@@ -67,14 +73,17 @@ part = sweep(profile, path=path)
 
 ## 5. Threaded fastener — Helix + swept ridge on shank (M2.4 minor, M3 major)
 
+`sweep` centres the profile on the START of the path; you cannot offset a profile
+from its path. Put the offset in the PATH radius instead. The tube must overlap the
+shank (a merely tangent tube is refused by the kernel).
+
 ```python
 from smlibpy import *
 import math
-pitch, length, r_minor = 0.5, 8.0, 1.2
-helix = Helix(pitch=pitch, height=length, radius=r_minor)
-profile = Circle(0.15).moved(Pos(r_minor + 0.15, 0, 0))
-ridge = sweep(profile, path=helix)
-part = Cylinder(r_minor, length, align=(Align.CENTER, Align.CENTER, Align.MIN)) + ridge.moved(Pos(0, 0, 0))
+pitch, length, r_minor, t, r_mid = 0.5, 8.0, 1.2, 0.2, 1.3   # crest r_mid + t = 1.5 => 3.0 mm major
+helix = Helix(pitch=pitch, height=length, radius=r_mid)      # the PATH carries the offset
+ridge = sweep(Circle(t), path=helix)                         # tube spans 1.10..1.50, overlaps the shank
+part = Cylinder(r_minor, length, align=(Align.CENTER, Align.CENTER, Align.MIN)) + ridge
 ```
 
 ---

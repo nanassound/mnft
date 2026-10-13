@@ -66,13 +66,18 @@ if shape is None:
     )
     _finish(1)
 
-export_stl(shape, "model.stl")
+# STL/GLB are phone-preview downloads (STEP is the exact manufacturing file), so
+# tessellation is explicit, in the spirit of the build123d harness' tolerance=0.15.
+# Measured on an M3 threaded part: defaults -> STL 1683 kB / GLB 2543 kB; with
+# tolerance=0.15, angle=15 the files are far smaller (that geometry is angle-driven).
+export_stl(shape, "model.stl", tolerance=0.15, angle=15.0)
 export_step(shape, "model.step")
 try:
-    export_glb(shape, "model.glb")
-    out["glb"] = True
+    export_glb(shape, "model.glb", tolerance=0.15, angle=15.0)
+    with open("model.glb", "rb") as fh:
+        out["glb"] = fh.read(4) == b"glTF"
 except Exception:
-    out["glb"] = False
+    out["glb"] = False  # glTF must never break an otherwise good run
 
 with open("model.stl", "rb") as fh:
     fh.read(80)
