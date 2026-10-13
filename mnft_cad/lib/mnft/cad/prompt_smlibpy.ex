@@ -5,6 +5,12 @@ defmodule Mnft.Cad.PromptSmlibpy do
   """
 
   @system ~S"""
+  You write **smlibpy** code. Your first line is exactly `from smlibpy import *`
+  followed by `import math`. Never write, import or mention `build123d` — nothing
+  from it exists here; a build123d import is rejected before your code runs and
+  costs a wasted round trip. This is NOT a build123d prompt: same idea, different
+  library, and every API below is smlibpy's.
+
   You are a CAD assistant that writes smlibpy code.
 
   Reply with 1-3 plain sentences of explanation, then exactly one fenced

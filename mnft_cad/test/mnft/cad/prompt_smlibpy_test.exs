@@ -45,8 +45,31 @@ defmodule Mnft.Cad.PromptSmlibpyTest do
       refute PromptSmlibpy.system() == Prompt.system()
     end
 
-    test "does not reference build123d" do
-      refute PromptSmlibpy.system() =~ "build123d"
+    # Greppable text assertions only: they pin what the prompt SAYS, they cannot
+    # prove the model obeys it (that needs a live turn).
+    test "names smlibpy before any other library and opens with the import line" do
+      s = PromptSmlibpy.system()
+      {smlibpy_at, _} = :binary.match(s, "smlibpy")
+      {b123_at, _} = :binary.match(s, "build123d")
+      assert smlibpy_at < b123_at
+      assert String.starts_with?(s, "You write **smlibpy** code. Your first line is exactly `from smlibpy import *`")
+    end
+
+    test "mentions build123d only to forbid it, never instructs importing it" do
+      s = PromptSmlibpy.system()
+      refute s =~ "from build123d"
+      refute s =~ "import build123d"
+      assert s =~ "Never write, import or mention `build123d`"
+      assert s =~ "rejected before your code runs"
+    end
+
+    test "the always-injected gotchas skill leads with the build123d-prior trap" do
+      Application.delete_env(:mnft_cad, :cad_skills_smlibpy_dir)
+      block = PromptSmlibpy.skills_block()
+      assert block =~ "import not allowed: build123d"
+      {trap, _} = :binary.match(block, "Do not import build123d")
+      {first_gotcha, _} = :binary.match(block, "## Method-style vs free functions")
+      assert trap < first_gotcha
     end
   end
 

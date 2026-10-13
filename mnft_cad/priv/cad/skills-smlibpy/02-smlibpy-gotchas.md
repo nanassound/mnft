@@ -3,6 +3,11 @@
 
 # smlibpy gotchas
 
+- **Do not import build123d.** Models default to `from build123d import *` out of habit.
+  Here it fails before your code runs: `import not allowed: build123d (only smlibpy and
+  math)`, and the turn wastes a repair round trip. The first line is always
+  `from smlibpy import *` (then `import math`); no build123d name exists in this engine.
+
 ## Method-style vs free functions
 
 `fillet`, `chamfer`, `shell`, `mirror`, `split`, `section` are **methods** on the shape object:
