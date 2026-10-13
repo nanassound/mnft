@@ -82,12 +82,26 @@ parts become unreachable after a restart) and `PHX_HOST` when the app sits
 behind a proxy. The caution at the end of this README still applies: none of
 this is a sandbox.
 
-The engine choice is one line of config. The default is build123d (full
-fidelity, STEP included, runs through cad_worker). If you would rather not
-install a gigabyte of OpenCascade wheels, switch to the OpenSCAD engine:
-one forty-megabyte binary, everything else done in pure Elixir. OpenSCAD
-produces meshes only, so it gives you STL and GLB but never STEP. It is
-the 3D-printing path; build123d covers machining.
+The engine choice is one line of config. The default is **build123d** (full
+fidelity, STEP included, runs through cad_worker with the OpenCascade wheels).
+If you would rather not install a gigabyte of OpenCascade wheels, switch to the
+**OpenSCAD** engine: one forty-megabyte binary, everything else done in pure
+Elixir. OpenSCAD produces meshes only — STL and GLB but never STEP. It is the
+3D-printing path; build123d covers machining.
+
+A third engine, **smlibpy** (new/alpha), uses the SMLib NURBS kernel by
+[AWV Informatik AG](https://github.com/awv-informatik/smlibpy) (MIT licence).
+It ships as a small (~7 MB) manylinux wheel for Python 3.10–3.14, needs no
+OpenCascade, and supports STEP/STL/GLB at full B-rep fidelity. Install the
+optional extra and flip the env variable:
+
+```bash
+cd cad_worker && uv pip install -e ".[smlibpy]"
+# then set MNFT_ENGINE=smlibpy
+```
+
+smlibpy is new here and has had less production time than build123d. Treat it
+as a second option, not a replacement.
 
 ## Examples
 

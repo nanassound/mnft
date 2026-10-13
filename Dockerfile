@@ -60,7 +60,7 @@ COPY cad_worker /build/cad_worker
 ENV UV_PYTHON_INSTALL_DIR=/opt/python
 RUN uv python install 3.12 \
  && uv venv /opt/venv --python 3.12 \
- && VIRTUAL_ENV=/opt/venv uv pip install /build/cad_worker
+ && VIRTUAL_ENV=/opt/venv uv pip install "/build/cad_worker[smlibpy]"
 
 FROM debian:bookworm-slim AS runtime
 ENV LC_ALL=C.UTF-8

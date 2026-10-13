@@ -36,6 +36,10 @@ defmodule Mnft.Cad.Engines.PythonWorker do
       _ ->
         false
     end
+  rescue
+    _ -> false
+  catch
+    _, _ -> false
   end
 
   defp port_roundtrip(cfg, dialect, request) do
