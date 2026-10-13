@@ -37,7 +37,8 @@ top.
   compaction is automatic. Hosts plug in their own adapter (the closed SaaS
   runs Ecto/Postgres behind the same callbacks).
 - **LLM client** (`Mnft.Cad.LLM`, via req_llm): any OpenAI-compatible
-  endpoint or native provider by config; BYO key via a resolver — a string,
+  endpoint or native driver (Anthropic/Claude, and other req_llm providers)
+  by config; BYO key via a resolver — a string,
   `{:system, "VAR"}`, or `{Mod, fun, args}`. Per-turn text/vision model
   routing. Provider, endpoint and models are config only; nothing is
   hardcoded to a vendor. Error strings are redacted; image bytes never touch

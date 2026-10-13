@@ -60,6 +60,7 @@ models are config only.
 Environment variables, if you just want to run it: `LLM_API_KEY`,
 `LLM_BASE_URL`, `LLM_TEXT_MODEL`, `LLM_VISION_MODEL`, `LLM_TIMEOUT_S`,
 `CAD_WORKER_PYTHON`, `CAD_WORKER_CWD`, `OPENSCAD_BIN`, `MNFT_DATA_DIR`.
+Set `LLM_PROVIDER=anthropic` and leave `LLM_BASE_URL` empty for Claude models.
 
 ## Tests
 

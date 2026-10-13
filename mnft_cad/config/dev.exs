@@ -1,5 +1,17 @@
 import Config
 
+# "" (or whitespace-only) env values mean "use the provider's own default
+# endpoint", so they normalize to nil instead of overriding it.
+blank_to_nil = fn
+  url when is_binary(url) ->
+    case String.trim(url) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+
+  _ -> nil
+end
+
 # Default pipeline config for running the core directly (tests, demos). Hosts
 # override everything via `:mnft_cad, :cad` application config; the provider
 # endpoint and models are env-driven so a provider/model swap is a config
@@ -32,7 +44,7 @@ config :mnft_cad, :cad,
   ],
   llm: [
     provider: String.to_atom(System.get_env("LLM_PROVIDER", "openai")),
-    base_url: System.get_env("LLM_BASE_URL", "https://api.z.ai/api/paas/v4"),
+    base_url: blank_to_nil.(System.get_env("LLM_BASE_URL", "https://api.z.ai/api/paas/v4")),
     api_key: {:system, "LLM_API_KEY"},
     text_model: System.get_env("LLM_TEXT_MODEL", "glm-5.3-flash"),
     vision_model: System.get_env("LLM_VISION_MODEL", "glm-4.6v"),

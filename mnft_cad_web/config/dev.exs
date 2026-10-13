@@ -69,6 +69,18 @@ env =
 
 getenv = fn name, default -> System.get_env(name) || env[name] || default end
 
+# "" (or whitespace-only) env values mean "use the provider's own default
+# endpoint", so they normalize to nil instead of overriding it.
+blank_to_nil = fn
+  url when is_binary(url) ->
+    case String.trim(url) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+
+  _ -> nil
+end
+
 config :mnft_cad, :cad,
   events: {MnftCadWeb.PubSubBridge, :emit_as_handler, []},
   engine:
@@ -91,7 +103,7 @@ config :mnft_cad, :cad,
   ],
   llm: [
     provider: String.to_atom(getenv.("LLM_PROVIDER", "openai")),
-    base_url: getenv.("LLM_BASE_URL", "https://api.z.ai/api/paas/v4"),
+    base_url: blank_to_nil.(getenv.("LLM_BASE_URL", "https://api.z.ai/api/paas/v4")),
     api_key: {:system, "LLM_API_KEY"},
     text_model: getenv.("LLM_TEXT_MODEL", "glm-5.3-flash"),
     vision_model: getenv.("LLM_VISION_MODEL", "glm-4.6v"),

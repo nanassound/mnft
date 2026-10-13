@@ -1,8 +1,8 @@
 defmodule Mnft.Cad.LLM do
   @moduledoc """
   The LLM boundary: req_llm against an OpenAI-compatible chat/completions
-  endpoint (provider/endpoint/model are config-only, under `:mnft_cad, :cad,
-  :llm`).
+  endpoint or a native provider driver (e.g. `:anthropic`); provider/endpoint/
+  model are config-only, under `:mnft_cad, :cad, :llm`.
 
   The adapter is behind the `:llm_module` config seam so the turn pipeline
   can be tested with `Mnft.Cad.LLMFake`.
@@ -46,18 +46,21 @@ defmodule Mnft.Cad.LLM do
 
   @doc """
   The model spec for the configured provider. Unverified model ids are
-  expected (the glm ids are not in LLMDB); the provider's Chat Completions
-  driver handles them against the custom base_url.
+  expected (the glm ids are not in LLMDB). A blank/missing `base_url` is
+  omitted so the provider's own driver default applies (e.g. `:anthropic`
+  uses its native Messages API endpoint); a configured `base_url` overrides
+  it for OpenAI-compatible endpoints.
   """
   def model_spec(vision?) do
     cfg = llm_config()
     id = if vision?, do: cfg[:vision_model], else: cfg[:text_model]
 
-    ReqLLM.model!(%{
-      provider: cfg[:provider] || :openai,
-      id: id,
-      base_url: cfg[:base_url]
-    })
+    attrs = %{provider: cfg[:provider] || :openai, id: id}
+
+    case cfg[:base_url] do
+      url when is_binary(url) and url != "" -> ReqLLM.model!(Map.put(attrs, :base_url, url))
+      _ -> ReqLLM.model!(attrs)
+    end
   end
 
   defp resolve_api_key(key) when is_binary(key) and key != "", do: {:ok, key}
