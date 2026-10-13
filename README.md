@@ -27,6 +27,9 @@ mnft_cad/       the core. Turn pipeline, pluggable engines (build123d,
                 No Phoenix, no auth, no database server.
 mnft_cad_web/   a reference Phoenix app. Chat UI, 3D viewer, anonymous cookie
                 owner, no accounts. Run it and see.
+mnft_cad_headless/
+                a headless reference: the core with no UI — many owners,
+                many sessions, all turns at once.
 cad_worker/     a small Python CLI that runs build123d code behind static
                 checks, rlimits and a hard wall clock. The build123d
                 engine's runtime.
@@ -39,6 +42,10 @@ cd cad_worker && uv venv --python 3.12 && uv pip install -e . pytest && cd ..
 cp .env.example mnft_cad_web/.env      # then add your LLM_API_KEY
 cd mnft_cad_web && mix setup
 mix phx.server                            # http://localhost:4200
+```
+
+```bash
+# no UI? cd mnft_cad_headless && mix deps.get && MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"
 ```
 
 Engines are configuration, not religion. The default is build123d (full

@@ -80,6 +80,11 @@ config :mnft_cad, :cad,
 # progress arrives via your event handler; the finished turn is persisted
 ```
 
+A complete runnable version of this — multiple owners, multiple sessions,
+turns in flight at once, an event collector with `await` — lives in
+`../mnft_cad_headless` in the repo. Run it offline with
+`MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"`.
+
 `owner_id` is an opaque string you control (a user id, an anonymous cookie
 id, …). The core never authenticates — auth, quotas and billing belong to
 the host.
