@@ -1,0 +1,452 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-labelledby="title desc">
+  <title id="title">mnft</title>
+  <desc id="desc">A sunny factory line: a prompt goes in, crates lettered m, n, f, t ride a conveyor, a robot arm finishes a bracket with four holes, and it drops into a bin labelled STL and STEP.</desc>
+  <defs>
+    <!-- light comes from the sun, upper right: shadows fall left and down, extruded faces on the left are shaded -->
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="-6" dy="8" stdDeviation="6" flood-color="#2F4B6E" flood-opacity="0.22"/>
+    </filter>
+    <filter id="dropSm" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="-2" dy="3" stdDeviation="2" flood-color="#2F4B6E" flood-opacity="0.25"/>
+    </filter>
+    <filter id="blur" x="-20%" y="-200%" width="140%" height="500%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#CFE8F8"/>
+      <stop offset="0.55" stop-color="#E8F3F8"/>
+      <stop offset="0.86" stop-color="#FDF1E3"/>
+    </linearGradient>
+    <radialGradient id="sunGlow">
+      <stop offset="0" stop-color="#FFE3A0" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFE3A0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="sunBody" cx="0.4" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#FFEBA8"/>
+      <stop offset="1" stop-color="#FFC24A"/>
+    </radialGradient>
+    <linearGradient id="cloudGrad" gradientUnits="userSpaceOnUse" x1="0" y1="-40" x2="0" y2="22">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DFEBF6"/>
+    </linearGradient>
+    <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FDF1E3" stop-opacity="0"/>
+      <stop offset="1" stop-color="#FDF1E3" stop-opacity="0.75"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D3EBD5"/>
+      <stop offset="1" stop-color="#B9DDC0"/>
+    </linearGradient>
+    <pattern id="hazard" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="14" height="14" fill="#FFF1C9"/>
+      <rect width="7" height="14" fill="#FFCB5C"/>
+    </pattern>
+
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC6B4"/>
+      <stop offset="1" stop-color="#F7A58F"/>
+    </linearGradient>
+    <linearGradient id="wallSide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E9998A"/>
+      <stop offset="1" stop-color="#D98472"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F2FAFF"/>
+      <stop offset="1" stop-color="#C3DDF0"/>
+    </linearGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F08A84"/>
+      <stop offset="1" stop-color="#E4746E"/>
+    </linearGradient>
+    <linearGradient id="cyl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E06F6A"/>
+      <stop offset="0.65" stop-color="#F9A49D"/>
+      <stop offset="1" stop-color="#EE8680"/>
+    </linearGradient>
+    <linearGradient id="silo" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#83C0C6"/>
+      <stop offset="0.68" stop-color="#D3F0F1"/>
+      <stop offset="1" stop-color="#9FD3D7"/>
+    </linearGradient>
+    <radialGradient id="dome" cx="0.65" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#DDF4F5"/>
+      <stop offset="1" stop-color="#8CC8CD"/>
+    </radialGradient>
+
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9AA6BA"/>
+      <stop offset="0.65" stop-color="#C9D2DF"/>
+      <stop offset="1" stop-color="#A9B4C6"/>
+    </linearGradient>
+    <linearGradient id="beltTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B7C1D1"/>
+      <stop offset="1" stop-color="#A3AEC1"/>
+    </linearGradient>
+    <linearGradient id="beltFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8E9BB1"/>
+      <stop offset="1" stop-color="#76839A"/>
+    </linearGradient>
+    <linearGradient id="leg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E08A4F"/>
+      <stop offset="0.6" stop-color="#F7B27A"/>
+      <stop offset="1" stop-color="#E9955C"/>
+    </linearGradient>
+    <linearGradient id="arm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE59A"/>
+      <stop offset="0.5" stop-color="#FAC94F"/>
+      <stop offset="1" stop-color="#E5A92C"/>
+    </linearGradient>
+    <radialGradient id="joint" cx="0.62" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#FAC395"/>
+      <stop offset="1" stop-color="#E07F43"/>
+    </radialGradient>
+
+    <linearGradient id="crateM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F57690"/><stop offset="1" stop-color="#E9506F"/></linearGradient>
+    <linearGradient id="crateN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBB55A"/><stop offset="1" stop-color="#F2972E"/></linearGradient>
+    <linearGradient id="crateF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4FD0C2"/><stop offset="1" stop-color="#2BB3A4"/></linearGradient>
+    <linearGradient id="crateT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4BA7D6"/><stop offset="1" stop-color="#2A88BA"/></linearGradient>
+    <linearGradient id="bin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3FE0B6"/><stop offset="1" stop-color="#14C497"/></linearGradient>
+    <linearGradient id="binInside" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16A982"/><stop offset="1" stop-color="#3BCFA8"/></linearGradient>
+
+    <clipPath id="card"><rect width="1280" height="400" rx="24"/></clipPath>
+    <g id="cloud">
+      <circle cx="0" cy="0" r="22"/>
+      <circle cx="26" cy="-12" r="28"/>
+      <circle cx="56" cy="0" r="22"/>
+      <rect x="0" y="0" width="56" height="22" rx="4"/>
+    </g>
+    <g id="gearTeeth">
+      <circle r="34" fill="none" stroke-width="12" stroke-dasharray="9.4 8.4"/>
+    </g>
+  </defs>
+
+  <g clip-path="url(#card)" font-family="Inter, 'SF Pro Display', 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif">
+    <rect width="1280" height="400" fill="url(#sky)"/>
+
+    <!-- sun -->
+    <circle cx="1180" cy="78" r="140" fill="url(#sunGlow)"/>
+    <g transform="translate(1180 78)">
+      <g stroke="#FFCF66" stroke-width="4" stroke-linecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="60s" repeatCount="indefinite"/>
+        <line x1="0" y1="-54" x2="0" y2="-68"/><line x1="0" y1="54" x2="0" y2="68"/>
+        <line x1="-54" y1="0" x2="-68" y2="0"/><line x1="54" y1="0" x2="68" y2="0"/>
+        <line x1="38" y1="38" x2="48" y2="48"/><line x1="-38" y1="-38" x2="-48" y2="-48"/>
+        <line x1="38" y1="-38" x2="48" y2="-48"/><line x1="-38" y1="38" x2="-48" y2="48"/>
+      </g>
+      <circle r="40" fill="url(#sunBody)"/>
+    </g>
+
+    <!-- clouds -->
+    <use href="#cloud" fill="url(#cloudGrad)" transform="translate(240 52) scale(0.6)" opacity="0.9"/>
+    <use href="#cloud" fill="url(#cloudGrad)" transform="translate(816 132) scale(0.7)"/>
+    <use href="#cloud" fill="url(#cloudGrad)" transform="translate(1012 146) scale(0.62)"/>
+
+    <!-- tagline -->
+    <text x="640" y="66" text-anchor="middle" font-size="26" font-weight="700" letter-spacing="0.4" fill="#2F4B6E">made by prompt<tspan fill="#E9506F" dx="10">·</tspan><tspan dx="10">checked by machine</tspan></text>
+
+    <!-- distant skyline, washed out by haze -->
+    <g fill="#C3D6E7">
+      <path d="M0 345 V262 H40 V240 L70 262 V240 L100 262 V240 L130 262 H170 V200 H180 V262 H420 V236 H470 V214 H478 V236 H520 V262 L560 240 L600 262 L640 240 L680 262 H720 V228 H760 V262 H860 V244 L900 226 L940 244 V262 H1060 V220 H1068 V190 H1076 V220 H1084 V262 H1180 V238 H1210 L1240 250 V262 H1280 V345 Z"/>
+      <rect x="976" y="198" width="54" height="24" rx="6"/>
+      <path d="M982 222 L976 262 H982 L988 222 Z M1024 222 L1030 262 H1024 L1018 222 Z"/>
+    </g>
+    <rect x="0" y="200" width="1280" height="145" fill="url(#haze)"/>
+
+    <!-- ground -->
+    <rect x="0" y="345" width="1280" height="55" fill="url(#ground)"/>
+    <rect x="0" y="345" width="1280" height="2" fill="#FFFFFF" opacity="0.6"/>
+    <rect x="370" y="356" width="890" height="6" fill="url(#hazard)" opacity="0.85"/>
+    <line x1="0" y1="384" x2="1280" y2="384" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="28 22" opacity="0.55"/>
+
+    <!-- contact shadows on the ground -->
+    <g fill="#2F5A48" opacity="0.2" filter="url(#blur)">
+      <rect x="18" y="340" width="280" height="12" rx="6"/>
+      <rect x="306" y="340" width="70" height="12" rx="6"/>
+      <rect x="360" y="340" width="740" height="12" rx="6"/>
+      <rect x="1112" y="340" width="130" height="12" rx="6"/>
+    </g>
+
+    <!-- steam -->
+    <g fill="#FFFFFF">
+      <circle cx="92" cy="60" r="10">
+        <animate attributeName="cy" values="64;10" dur="3.4s" repeatCount="indefinite"/>
+        <animate attributeName="r" values="7;20" dur="3.4s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.95;0" dur="3.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="92" cy="60" r="10">
+        <animate attributeName="cy" values="64;10" dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+        <animate attributeName="r" values="7;20" dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.95;0" dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="160" cy="84" r="9">
+        <animate attributeName="cy" values="88;34" dur="3.8s" begin="0.9s" repeatCount="indefinite"/>
+        <animate attributeName="r" values="6;17" dur="3.8s" begin="0.9s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.95;0" dur="3.8s" begin="0.9s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- factory -->
+    <g filter="url(#drop)">
+      <!-- chimneys -->
+      <rect x="80" y="66" width="24" height="96" fill="url(#cyl)"/>
+      <ellipse cx="92" cy="66" rx="12" ry="4" fill="#C95F5B"/>
+      <rect x="80" y="84" width="24" height="7" fill="#FFFFFF" opacity="0.55"/>
+      <rect x="148" y="90" width="24" height="70" fill="url(#cyl)"/>
+      <ellipse cx="160" cy="90" rx="12" ry="4" fill="#C95F5B"/>
+      <rect x="148" y="104" width="24" height="7" fill="#FFFFFF" opacity="0.55"/>
+
+      <!-- side wall -->
+      <path d="M50 186 L34 174 V333 L50 345 Z" fill="url(#wallSide)"/>
+      <!-- sawtooth roof: north-light glazing faces left, slopes lit from above -->
+      <g fill="url(#glass)" stroke="#E2B3AA" stroke-width="1.5">
+        <path d="M50 146 V186 L34 174 V134 Z"/>
+        <path d="M110 146 V186 L94 174 V134 Z"/>
+        <path d="M170 146 V186 L154 174 V134 Z"/>
+        <path d="M230 146 V186 L214 174 V134 Z"/>
+      </g>
+      <g fill="#F2B0A6">
+        <path d="M50 146 L110 186 L94 174 L34 134 Z"/>
+        <path d="M110 146 L170 186 L154 174 L94 134 Z"/>
+        <path d="M170 146 L230 186 L214 174 L154 134 Z"/>
+        <path d="M230 146 L290 186 L274 174 L214 134 Z"/>
+      </g>
+      <g fill="#E8958F">
+        <path d="M50 186 V146 L110 186 Z"/>
+        <path d="M110 186 V146 L170 186 Z"/>
+        <path d="M170 186 V146 L230 186 Z"/>
+        <path d="M230 186 V146 L290 186 Z"/>
+      </g>
+      <!-- front wall -->
+      <rect x="50" y="186" width="240" height="159" fill="url(#wall)"/>
+      <rect x="50" y="186" width="240" height="5" fill="#D9837A" opacity="0.45"/>
+    </g>
+    <g>
+      <g fill="url(#glass)" stroke="#FFFFFF" stroke-width="3">
+        <rect x="68" y="206" width="42" height="34" rx="3"/>
+        <rect x="124" y="206" width="42" height="34" rx="3"/>
+        <rect x="180" y="206" width="42" height="34" rx="3"/>
+        <rect x="236" y="206" width="42" height="34" rx="3"/>
+        <rect x="68" y="256" width="42" height="34" rx="3"/>
+        <rect x="236" y="256" width="42" height="34" rx="3"/>
+      </g>
+      <g fill="#8FA9C0" opacity="0.35">
+        <rect x="69.5" y="207.5" width="39" height="4"/>
+        <rect x="125.5" y="207.5" width="39" height="4"/>
+        <rect x="181.5" y="207.5" width="39" height="4"/>
+        <rect x="237.5" y="207.5" width="39" height="4"/>
+        <rect x="69.5" y="257.5" width="39" height="4"/>
+        <rect x="237.5" y="257.5" width="39" height="4"/>
+      </g>
+      <g stroke="#FFFFFF" stroke-width="1.5" opacity="0.9">
+        <line x1="89" y1="207" x2="89" y2="239"/><line x1="145" y1="207" x2="145" y2="239"/>
+        <line x1="201" y1="207" x2="201" y2="239"/><line x1="257" y1="207" x2="257" y2="239"/>
+        <line x1="89" y1="257" x2="89" y2="289"/><line x1="257" y1="257" x2="257" y2="289"/>
+      </g>
+      <g fill="#FFFFFF" opacity="0.5">
+        <path d="M96 208 L106 208 L94 238 L84 238 Z"/><path d="M152 208 L162 208 L150 238 L140 238 Z"/>
+        <path d="M208 208 L218 208 L206 238 L196 238 Z"/><path d="M264 208 L274 208 L262 238 L252 238 Z"/>
+      </g>
+      <!-- roller door, recessed -->
+      <rect x="128" y="258" width="88" height="87" rx="4" fill="#D9837A"/>
+      <rect x="132" y="264" width="80" height="81" fill="url(#door)"/>
+      <rect x="132" y="264" width="80" height="6" fill="#B95E58" opacity="0.4"/>
+      <g stroke="#F7A9A2" stroke-width="2">
+        <line x1="132" y1="284" x2="212" y2="284"/>
+        <line x1="132" y1="302" x2="212" y2="302"/>
+        <line x1="132" y1="320" x2="212" y2="320"/>
+      </g>
+    </g>
+
+    <!-- silo -->
+    <g filter="url(#drop)">
+      <rect x="322" y="206" width="54" height="139" fill="url(#silo)"/>
+      <path d="M322 207 Q322 180 349 178 Q376 180 376 207 Q349 214 322 207 Z" fill="url(#dome)"/>
+      <g fill="none" stroke="#7DB7BD" stroke-width="2" opacity="0.7">
+        <path d="M322 244 Q349 251 376 244"/>
+        <path d="M322 284 Q349 291 376 284"/>
+        <path d="M322 324 Q349 331 376 324"/>
+      </g>
+      <g stroke="#6FA9AF" stroke-width="1.5">
+        <line x1="328" y1="210" x2="328" y2="345"/><line x1="336" y1="210" x2="336" y2="345"/>
+      </g>
+      <g stroke="#6FA9AF" stroke-width="1.5">
+        <line x1="328" y1="222" x2="336" y2="222"/><line x1="328" y1="236" x2="336" y2="236"/>
+        <line x1="328" y1="250" x2="336" y2="250"/><line x1="328" y1="264" x2="336" y2="264"/>
+        <line x1="328" y1="278" x2="336" y2="278"/><line x1="328" y1="292" x2="336" y2="292"/>
+        <line x1="328" y1="306" x2="336" y2="306"/><line x1="328" y1="320" x2="336" y2="320"/>
+        <line x1="328" y1="334" x2="336" y2="334"/>
+      </g>
+    </g>
+
+    <!-- gantry rear posts and conveyor rear legs (further away, paler) -->
+    <g fill="#B9C3D3">
+      <rect x="874" y="98" width="8" height="235"/>
+      <rect x="1094" y="98" width="8" height="235"/>
+    </g>
+    <g fill="#E3A47A">
+      <rect x="394" y="302" width="10" height="31"/>
+      <rect x="594" y="302" width="10" height="31"/>
+      <rect x="794" y="302" width="10" height="31"/>
+      <rect x="994" y="302" width="10" height="31"/>
+    </g>
+
+    <!-- prompt bubble -->
+    <g filter="url(#drop)">
+      <path d="M428 116 H622 A28 28 0 0 1 622 172 H466 L438 196 L444 172 H428 A28 28 0 0 1 428 116 Z" fill="#FFFFFF"/>
+    </g>
+    <text x="525" y="150" text-anchor="middle" font-size="18" font-weight="600" fill="#2F4B6E">“a bracket, four holes”</text>
+
+    <!-- gears, with visible thickness -->
+    <g transform="translate(707 159)" stroke="#1E968A" fill="#1E968A">
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="10s" repeatCount="indefinite"/>
+        <use href="#gearTeeth"/><circle r="30"/>
+      </g>
+    </g>
+    <g transform="translate(712 154)" filter="url(#dropSm)">
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="10s" repeatCount="indefinite"/>
+        <use href="#gearTeeth" stroke="#3CC9BA"/>
+        <circle r="30" fill="#3CC9BA"/>
+        <circle r="20" fill="none" stroke="#2DB2A4" stroke-width="3"/>
+        <circle r="9" fill="#E8F6F2"/>
+        <circle r="9" fill="none" stroke="#2DB2A4" stroke-width="2"/>
+      </g>
+    </g>
+    <g transform="translate(763 194)" stroke="#D9A12C" fill="#D9A12C">
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="360" to="0" dur="6s" repeatCount="indefinite"/>
+        <use href="#gearTeeth" transform="scale(0.62)"/><circle r="18"/>
+      </g>
+    </g>
+    <g transform="translate(767 190)" filter="url(#dropSm)">
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="360" to="0" dur="6s" repeatCount="indefinite"/>
+        <use href="#gearTeeth" stroke="#FFD166" transform="scale(0.62)"/>
+        <circle r="18" fill="#FFD166"/>
+        <circle r="11" fill="none" stroke="#EDB840" stroke-width="2.5"/>
+        <circle r="5" fill="#FFF6E0"/>
+      </g>
+    </g>
+
+    <!-- conveyor -->
+    <g filter="url(#drop)">
+      <path d="M390 292 H1100 L1084 280 H374 Z" fill="url(#beltTop)"/>
+      <path d="M390 292 L374 280 V302 L390 314 Z" fill="#7A879D"/>
+      <rect x="390" y="292" width="710" height="22" fill="url(#beltFront)"/>
+      <rect x="390" y="292" width="710" height="2" fill="#C6CEDB"/>
+    </g>
+    <line x1="388" y1="286" x2="1088" y2="286" stroke="#E6EBF2" stroke-width="2" stroke-dasharray="18 14" stroke-linecap="round">
+      <animate attributeName="stroke-dashoffset" from="32" to="0" dur="1s" repeatCount="indefinite"/>
+    </line>
+    <g fill="#E9EEF4" stroke="#6C788E" stroke-width="1">
+      <circle cx="404" cy="303" r="6"/><circle cx="472" cy="303" r="6"/><circle cx="540" cy="303" r="6"/>
+      <circle cx="608" cy="303" r="6"/><circle cx="676" cy="303" r="6"/><circle cx="744" cy="303" r="6"/>
+      <circle cx="812" cy="303" r="6"/><circle cx="880" cy="303" r="6"/><circle cx="948" cy="303" r="6"/>
+      <circle cx="1016" cy="303" r="6"/><circle cx="1086" cy="303" r="6"/>
+    </g>
+    <g fill="#9AA6BA">
+      <circle cx="404" cy="303" r="2"/><circle cx="472" cy="303" r="2"/><circle cx="540" cy="303" r="2"/>
+      <circle cx="608" cy="303" r="2"/><circle cx="676" cy="303" r="2"/><circle cx="744" cy="303" r="2"/>
+      <circle cx="812" cy="303" r="2"/><circle cx="880" cy="303" r="2"/><circle cx="948" cy="303" r="2"/>
+      <circle cx="1016" cy="303" r="2"/><circle cx="1086" cy="303" r="2"/>
+    </g>
+    <g fill="url(#leg)">
+      <rect x="410" y="314" width="12" height="31"/>
+      <rect x="610" y="314" width="12" height="31"/>
+      <rect x="810" y="314" width="12" height="31"/>
+      <rect x="1010" y="314" width="12" height="31"/>
+    </g>
+
+    <!-- shadows cast on the belt -->
+    <g fill="#2F4B6E" opacity="0.28" filter="url(#blur)">
+      <ellipse cx="462" cy="287" rx="46" ry="4"/>
+      <ellipse cx="568" cy="287" rx="46" ry="4"/>
+      <ellipse cx="674" cy="287" rx="46" ry="4"/>
+      <ellipse cx="780" cy="287" rx="46" ry="4"/>
+      <ellipse cx="944" cy="287" rx="32" ry="4"/>
+    </g>
+
+    <!-- crates m n f t: front, top, shaded left side -->
+    <g filter="url(#drop)">
+      <path d="M446 222 L430 210 V280 L446 292 Z" fill="#D2425F"/>
+      <path d="M446 222 H516 L500 210 H430 Z" fill="#F99AAD"/>
+      <rect x="446" y="222" width="70" height="70" fill="url(#crateM)"/>
+      <path d="M552 222 L536 210 V280 L552 292 Z" fill="#DB8420"/>
+      <path d="M552 222 H622 L606 210 H536 Z" fill="#FDCB86"/>
+      <rect x="552" y="222" width="70" height="70" fill="url(#crateN)"/>
+      <path d="M658 222 L642 210 V280 L658 292 Z" fill="#229D90"/>
+      <path d="M658 222 H728 L712 210 H642 Z" fill="#83DFD5"/>
+      <rect x="658" y="222" width="70" height="70" fill="url(#crateF)"/>
+      <path d="M764 222 L748 210 V280 L764 292 Z" fill="#2077A4"/>
+      <path d="M764 222 H834 L818 210 H748 Z" fill="#7EC0E2"/>
+      <rect x="764" y="222" width="70" height="70" fill="url(#crateT)"/>
+    </g>
+    <g fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity="0.35">
+      <rect x="451" y="227" width="60" height="60"/>
+      <rect x="557" y="227" width="60" height="60"/>
+      <rect x="663" y="227" width="60" height="60"/>
+      <rect x="769" y="227" width="60" height="60"/>
+    </g>
+    <g font-size="40" font-weight="800" fill="#FFFFFF" text-anchor="middle" filter="url(#dropSm)">
+      <text x="481" y="270">m</text>
+      <text x="587" y="270">n</text>
+      <text x="693" y="270">f</text>
+      <text x="799" y="270">t</text>
+    </g>
+
+    <!-- the bracket under the arm: four holes on the top face -->
+    <g transform="translate(956 262)" filter="url(#drop)">
+      <path d="M0 -26 L30 -10 L0 6 L-30 -10 Z" fill="#E1D0EC"/>
+      <path d="M-30 -10 L0 6 V26 L-30 10 Z" fill="#A9BFE0"/>
+      <path d="M30 -10 L0 6 V26 L30 10 Z" fill="#CFE3F7"/>
+      <g fill="#9F86BC">
+        <ellipse cx="0" cy="-19" rx="4.5" ry="2.4"/>
+        <ellipse cx="14" cy="-10" rx="4.5" ry="2.4"/>
+        <ellipse cx="0" cy="-1" rx="4.5" ry="2.4"/>
+        <ellipse cx="-14" cy="-10" rx="4.5" ry="2.4"/>
+      </g>
+    </g>
+
+    <!-- gantry front posts and beam -->
+    <g filter="url(#drop)">
+      <rect x="890" y="110" width="10" height="235" fill="url(#steel)"/>
+      <rect x="1110" y="110" width="10" height="235" fill="url(#steel)"/>
+      <path d="M880 96 H1130 L1114 84 H864 Z" fill="#D3DAE5"/>
+      <path d="M880 96 L864 84 V98 L880 110 Z" fill="#8995AA"/>
+      <rect x="880" y="96" width="250" height="14" fill="#A6B1C3"/>
+    </g>
+
+    <!-- robot arm -->
+    <g filter="url(#drop)">
+      <path d="M940 110 L930 110 V122 L940 130 Z" fill="#D27637"/>
+      <rect x="940" y="110" width="46" height="20" rx="3" fill="url(#joint)"/>
+      <rect x="0" y="-9" width="65" height="18" rx="9" fill="url(#arm)" transform="translate(962 124) rotate(123.7) translate(-4 0)"/>
+      <rect x="0" y="-8" width="50" height="16" rx="8" fill="url(#arm)" transform="translate(926 180) rotate(43.4)"/>
+      <circle cx="962" cy="124" r="10" fill="url(#joint)"/>
+      <circle cx="926" cy="180" r="12" fill="url(#joint)"/>
+      <circle cx="926" cy="180" r="4" fill="#FFF3E6"/>
+      <circle cx="962" cy="214" r="9" fill="url(#joint)"/>
+      <g stroke="#D9773A" stroke-width="5" stroke-linecap="round" fill="none">
+        <path d="M953 220 L946 234"/>
+        <path d="M971 220 L978 234"/>
+      </g>
+    </g>
+
+    <!-- output bin -->
+    <path d="M1102 292 Q1118 292 1124 276" fill="none" stroke="#8D99AE" stroke-width="2.5" stroke-dasharray="4 5" stroke-linecap="round"/>
+    <g filter="url(#drop)">
+      <path d="M1136 272 L1120 260 V333 L1136 345 Z" fill="#0FAA82"/>
+      <path d="M1136 272 H1244 L1228 260 H1120 Z" fill="url(#binInside)"/>
+      <path d="M1152 268 L1166 254 L1180 268 L1166 276 Z" fill="#FFD166"/>
+      <path d="M1180 268 L1166 276 L1166 280 L1180 272 Z" fill="#E9B23C"/>
+      <path d="M1196 266 L1212 250 L1228 266 L1212 276 Z" fill="#F57690"/>
+      <path d="M1228 266 L1212 276 L1212 280 L1228 270 Z" fill="#D2425F"/>
+      <rect x="1136" y="272" width="108" height="73" fill="url(#bin)"/>
+      <rect x="1136" y="272" width="108" height="3" fill="#8FF0D4"/>
+    </g>
+    <rect x="1150" y="294" width="80" height="30" rx="6" fill="#FFFFFF" filter="url(#dropSm)"/>
+    <text x="1190" y="314" text-anchor="middle" font-size="14" font-weight="800" letter-spacing="0.6" fill="#0B8F6C">STL · STEP</text>
+  </g>
+</svg>

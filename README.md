@@ -1,5 +1,7 @@
 # mnft
 
+![A cheerful factory line: a prompt goes in, crates lettered m, n, f, t ride a conveyor, a robot arm finishes a part, and it drops into an STL and STEP bin](images/banner.svg)
+
 Say it out loud and your mouth already knows the word: manufacture.
 
 The word started life as Latin *manu factus*, made by hand. It travelled far
