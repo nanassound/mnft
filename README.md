@@ -64,19 +64,23 @@ cd mnft_cad_headless && mix deps.get && MNFT_HEADLESS_FAKE=1 mix run -e "MnftCad
 
 ### With Docker
 
-No Erlang, Python or poppler needed on your machine. The image runs the
-reference web app (`mnft_cad_web`) and the build123d worker.
+No Erlang, Python or poppler needed on your machine. The image is a `mix
+release` of the reference web app (`mnft_cad_web`) plus the build123d worker —
+no code reloader, no asset watchers, no `mix` at runtime.
 
 ```bash
 docker build -t mnft .
-docker run --rm -p 4200:4200 -e LLM_API_KEY=sk-... mnft    # http://localhost:4200
+docker run --rm -p 4000:4000 -e LLM_API_KEY=sk-... mnft    # http://localhost:4000
 ```
 
 Pass any other setting from `.env.example` with `-e` or `--env-file`, for
 example `-e LLM_PROVIDER=anthropic -e LLM_BASE_URL=`. Generated models and the
-journal live in `/app/mnft_cad_web/data` and vanish with the container; add
-`-v mnft-data:/app/mnft_cad_web/data` to keep them. The container runs the
-app's dev config, so use it locally and do not expose it to the internet.
+journal live in `/data` and vanish with the container; add
+`-v mnft-data:/data` to keep them. For a long-lived deployment also set
+`SECRET_KEY_BASE` (without it a random key is generated per boot and saved
+parts become unreachable after a restart) and `PHX_HOST` when the app sits
+behind a proxy. The caution at the end of this README still applies: none of
+this is a sandbox.
 
 The engine choice is one line of config. The default is build123d (full
 fidelity, STEP included, runs through cad_worker). If you would rather not

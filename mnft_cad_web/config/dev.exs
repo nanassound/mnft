@@ -1,8 +1,8 @@
 import Config
 
-# MNFT_DOCKER=1 (set by the repo Dockerfile): listen on all interfaces so the
-# published port is reachable, and skip the asset watchers / code reloader
-# (assets are prebuilt into the image).
+# MNFT_DOCKER=1 (opt-in, for running this dev config inside a container):
+# listen on all interfaces so a published port is reachable, and skip the
+# asset watchers / code reloader (assets are prebuilt into the image).
 in_docker = System.get_env("MNFT_DOCKER") == "1"
 
 config :mnft_cad_web, MnftCadWeb.Endpoint,
