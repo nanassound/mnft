@@ -25,12 +25,13 @@ import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 import {CadViewer} from "./hooks/cad_viewer"
 import {PhotoAttach, Transcript} from "./hooks/photo_attach"
+import {CodeCopy} from "./hooks/code_copy"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {CadViewer, PhotoAttach, Transcript},
+  hooks: {CadViewer, PhotoAttach, Transcript, CodeCopy},
 })
 
 // Show progress bar on live navigation and form submits

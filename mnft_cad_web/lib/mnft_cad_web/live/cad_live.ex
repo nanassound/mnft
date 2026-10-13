@@ -254,6 +254,127 @@ defmodule MnftCadWeb.CadLive do
   def model_json(nil), do: ""
   def model_json(model), do: Jason.encode!(%{stl: model.stl, mesh: model.mesh, id: model.id})
 
+  @doc """
+  Split an assistant reply into renderable segments: `%{kind: :text, text}`
+  prose and `%{kind: :code, lang, code}` fenced blocks (`lang` is `nil` for a
+  bare fence). A fence is a line starting (after leading whitespace) with
+  ```; the fence line's remainder is the language. An unclosed fence runs to
+  the end of the reply. Pure: the segments reconstruct the reply exactly, so
+  rendering them loses nothing from the raw text.
+  """
+  @spec md_segments(String.t()) :: [
+          %{kind: :text, text: String.t()} | %{kind: :code, lang: String.t() | nil, code: String.t()}
+        ]
+  def md_segments(content) when is_binary(content) do
+    {segs, mode, lang, buf} =
+      content
+      |> String.split("\n")
+      |> Enum.reduce({[], :text, nil, []}, &md_line/2)
+
+    finish_md({segs, mode, lang, buf})
+  end
+
+  defp md_line(line, {segs, :text, nil, buf}) do
+    if fence?(line),
+      do: {flush_text(buf, segs), :code, fence_lang(line), []},
+      else: {segs, :text, nil, [line | buf]}
+  end
+
+  defp md_line(line, {segs, :code, lang, buf}) do
+    if fence?(line),
+      do: {flush_code(lang, buf, segs), :text, nil, []},
+      else: {segs, :code, lang, [String.replace_suffix(line, "\r", "") | buf]}
+  end
+
+  defp finish_md({segs, :text, nil, buf}), do: Enum.reverse(flush_text(buf, segs))
+  defp finish_md({segs, :code, lang, buf}), do: Enum.reverse(flush_code(lang, buf, segs))
+
+  defp flush_text([], segs), do: segs
+
+  defp flush_text(buf, segs) do
+    case buf |> Enum.reverse() |> Enum.join("\n") do
+      "" -> segs
+      text -> [%{kind: :text, text: text} | segs]
+    end
+  end
+
+  defp flush_code(_lang, [], segs), do: segs
+
+  defp flush_code(lang, buf, segs) do
+    [%{kind: :code, lang: lang, code: Enum.reverse(buf) |> Enum.join("\n")} | segs]
+  end
+
+  defp fence?(line) do
+    case String.trim_leading(line) do
+      "```" <> _ -> true
+      _ -> false
+    end
+  end
+
+  defp fence_lang(line) do
+    case String.trim_leading(line) do
+      "```" <> rest ->
+        case String.trim(rest) do
+          "" -> nil
+          lang -> lang
+        end
+
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Tokenize prose for inline markdown: `**strong**`, `*em*`, and backtick
+  `` `code` `` become `%{kind: :strong | :em | :code, text}`; everything else
+  stays `%{kind: :plain, text}`. Emphasis must not open on a space, so
+  arithmetic like `2 * 3 * 4` stays plain. Pure and total: a lone unclosed
+  marker renders as literal text. Plain tokens concatenate to the input
+  exactly; marker tokens carry the inner text without the markers. Callers
+  render the tokens with HEEx so the content stays escaped — never build
+  HTML strings from LLM text.
+  """
+  @spec inline_tokens(String.t()) :: [
+          %{kind: :plain | :strong | :em | :code, text: String.t()}
+        ]
+  def inline_tokens(text) when is_binary(text), do: do_inline(text, [])
+
+  # bold first so `**` wins over `*`; em/code must not span a newline.
+  @inline_re ~r/\*\*([^*]+)\*\*|\*(\S[^*\n]*?)\*|`([^`\n]+)`/
+
+  defp do_inline(text, acc) do
+    case Regex.run(@inline_re, text, return: :index) do
+      nil ->
+        Enum.reverse(push_plain(text, acc))
+
+      [whole | _] ->
+        # Regex indexes are byte offsets; binary-size matching keeps the
+        # splits exact even with multibyte characters elsewhere in the text.
+        {start, len} = whole
+        <<pre::binary-size(start), match::binary-size(len), rest::binary>> = text
+        acc = [inline_token(match) | push_plain(pre, acc)]
+        do_inline(rest, acc)
+    end
+  end
+
+  defp inline_token("**" <> inner), do: %{kind: :strong, text: String.slice(inner, 0, String.length(inner) - 2)}
+  defp inline_token("`" <> inner), do: %{kind: :code, text: String.slice(inner, 0, String.length(inner) - 1)}
+  defp inline_token("*" <> inner), do: %{kind: :em, text: String.slice(inner, 0, String.length(inner) - 1)}
+
+  defp push_plain("", acc), do: acc
+  defp push_plain(text, acc), do: [%{kind: :plain, text: text} | acc]
+
+  # HEEx escapes interpolated content; safe_to_string keeps the tag-wrapped
+  # text escaped too, so LLM text never becomes raw HTML.
+  defp render_inline(%{kind: :strong, text: t}), do: {:safe, ["<strong>", safe_to_string(html_escape(t)), "</strong>"]}
+  defp render_inline(%{kind: :em, text: t}), do: {:safe, ["<em>", safe_to_string(html_escape(t)), "</em>"]}
+
+  defp render_inline(%{kind: :code, text: t}),
+    do:
+      {:safe,
+       [~s(<code class="rounded bg-zinc-200 px-1 font-mono text-[0.85em]">), safe_to_string(html_escape(t)), "</code>"]}
+
+  defp render_inline(%{kind: :plain, text: t}), do: t
+
   # --- render ------------------------------------------------------------------
 
   @impl true
@@ -509,7 +630,7 @@ defmodule MnftCadWeb.CadLive do
 
     ~H"""
     <div id={@id} class="flex justify-end">
-      <div class="max-w-[85%] rounded-xl bg-accent px-3.5 py-2 text-sm text-white">
+      <div class="max-w-[85%] rounded-xl bg-accent px-3.5 py-2 text-sm text-white [overflow-wrap:anywhere]">
         {@message.content}
         <div :if={@photos != []} class="mt-1.5 flex flex-wrap gap-1.5">
           <img
@@ -534,9 +655,29 @@ defmodule MnftCadWeb.CadLive do
   defp message(assigns) do
     ~H"""
     <div id={@id} class="max-w-[92%] space-y-2">
-      <div class="whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-800">
-        {@message.content}
-      </div>
+      <%= for {seg, i} <- Enum.with_index(md_segments(@message.content)) do %>
+        <%= if seg.kind == :text do %>
+          <div class="whitespace-pre-wrap break-words rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-800"><%= for tok <- inline_tokens(seg.text) do %>{render_inline(tok)}<% end %></div>
+        <% else %>
+          <div class="overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900">
+            <div class="flex items-center justify-between border-b border-zinc-700 px-3 py-1.5">
+              <span class="font-mono text-xs text-zinc-400">{seg.lang || "code"}</span>
+              <button
+                id={"#{@id}-copy-#{i}"}
+                type="button"
+                phx-hook="CodeCopy"
+                data-target={"#{@id}-code-#{i}"}
+                class="text-xs text-zinc-400 transition-colors hover:text-white"
+              >copy</button>
+            </div>
+            <pre
+              id={"#{@id}-code-#{i}"}
+              phx-no-curly-interpolation
+              class="max-h-96 overflow-auto p-3 font-mono text-sm text-zinc-100"
+            ><%= seg.code %></pre>
+          </div>
+        <% end %>
+      <% end %>
       <p :if={@message.meta["repaired"]} class="text-xs text-zinc-500">
         Fixed automatically after a first failed attempt.
       </p>

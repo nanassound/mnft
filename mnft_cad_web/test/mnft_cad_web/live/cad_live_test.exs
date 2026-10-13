@@ -29,6 +29,10 @@ defmodule MnftCadWeb.CadLiveTest do
        }}
     ])
 
+    engine_ok()
+  end
+
+  defp engine_ok do
     EngineFake.set_script([
       %{
         ok: true,
@@ -86,6 +90,96 @@ defmodule MnftCadWeb.CadLiveTest do
     # annotation toolbar renders alongside the model
     assert has_element?(view, "#anno-pen")
     assert has_element?(view, "#anno-copy")
+  end
+
+  test "assistant reply renders fenced code as a copyable block", %{conn: conn, session: session} do
+    scripted_turn()
+
+    {:ok, view, _html} = live(conn, ~p"/app/s/#{session.id}")
+    render_hook(view, "send", %{"message" => "a 30 mm cube", "photos" => [], "current" => nil})
+
+    assert eventually(fn ->
+             html = render(view)
+             html =~ ~s(<span class="font-mono text-xs text-zinc-400">python</span>)
+           end)
+
+    assert has_element?(view, "[phx-hook='CodeCopy']")
+    assert render(view) =~ "part = Box(30,30,30)"
+    # the raw fence never leaks into the rendered transcript
+    refute render(view) =~ "```"
+  end
+
+  test "inline_tokens parses bold, italic, and inline code", %{conn: _conn, session: _session} do
+    alias MnftCadWeb.CadLive
+
+    assert CadLive.inline_tokens("**Baseplate:** 3.3\" long") == [
+             %{kind: :strong, text: "Baseplate:"},
+             %{kind: :plain, text: " 3.3\" long"}
+           ]
+
+    assert CadLive.inline_tokens("a *slightly* tilted `Box(3)`") == [
+             %{kind: :plain, text: "a "},
+             %{kind: :em, text: "slightly"},
+             %{kind: :plain, text: " tilted "},
+             %{kind: :code, text: "Box(3)"}
+           ]
+
+    # unclosed markers and arithmetic stay literal
+    assert CadLive.inline_tokens("2 * 3 * 4 and a ** stray") == [
+             %{kind: :plain, text: "2 * 3 * 4 and a ** stray"}
+           ]
+
+    # multibyte neighbours split exactly; markers excluded from inner text
+    assert CadLive.inline_tokens("- **Holes:** two Ø3.5 mm *clearance* holes") == [
+             %{kind: :plain, text: "- "},
+             %{kind: :strong, text: "Holes:"},
+             %{kind: :plain, text: " two Ø3.5 mm "},
+             %{kind: :em, text: "clearance"},
+             %{kind: :plain, text: " holes"}
+           ]
+  end
+
+  test "assistant prose renders bold and italic", %{conn: conn, session: session} do
+    LLMFake.set_script([
+      {:ok, %{reply: "Plan:\n**Bold label:** some *emphasis* plus `Box(3)`", reasoning: "", finish_reason: :stop}}
+    ])
+
+    engine_ok()
+
+    {:ok, view, _html} = live(conn, ~p"/app/s/#{session.id}")
+    render_hook(view, "send", %{"message" => "a part", "photos" => [], "current" => nil})
+
+    assert eventually(fn ->
+             html = render(view)
+             html =~ "<strong>Bold label:</strong>"
+           end)
+
+    html = render(view)
+    assert html =~ "<em>emphasis</em>"
+    assert html =~ "<code class=\"rounded bg-zinc-200 px-1 font-mono text-[0.85em]\">Box(3)</code>"
+    refute html =~ "**"
+  end
+
+  test "md_segments splits prose and fenced blocks", %{conn: _conn, session: _session} do
+    alias MnftCadWeb.CadLive
+
+    assert CadLive.md_segments("Here.\n```python\npart = Box(30,30,30)\n```") == [
+             %{kind: :text, text: "Here."},
+             %{kind: :code, lang: "python", code: "part = Box(30,30,30)"}
+           ]
+
+    # no fences: single text segment, unchanged
+    assert CadLive.md_segments("plain\nreply") == [%{kind: :text, text: "plain\nreply"}]
+
+    # unclosed fence runs to the end; no-language fences get lang nil
+    assert CadLive.md_segments("```\nx = 1") == [%{kind: :code, lang: nil, code: "x = 1"}]
+
+    # \r\n fences and bodies are normalized
+    assert CadLive.md_segments("a\r\n```python\r\nx=1\r\n```\r\nb") == [
+             %{kind: :text, text: "a\r"},
+             %{kind: :code, lang: "python", code: "x=1"},
+             %{kind: :text, text: "b"}
+           ]
   end
 
   test "turn events broadcast through PubSubBridge reach the LiveView", %{
