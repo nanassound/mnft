@@ -113,8 +113,8 @@ overrides the path; the default is `openscad` on `PATH`).
 
 Then set `MNFT_ENGINE=openscad`.
 
-**smlibpy** — ~7 MB manylinux wheel (Python 3.10–3.14, x86_64 Linux only;
-on macOS/ARM use Docker):
+**smlibpy** — ~7 MB wheel (Python 3.10–3.14; macOS, Linux and Windows wheels
+available):
 
 ```bash
 cd cad_worker && uv pip install -e ".[smlibpy]"
