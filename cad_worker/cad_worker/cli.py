@@ -45,15 +45,19 @@ def _reply(payload: dict) -> None:
 
 
 def _health() -> int:
-    import build123d  # lazy: the parent CLI process is stdlib-only otherwise
-
-    _reply({"ok": True,
-            "build123d": getattr(build123d, "__version__", "unknown"),
-            "python": sys.version.split()[0]})
+    import sys as _sys
+    python_ver = _sys.version.split()[0]
+    from .dialects import build123d as _b123d
+    from .dialects import smlibpy as _sml
+    info: dict = {"ok": True}
+    info.update(_b123d.health_info(python_ver))
+    info.update(_sml.health_info(python_ver))
+    info["python"] = python_ver
+    _reply(info)
     return 0
 
 
-def _run_request(line: str) -> int:
+def _run_request(line: str, dialect: str = "build123d") -> int:
     try:
         req = json.loads(line)
         code = req["code"]
@@ -64,14 +68,14 @@ def _run_request(line: str) -> int:
         sys.stderr.write(f"unusable request: {type(exc).__name__}: {exc}\n")
         return 2
 
-    reject = runner.static_check(code)
+    reject = runner.static_check(code, dialect=dialect)
     if reject:
         _reply({"ok": False, "stage": "static_check", "error": reject,
                 "artifacts": None, "mesh": None, "exec_ms": 0})
         return 0
 
     _arm_hard_deadline()
-    result = runner.execute(code, Path(model_dir))
+    result = runner.execute(code, Path(model_dir), dialect=dialect)
     _reply({"ok": result["ok"], "stage": "exec",
             "error": result.get("error"),
             "artifacts": result.get("artifacts"),
@@ -81,14 +85,20 @@ def _run_request(line: str) -> int:
 
 
 def main() -> int:
-    if "--health" in sys.argv[1:]:
+    args = sys.argv[1:]
+    dialect = "build123d"
+    if "--dialect" in args:
+        idx = args.index("--dialect")
+        dialect = args[idx + 1] if idx + 1 < len(args) else "build123d"
+
+    if "--health" in args:
         return _health()
 
     line = sys.stdin.readline()
     if not line.strip():
         sys.stderr.write("no request on stdin\n")
         return 2
-    return _run_request(line)
+    return _run_request(line, dialect)
 
 
 if __name__ == "__main__":

@@ -217,9 +217,9 @@ defmodule Mnft.Cad.Turn do
 
       repair_message =
         if result.truncated do
-          CodeGen.build_truncated_repair_message(result.first_code)
+          CodeGen.build_truncated_repair_message(engine_dialect(), result.first_code)
         else
-          CodeGen.build_repair_message(result.first_code || "", result.first_err)
+          CodeGen.build_repair_message(engine_dialect(), result.first_code || "", result.first_err)
         end
 
       history2 = history ++ [%{role: :assistant, content: result.reply}]
@@ -305,7 +305,7 @@ defmodule Mnft.Cad.Turn do
   defp recheck_noop(result, message, history, images, current, vision?, t0) do
     Events.emit(result.session_id, "llm_started", %{noop: true})
 
-    noop_message = CodeGen.build_noop_message(message, CodeGen.current_model_line(result.mesh))
+    noop_message = CodeGen.build_noop_message(engine_dialect(), message, CodeGen.current_model_line(result.mesh))
     history2 = history ++ [%{role: :assistant, content: result.reply}]
 
     case llm_module().generate(noop_message, history2, images, current, vision?) do
@@ -579,4 +579,15 @@ defmodule Mnft.Cad.Turn do
   defp llm_module, do: Cad.llm_module()
 
   defp engine, do: Cad.engine()
+
+  defp engine_dialect do
+    engine = Config.get(:engine)
+
+    if is_atom(engine) and Code.ensure_loaded(engine) == {:module, engine} and
+         function_exported?(engine, :dialect, 0) do
+      engine.dialect()
+    else
+      :build123d
+    end
+  end
 end

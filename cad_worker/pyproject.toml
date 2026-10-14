@@ -1,13 +1,16 @@
 [project]
 name = "cad-worker"
 version = "0.1.0"
-description = "Guarded build123d execution service for the mnft CAD core"
+description = "Guarded build123d/smlibpy execution service for the mnft CAD core"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "build123d==0.13.0",
     "pillow>=12,<13",
     "pymupdf>=1.28,<2",
 ]
+
+[project.optional-dependencies]
+smlibpy = ["smlibpy==0.2.3"]
 
 [project.scripts]
 cad-worker = "cad_worker.cli:main"

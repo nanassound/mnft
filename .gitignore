@@ -1,2 +1,5 @@
 # Local secrets (loaded by config/dev.exs; see .env.example)
 .env
+
+# BEAM crash dumps
+erl_crash.dump

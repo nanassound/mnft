@@ -32,9 +32,13 @@ jobs:
         run: |
           cd cad_worker
           uv venv --python 3.12
-          uv pip install -e . pytest
+          uv pip install -e ".[smlibpy]" pytest
       - name: Compile core
         run: cd mnft_cad && mix deps.get && mix compile --warnings-as-errors
+      # EngineConfigTest shells out to `mix run` in mnft_cad_web, which needs
+      # its deps on disk before the core suite runs.
+      - name: Fetch web app deps
+        run: cd mnft_cad_web && mix deps.get
       - name: Install poppler (reference-PDF tests)
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then

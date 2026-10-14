@@ -11,6 +11,10 @@ defmodule Mnft.Cad.Engines.OpenScad do
 
   alias Mnft.Cad.Engines.OpenScad.{Glb, Stl}
 
+  @impl Mnft.Cad.Engine
+  @doc "Dialect tag; routes the LLM system prompt and repair messages."
+  def dialect, do: :openscad
+
   @max_code_bytes 20_000
   @timeout_error "execution exceeded the wall clock and was killed"
 
@@ -102,17 +106,23 @@ defmodule Mnft.Cad.Engines.OpenScad do
     port =
       Port.open(
         {:spawn_executable, String.to_charlist(System.find_executable(bin) || bin)},
-        [:binary, :exit_status, {:args, args}, {:cd, String.to_charlist(model_dir)}]
+        [
+          :binary,
+          :exit_status,
+          :stderr_to_stdout,
+          {:args, args},
+          {:cd, String.to_charlist(model_dir)}
+        ]
       )
 
     timeout_s = cfg[:timeout_s] || cfg[:exec_timeout_s] || 60
 
-    case collect(port, nil, timeout_s * 1000) do
-      {:ok, 0} ->
+    case collect(port, [], timeout_s * 1000) do
+      {:ok, 0, _out} ->
         :ok
 
-      {:ok, status} ->
-        {:error, "openscad exited with status #{status}"}
+      {:ok, status, out} ->
+        {:error, openscad_error(status, out)}
 
       {:error, :timeout} ->
         Port.close(port)
@@ -120,9 +130,24 @@ defmodule Mnft.Cad.Engines.OpenScad do
     end
   end
 
-  defp collect(port, _status, timeout_ms) do
+  # Parser/geometry errors carry a full line each; keep the tail, which holds
+  # the first ERROR lines (OpenSCAD prints ERROR before WARNING as it exits).
+  defp openscad_error(status, out) do
+    text =
+      out
+      |> IO.iodata_to_binary()
+      |> String.split("\n")
+      |> Enum.filter(&String.contains?(&1, "ERROR"))
+      |> Enum.take(-5)
+      |> Enum.join("\n")
+
+    "openscad exited with status #{status}" <> if(text == "", do: "", else: ":\n#{text}")
+  end
+
+  defp collect(port, acc, timeout_ms) do
     receive do
-      {^port, {:exit_status, status}} -> {:ok, status}
+      {^port, {:data, data}} -> collect(port, [acc | data], timeout_ms)
+      {^port, {:exit_status, status}} -> {:ok, status, acc}
     after
       timeout_ms -> {:error, :timeout}
     end

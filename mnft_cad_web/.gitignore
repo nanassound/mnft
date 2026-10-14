@@ -4,3 +4,6 @@
 /priv/static/assets/
 npm-debug.log
 .elixir_ls/
+
+# BEAM crash dumps
+erl_crash.dump
