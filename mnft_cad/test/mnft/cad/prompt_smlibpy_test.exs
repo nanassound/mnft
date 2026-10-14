@@ -55,6 +55,25 @@ defmodule Mnft.Cad.PromptSmlibpyTest do
       assert String.starts_with?(s, "You write **smlibpy** code. Your first line is exactly `from smlibpy import *`")
     end
 
+    # Production evidence (user turn "M3 threaded screw, 12 mm"): the prompt said
+    # "keep threaded length <= 20 mm", the fuse silently dropped the ridge above ~16
+    # turns, and the revolve example taught the Y axis. Pin what the guidance SAYS.
+    test "thread guidance states the 8 mm / 16-turn limit and no 20 mm thread claim" do
+      s = PromptSmlibpy.system()
+      assert s =~ "≤ 8 mm (16 turns)"
+      assert s =~ "SILENTLY returns"
+      assert s =~ "assert"
+      refute s =~ ~r/20\s*mm/
+    end
+
+    test "revolve guidance is Z-axis only" do
+      s = PromptSmlibpy.system()
+      assert s =~ "EVERY revolve is about"
+      assert s =~ ".on(Plane.XZ).revolve(Z)"
+      # the Y axis may be mentioned only as the thing NOT to do
+      assert s =~ ~r/gives a\s+part whose axis is Y/
+    end
+
     test "mentions build123d only to forbid it, never instructs importing it" do
       s = PromptSmlibpy.system()
       refute s =~ "from build123d"
@@ -63,7 +82,7 @@ defmodule Mnft.Cad.PromptSmlibpyTest do
       assert s =~ "rejected before your code runs"
     end
 
-    test "the always-injected gotchas skill leads with the build123d-prior trap" do
+    test "the always-injected gotchas skill carries the build123d-prior trap ahead of the method gotchas" do
       Application.delete_env(:mnft_cad, :cad_skills_smlibpy_dir)
       block = PromptSmlibpy.skills_block()
       assert block =~ "import not allowed: build123d"
@@ -89,6 +108,15 @@ defmodule Mnft.Cad.PromptSmlibpyTest do
       Application.delete_env(:mnft_cad, :cad_skills_smlibpy_dir)
       block = PromptSmlibpy.skills_block()
       assert block =~ "smlibpy quick reference"
+    end
+
+    test "shipped skills teach the 8 mm thread limit and Z revolves, not 20 mm or Y" do
+      Application.delete_env(:mnft_cad, :cad_skills_smlibpy_dir)
+      block = PromptSmlibpy.skills_block()
+      assert block =~ "silently dropped above ~16 turns"
+      assert block =~ "revolve(Z)"
+      refute block =~ ~r/(thread|ridge)[^\n]{0,40}20\s*mm/i
+      refute block =~ ~r/revolve\(Axis\(\(0, 0, 0\), \(0, 1, 0\)\)\)\s*$/m
     end
 
     test "shipped files mention Helix (threaded fastener)" do

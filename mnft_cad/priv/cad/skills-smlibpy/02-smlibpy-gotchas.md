@@ -3,6 +3,29 @@
 
 # smlibpy gotchas
 
+## The two silent traps (they return `ok` and a wrong part)
+
+- **A swept thread ridge is silently dropped above ~16 turns.** Fusing
+  `sweep(Circle(t), path=Helix(...))` onto the shank returns the bare shank — no error,
+  no warning — once the helix has more than about 16 turns. M3, pitch 0.5, minor radius
+  1.2, ridge `t = 0.2`, `r_mid = 1.3`: **8 mm (16 turns) keeps the thread** (volume 49.80,
+  bbox 3.0 across the threads); **9, 10, 11 and 12 mm (18-24 turns) lose it** (volume =
+  π·1.2²·L, bbox 2.4, a smooth rod). Keep the thread ≤ 8 mm; a longer screw gets an 8 mm
+  thread plus a plain shank. Splitting a longer thread into fused segments is unreliable
+  (8+8 and 4+8 fused cleanly; 8+4, 8+6, 5+5 raised a `KernelError` or left gaps), so
+  do not. Check every thread with an `assert` on the threaded shank, before the head or
+  anything wider is fused on: bbox across the threads ≈ the major diameter (M3 → 3.0,
+  2.4 = ridge lost) and volume > π·r_minor²·L. If it fails, shorten the thread and
+  say so in the reply.
+- **Revolve about Y (or with no axis) gives a Y-axis part.** mnft models are Z-up with the
+  base on Z=0. `profile.revolve(Axis((0, 0, 0), (0, 1, 0)))` or a bare `.revolve()` makes a
+  part whose axis is Y: a disc lying sideways at z = −r..+r, detached from a shank built
+  along Z. Use the lathe idiom: half profile in XY with x = radius, y = height, then
+  `profile.on(Plane.XZ).revolve(Z)` — always pass the axis. Check: base at z ≈ 0, bbox Z =
+  profile height, and `len(part.solids()) == 1` after fusing a revolved head to a shank.
+
+## Imports
+
 - **Do not import build123d.** Models default to `from build123d import *` out of habit.
   Here it fails before your code runs: `import not allowed: build123d (only smlibpy and
   math)`, and the turn wastes a repair round trip. The first line is always

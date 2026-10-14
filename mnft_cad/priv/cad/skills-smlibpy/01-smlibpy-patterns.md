@@ -44,6 +44,10 @@ Draw the half-section with `Profile`, starting and ending on the axis of revolut
 Use `.fillet(r)` inside the profile to round corners before revolving (cheaper than filleting the solid).
 A profile that crosses the axis raises `ModelingError`.
 
+**Always revolve about Z** (mnft is Z-up, base on Z=0): draw the half profile in XY with
+x = radius and y = height, then `profile.on(Plane.XZ).revolve(Z)`. Revolving about Y or
+with no axis gives a sideways Y-axis part that is also detached from anything built along Z.
+
 ---
 
 ## Sweeps along helices
@@ -52,7 +56,11 @@ Use `Helix(pitch, height, radius)` as the path. `sweep` puts the profile's centr
 the START of the path; a profile cannot be offset from its path, so
 `profile.moved(Pos(r, 0, 0))` does nothing. Move the PATH instead: for a tube of
 radius `t` whose crest should reach `R`, set the helix radius to `R − t`.
-For thread ridges: keep threaded length ≤ 20 mm; never fillet a swept-thread solid.
+For thread ridges: keep the threaded length ≤ 8 mm at pitch 0.5 (16 turns) — beyond about
+16 turns the fuse silently returns the bare shank (a smooth rod, `ok` and no warning).
+`assert` that the bbox across the threads reads ≈ the major diameter (M3 → 3.0, not 2.4)
+before fusing a head on, and shorten the thread (and say so) if it does not. For a longer
+screw use an 8 mm thread plus a plain shank. Never fillet a swept-thread solid.
 
 ---
 

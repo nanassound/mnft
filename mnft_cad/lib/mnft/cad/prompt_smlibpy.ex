@@ -65,30 +65,53 @@ defmodule Mnft.Cad.PromptSmlibpy do
     be offset from its path (`profile.moved(Pos(r, 0, 0))` does nothing). Move the
     PATH instead: for a tube of radius t whose crest should reach R, the helix
     radius is R − t.
+  - REVOLVES: mnft models are Z-up with the base on Z=0, so EVERY revolve is about
+    Z. Draw the half profile in XY with x = radius and y = height, place it
+    `.on(Plane.XZ)`, and always pass the axis: `profile.on(Plane.XZ).revolve(Z)`.
+    `revolve(Axis(..., (0, 1, 0)))` (about Y) or a revolve with no axis gives a
+    part whose axis is Y — a disc lying sideways at z = −r..+r, detached from
+    anything built along Z. Check the result: base at z ≈ 0 and bbox Z equals the
+    profile height.
   - For threaded fasteners (screw/bolt), model the thread as a swept ridge on a
     bare shank. The shank is the MINOR diameter; the ridge brings it to the MAJOR
-    diameter (crest radius). Use `Helix` as the sweep path. Keep threaded length
-    ≤ 20 mm. Verified M3 pattern (pitch 0.5, 8 mm long, bbox 3.0 across the
-    threads):
+    diameter (crest radius). Use `Helix` as the sweep path.
+    THREAD LENGTH LIMIT: at pitch 0.5 keep the thread ≤ 8 mm (16 turns). Above
+    roughly 16 turns the fuse of the swept ridge onto the shank SILENTLY returns
+    the bare shank — no error, no warning — and the part looks like a smooth rod
+    (measured: 8 mm → thread kept; 9 mm and 12 mm → thread gone). A screw longer
+    than 8 mm gets an 8 mm thread plus a plain shank for the rest (butt-joined
+    cylinder), and the reply says so. Do not split a longer thread into fused
+    segments: tested, it is unreliable (some splits raise a KernelError, others
+    leave faces with gaps).
+    ALWAYS check the threaded shank with an `assert` before fusing anything wider
+    onto it: the bbox across the threads must read ≈ the major diameter (M3 →
+    3.00; 2.4 means the ridge was dropped) and the volume must exceed the bare
+    shank's π·r_minor²·length. If the check fails, shorten the thread and SAY SO
+    in the reply — an honest shorter thread beats a smooth rod. Verified M3 screw
+    with a flat head (thread 8 mm, head revolved about Z):
 
     ```python
     from smlibpy import *
     import math
-    pitch, length, r_minor, t, r_mid = 0.5, 8.0, 1.2, 0.2, 1.3   # crest r_mid + t = 1.5 => 3.0 mm major
-    helix = Helix(pitch=pitch, height=length, radius=r_mid)      # the PATH carries the offset
-    ridge = sweep(Circle(t), path=helix)                         # tube spans 1.10..1.50, overlaps the shank
-    part = Cylinder(r_minor, length, align=(Align.CENTER, Align.CENTER, Align.MIN)) + ridge
+    pitch, length, r_minor, t, r_mid = 0.5, 8.0, 1.2, 0.2, 1.3   # 16 turns, crest r_mid + t = 1.5 => 3.0 mm major
+    shank = Cylinder(r_minor, length, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    shank = shank + sweep(Circle(t), path=Helix(pitch=pitch, height=length, radius=r_mid))
+    bb = shank.bbox()
+    assert abs((bb.max.x - bb.min.x) - 3.0) < 0.05 and shank.volume > math.pi * r_minor**2 * length, \
+        "thread ridge was dropped by the fuse: shorten the thread"
+    head = (Profile((0.0, length)).line_to(1.5, length).line_to(3.0, length + 3.0)
+            .line_to(0.0, length + 3.0).close().on(Plane.XZ).revolve(Z))
+    part = shank + head                       # one body, 6.0 x 6.0 x 11.2, z = -0.2 .. 11.0
     ```
 
-    Two traps. (1) The tube must OVERLAP the shank: a tangent tube
+    Two more traps. (1) The tube must OVERLAP the shank: a tangent tube
     (`radius = r_minor + t`) is refused with `KernelError: fuse failed (SM_ERR):
     the operands may touch only along an edge, at a point or tangentially`; so
     `t` must exceed half the thread height and the helix radius is `crest − t`.
-    (2) Other tube sizes can "succeed" yet silently return the bare shank (for
-    this M3 thread `t = 0.23 … 0.3` gave bbox 2.4 and the cylinder's volume
-    alone) — keep the verified `t = 0.2` and `r_mid = 1.3` for M3, and for any
-    other thread check that the bbox across the threads reads ≈ the major
-    diameter and the volume exceeds the bare shank's π·r_minor²·length.
+    (2) Other tube sizes can silently return the bare shank too (for this M3
+    thread `t = 0.23 … 0.3` gave bbox 2.4 and the cylinder's volume alone) —
+    keep the verified `t = 0.2` and `r_mid = 1.3` for M3. The assert above catches
+    both.
 
   - Edge treatment on threaded parts: NEVER call `.fillet()` or `.chamfer()` on a
     part that contains a swept thread ridge — the kernel calls are expensive and
