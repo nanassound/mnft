@@ -583,7 +583,8 @@ defmodule Mnft.Cad.Turn do
   defp engine_dialect do
     engine = Config.get(:engine)
 
-    if is_atom(engine) and function_exported?(engine, :dialect, 0) do
+    if is_atom(engine) and Code.ensure_loaded(engine) == {:module, engine} and
+         function_exported?(engine, :dialect, 0) do
       engine.dialect()
     else
       :build123d

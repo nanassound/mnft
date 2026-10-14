@@ -82,26 +82,47 @@ parts become unreachable after a restart) and `PHX_HOST` when the app sits
 behind a proxy. The caution at the end of this README still applies: none of
 this is a sandbox.
 
-The engine choice is one line of config. The default is **build123d** (full
-fidelity, STEP included, runs through cad_worker with the OpenCascade wheels).
-If you would rather not install a gigabyte of OpenCascade wheels, switch to the
-**OpenSCAD** engine: one forty-megabyte binary, everything else done in pure
-Elixir. OpenSCAD produces meshes only — STL and GLB but never STEP. It is the
-3D-printing path; build123d covers machining.
+## Engines
 
-A third engine, **smlibpy** (new/alpha), uses the SMLib NURBS kernel by
-[AWV Informatik AG](https://github.com/awv-informatik/smlibpy) (MIT licence).
-It ships as a small (~7 MB) manylinux wheel for Python 3.10–3.14, needs no
-OpenCascade, and supports STEP/STL/GLB at full B-rep fidelity. Install the
-optional extra and flip the env variable:
+Pick with `MNFT_ENGINE` in `mnft_cad_web/.env`. Defaults to `build123d`.
+
+| `MNFT_ENGINE` | Kernel | Output | Setup |
+|---|---|---|---|
+| `build123d` (default) | OpenCascade via cad_worker | STEP + STL + GLB | included in the venv bootstrap above |
+| `openscad` | OpenSCAD binary | STL + GLB only (3D-printing path) | install the binary, nothing else |
+| `smlibpy` (alpha) | SMLib NURBS kernel ([AWV Informatik AG](https://github.com/awv-informatik/smlibpy), MIT) | STEP + STL + GLB | one small extra into the venv |
+
+**OpenSCAD** — the engine shells out to the `openscad` CLI (`OPENSCAD_BIN`
+overrides the path; the default is `openscad` on `PATH`).
+
+- **macOS** — `brew install --cask openscad` is disabled upstream (Gatekeeper).
+  Install the [snapshot DMG](https://openscad.org/downloads.html#snapshots)
+  instead:
+  ```bash
+  hdiutil attach OpenSCAD-*.dmg && cp -R /Volumes/OpenSCAD/OpenSCAD.app /Applications/ \
+    && hdiutil detach /Volumes/OpenSCAD
+  xattr -dr com.apple.quarantine /Applications/OpenSCAD.app
+  ln -sf /Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD "$(brew --prefix)/bin/openscad"
+  ```
+- **Windows** — install the installer/ZIP from
+  [openscad.org](https://openscad.org/downloads.html), then point the config at
+  the CLI (the GUI binary alone won't work): `OPENSCAD_BIN=C:\Program
+  Files\OpenSCAD\openscad.exe`.
+- **Linux** — `apt install openscad` / `dnf install openscad` / `snap install
+  openscad` (snap needs an alias: `sudo snap alias openscad.openscad openscad`).
+
+Then set `MNFT_ENGINE=openscad`.
+
+**smlibpy** — ~7 MB manylinux wheel (Python 3.10–3.14, x86_64 Linux only;
+on macOS/ARM use Docker):
 
 ```bash
 cd cad_worker && uv pip install -e ".[smlibpy]"
 # then set MNFT_ENGINE=smlibpy
 ```
 
-smlibpy is new here and has had less production time than build123d. Treat it
-as a second option, not a replacement.
+smlibpy is alpha here: less production time than build123d, treat it as a
+second option, not a replacement.
 
 ## Examples
 

@@ -149,6 +149,33 @@ defmodule Mnft.Cad.CodeGen do
   end
 
   @doc "Dialect-aware repair message. Existing 2-arg build123d form is unaffected."
+  def build_repair_message(:openscad, code, error) do
+    tail =
+      error
+      |> repair_error()
+      |> String.slice(-2000, 2000)
+
+    """
+    Your OpenSCAD code failed.
+
+    Error:
+    #{tail}
+
+    Code you generated:
+    ```python
+    #{code}
+    ```
+
+    Fix the problem and reply with 1-3 plain sentences plus exactly one
+    corrected, complete ```python block whose content is OpenSCAD script
+    ending in top-level geometry statements (NEVER `part = union() {...}` —
+    geometry cannot be assigned to a variable). Follow the gotchas in your
+    instructions (radius discipline, through-holes must overshoot the part,
+    no import/include/surface, rotate_extrude profiles at x >= 0).
+    """
+    |> String.trim_trailing()
+  end
+
   def build_repair_message(:smlibpy, code, error) do
     tail = error |> repair_error() |> String.slice(-2000, 2000)
 
@@ -177,12 +204,54 @@ defmodule Mnft.Cad.CodeGen do
     build_repair_message(code, error)
   end
 
+  def build_truncated_repair_message(:openscad, partial) do
+    partial_block =
+      if partial do
+        """
+        What you managed to output:
+        ```python
+        #{partial}
+        ```
+
+
+        """
+      else
+        ""
+      end
+
+    """
+    Your previous answer was cut off before the ```python code block finished (token limit).
+
+    #{partial_block}Return the complete script this time, in exactly one ```python block.
+    End with top-level geometry statements (never `part = union() {...}` — geometry
+    cannot be assigned). Keep it under 60 lines: prefer simplified geometry over a
+    heavy twist/sweep when in doubt.
+    """
+    |> String.trim_trailing()
+  end
+
   def build_truncated_repair_message(:smlibpy, partial) do
     build_truncated_repair_message(partial)
   end
 
   def build_truncated_repair_message(dialect, partial) when dialect in [:build123d, nil] do
     build_truncated_repair_message(partial)
+  end
+
+  def build_noop_message(:openscad, user_message, stats_line) do
+    """
+    Your new code produced a model identical to the previous one (#{stats_line}) —
+    the geometry did not change at all, but the user's request was:
+
+    "#{String.trim(user_message)}"
+
+    Re-read the request, decide which concrete feature it changes, and reply with
+    1-3 sentences plus exactly one complete ```python block of OpenSCAD script
+    ending in top-level geometry statements (never `part = union() {...}`). Only
+    if you are certain the user asked to keep the model exactly as-is, say so
+    plainly and repeat the code unchanged.
+    """
+    |> String.trim_trailing()
   end
 
   def build_noop_message(:smlibpy, user_message, stats_line) do
