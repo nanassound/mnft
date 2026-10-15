@@ -357,7 +357,7 @@ defmodule MnftCadWeb.CadLive do
         # Regex indexes are byte offsets; binary-size matching keeps the
         # splits exact even with multibyte characters elsewhere in the text.
         {start, len} = whole
-        <<pre::binary-size(start), match::binary-size(len), rest::binary>> = text
+        <<pre::binary-size(^start), match::binary-size(^len), rest::binary>> = text
         acc = [inline_token(match) | push_plain(pre, acc)]
         do_inline(rest, acc)
     end
