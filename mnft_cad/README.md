@@ -2,7 +2,9 @@
 
 Open core for chat-to-CAD modelling on the BEAM. Describe a part in plain
 language, an LLM writes CAD code, a guarded engine builds it, you get
-STL / STEP / GLB. The core is pure Elixir/OTP and embeds in any host
+STL / STEP / GLB plus the editable engine script itself (`model.py` /
+`model.scad`) so you can keep iterating in your own tools. The core is pure
+Elixir/OTP and embeds in any host
 application: it brings the modelling pipeline and its own storage, and the
 host brings the web framework, the auth, and any heavier database.
 

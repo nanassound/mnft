@@ -13,7 +13,7 @@ defmodule Mnft.Cad.Engine do
       %{ok: boolean,
         stage: :static_check | :exec,
         error: String.t() | nil,
-        artifacts: %{model_id: String.t(), stl: path, step: path, glb: path | nil} | nil,
+        artifacts: %{model_id: String.t(), stl: path, step: path, glb: path | nil, script: path | nil} | nil,
         mesh: %{triangles: term, bbox_mm: [x, y, z], volume_mm3: float} | nil,
         exec_ms: integer}
 

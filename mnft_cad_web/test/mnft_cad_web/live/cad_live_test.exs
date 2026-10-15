@@ -38,7 +38,7 @@ defmodule MnftCadWeb.CadLiveTest do
         ok: true,
         stage: :exec,
         error: nil,
-        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil},
+        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil, script: "/tmp/x/model.py"},
         mesh: %{"triangles" => 12, "bbox_mm" => [30.0, 30.0, 30.0], "volume_mm3" => 27_000.0},
         exec_ms: 5
       }
@@ -79,6 +79,7 @@ defmodule MnftCadWeb.CadLiveTest do
     assert eventually(fn -> has_element?(view, "#model-info") end)
     assert render(view) =~ "bbox 30.0 × 30.0 × 30.0 mm · 12 triangles"
     assert has_element?(view, "a[href='/m/abcdef0123456789/model.stl']")
+    assert has_element?(view, "a[href='/m/abcdef0123456789/model.py']")
     refute has_element?(view, "#turn-status")
 
     # the turn was persisted: user + assistant messages, model row
@@ -219,7 +220,7 @@ defmodule MnftCadWeb.CadLiveTest do
         ok: true,
         stage: :exec,
         error: nil,
-        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil},
+        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil, script: "/tmp/x/model.py"},
         mesh: %{"triangles" => 12, "bbox_mm" => [30.0, 30.0, 30.0], "volume_mm3" => 27_000.0},
         exec_ms: 5
       }

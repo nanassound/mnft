@@ -233,9 +233,16 @@ defmodule MnftCadWeb.CadLive do
       stl: ModelURL.stl(model.id),
       step: ModelURL.step(model.id),
       glb: if(model.has_glb, do: ModelURL.glb(model.id)),
+      script: if(model.script_file, do: ModelURL.file(model.id, model.script_file)),
+      script_label: script_label(model.script_file),
       mesh: model.mesh
     }
   end
+
+  defp script_label(nil), do: nil
+
+  defp script_label(name),
+    do: name |> Path.extname() |> String.trim_leading(".") |> String.upcase()
 
   def bbox_line(nil), do: ""
 
@@ -554,6 +561,12 @@ defmodule MnftCadWeb.CadLive do
                 download
                 class="rounded-lg border border-zinc-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-white"
               >GLB</a>
+              <a
+                :if={@model.script}
+                href={@model.script}
+                download
+                class="rounded-lg border border-zinc-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-white"
+              >{@model.script_label}</a>
             </div>
           </div>
           <div :if={@model} class="absolute left-3 top-16 z-10 flex flex-col items-start gap-1.5">
