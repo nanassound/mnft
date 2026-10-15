@@ -130,6 +130,44 @@ defmodule Mnft.Cad.Engines.PythonWorkerTest do
   end
 
   # -------------------------------------------------------------------------
+  # Normalisation: ok run → script persisted next to the exports
+  # -------------------------------------------------------------------------
+
+  test "ok run persists the script next to exports" do
+    body = """
+        import sys, json, os
+        request = json.loads(sys.stdin.readline())
+        d = request["model_dir"]
+        for name, data in (("model.stl", b"stl"), ("model.step", b"step")):
+            with open(os.path.join(d, name), "wb") as f:
+                f.write(data)
+        reply = {
+            "ok": True, "stage": "exec", "error": None,
+            "artifacts": {"model_id": "abcdef01",
+                          "stl": "model.stl", "step": "model.step", "glb": None},
+            "mesh": {"triangles": 4, "bbox_mm": [1, 1, 1], "volume_mm3": 1.0},
+            "exec_ms": 10,
+        }
+        sys.stdout.write(json.dumps(reply) + "\\n")
+        sys.stdout.flush()
+    """
+
+    dir = mock_worker_dir(body)
+    owner = fresh_owner()
+    on_exit(fn -> File.rm_rf!(dir); cleanup_owner(owner) end)
+
+    result =
+      with_mock_cfg(dir, fn ->
+        PythonWorker.execute("smlibpy", "from smlibpy import *\npart = Box(1,1,1)\n", owner)
+      end)
+
+    assert result.ok
+    assert String.ends_with?(result.artifacts.script, "model.py")
+    assert File.exists?(result.artifacts.script)
+    assert File.read!(result.artifacts.script) == "from smlibpy import *\npart = Box(1,1,1)\n"
+  end
+
+  # -------------------------------------------------------------------------
   # Normalisation: timeout
   # -------------------------------------------------------------------------
 

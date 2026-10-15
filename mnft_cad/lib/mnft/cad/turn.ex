@@ -459,7 +459,8 @@ defmodule Mnft.Cad.Turn do
         %{
           id: result.model_id,
           mesh: normalize_mesh(result.mesh),
-          has_glb: !is_nil(result.artifacts[:glb])
+          has_glb: !is_nil(result.artifacts[:glb]),
+          script_file: if(path = result.artifacts[:script], do: Path.basename(path))
         }
       else
         nil
@@ -558,7 +559,7 @@ defmodule Mnft.Cad.Turn do
   defp artifact_urls(nil), do: nil
 
   defp artifact_urls(art) do
-    %{model_id: art.model_id, stl: art.stl, step: art.step, glb: art.glb}
+    %{model_id: art.model_id, stl: art.stl, step: art.step, glb: art.glb, script: art[:script]}
   end
 
   defp normalize_mesh(nil), do: %{}

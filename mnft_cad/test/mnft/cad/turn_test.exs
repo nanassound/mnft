@@ -32,7 +32,8 @@ defmodule Mnft.Cad.TurnTest do
         model_id: model_id,
         stl: "/tmp/x/model.stl",
         step: "/tmp/x/model.step",
-        glb: "/tmp/x/model.glb"
+        glb: "/tmp/x/model.glb",
+        script: "/tmp/x/model.py"
       },
       mesh: %{"triangles" => 12, "bbox_mm" => [30.0, 30.0, 30.0], "volume_mm3" => 27_000.0},
       exec_ms: 250
@@ -58,6 +59,7 @@ defmodule Mnft.Cad.TurnTest do
 
     assert result.ok
     assert result.artifacts.stl == "/tmp/x/model.stl"
+    assert result.artifacts.script == "/tmp/x/model.py"
     assert result.artifacts.model_id == "abcdef0123456789"
     assert result.mesh["bbox_mm"] == [30.0, 30.0, 30.0]
     assert result.meta.model == "test-text"
@@ -70,6 +72,7 @@ defmodule Mnft.Cad.TurnTest do
     model = Cad.latest_model(session.id)
     assert model.id == "abcdef0123456789"
     assert model.owner_id == owner
+    assert model.script_file == "model.py"
 
     # session titled from first message
     assert Cad.get_session!(owner, session.id).title == "a 30 mm cube"
@@ -82,6 +85,7 @@ defmodule Mnft.Cad.TurnTest do
     assert_receive %{event: "turn_done", payload: payload}
     assert payload.ok
     assert payload.artifacts.model_id == "abcdef0123456789"
+    assert payload.artifacts.script == "/tmp/x/model.py"
 
     # engine got the extracted code
     assert hd(EngineFake.calls()).code == "part = Box(30, 30, 30)"
@@ -369,7 +373,7 @@ defmodule Mnft.Cad.TurnTest do
         ok: true,
         stage: :exec,
         error: nil,
-        artifacts: %{model_id: "2222222222222222", stl: "/tmp/x", step: "/tmp/x", glb: nil},
+        artifacts: %{model_id: "2222222222222222", stl: "/tmp/x", step: "/tmp/x", glb: nil, script: "/tmp/x/model.py"},
         mesh: %{"triangles" => 24, "bbox_mm" => [60.0, 30.0, 30.0], "volume_mm3" => 54_000.0},
         exec_ms: 1
       }
@@ -408,7 +412,7 @@ defmodule Mnft.Cad.TurnTest do
         ok: true,
         stage: :exec,
         error: nil,
-        artifacts: %{model_id: "3333333333333333", stl: "/tmp/x", step: "/tmp/x", glb: nil},
+        artifacts: %{model_id: "3333333333333333", stl: "/tmp/x", step: "/tmp/x", glb: nil, script: "/tmp/x/model.py"},
         mesh: %{"triangles" => 48, "bbox_mm" => [90.0, 30.0, 30.0], "volume_mm3" => 81_000.0},
         exec_ms: 1
       }
@@ -460,7 +464,8 @@ defmodule Mnft.Cad.TurnTest do
           model_id: model_id,
           stl: "/tmp/x/model.stl",
           step: "/tmp/x/model.step",
-          glb: nil
+          glb: nil,
+          script: "/tmp/x/model.py"
         },
         mesh: %{"bbox_mm" => [9.4, 9.4, 3.0], "triangles" => 128, "volume_mm3" => 98.2},
         exec_ms: 100

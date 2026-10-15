@@ -215,6 +215,8 @@ defmodule Mnft.Cad.Engines.OpenScadTest do
     assert_in_delta Enum.at(r.mesh.bbox_mm, 2), 30.0, 0.01
     assert r.artifacts.step == nil
     assert File.exists?(r.artifacts.stl)
+    assert r.artifacts.script =~ "model.scad"
+    assert File.exists?(r.artifacts.script)
     assert r.artifacts.glb == nil or File.exists?(r.artifacts.glb)
     assert is_integer(r.exec_ms)
   end
