@@ -30,6 +30,13 @@ defmodule Mnft.Cad.CodeGenTest do
       assert CodeGen.extract_code("```\nx = 1\n```") == "x = 1"
     end
 
+    test "reads scad/openscad-tagged fences (OpenSCAD dialect)" do
+      assert CodeGen.extract_code("```scad\ncube(1);\n```") == "cube(1);"
+
+      assert CodeGen.extract_code("Recapping:\n```openscad\ncube([2, 3, 4]);\n```") ==
+               "cube([2, 3, 4]);"
+    end
+
     test "skips empty blocks" do
       assert CodeGen.extract_code("```python\n   \n```") == nil
 
@@ -153,6 +160,13 @@ defmodule Mnft.Cad.CodeGenTest do
 
       assert CodeGen.current_model_line(current) ==
                "Current model: bbox 46.188 x 40 x 100 mm, 12 triangles, volume 1234.5 mm3."
+    end
+
+    test "engines without mesh figures yield no line instead of crashing" do
+      current = %{"bbox_mm" => nil, "triangles" => nil, "volume_mm3" => nil}
+
+      assert CodeGen.current_model_line(current) == nil
+      assert CodeGen.build_user_content("make it taller", [], current) == "make it taller"
     end
   end
 

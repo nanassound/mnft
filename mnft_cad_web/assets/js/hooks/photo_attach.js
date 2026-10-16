@@ -7,6 +7,20 @@ const PHOTO_MAX_EDGE = 1280
 const PHOTO_JPEG_QUALITY = 0.82
 const THUMB_MAX_EDGE = 256
 const THUMB_JPEG_QUALITY = 0.7
+const MESH_MAX_BYTES = 20 * 1024 * 1024
+
+// STL mime is unreliable cross-OS: match by extension, accept the known types.
+const isStl = (f) => /\.stl$/i.test(f.name) || f.type === "model/stl" || f.type === "application/sla"
+
+// Read the mesh as a data URL and normalize the mime to data:model/stl —
+// browsers report arbitrary types (or none) for .stl files.
+const stlDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result).replace(/^data:[^;]*;/, "data:model/stl;"))
+    reader.onerror = () => reject(new Error("could not read the file"))
+    reader.readAsDataURL(file)
+  })
 
 async function loadIntoCanvas(dataUrl, maxEdge, quality) {
   const img = new Image()
@@ -56,6 +70,7 @@ async function fileToJpegDataUrl(file) {
 export const PhotoAttach = {
   mounted() {
     this.attachments = []
+    this.mesh = null
     this.form = this.el.querySelector("#chat-form")
     this.input = this.el.querySelector("#chat-input")
     this.chips = this.el.querySelector("#attachments")
@@ -80,6 +95,7 @@ export const PhotoAttach = {
       for (const a of this.attachments) {
         photos.push({data_url: a.dataUrl, label: "reference", thumb: await thumbFromDataUrl(a.dataUrl)})
       }
+      const stl = this.mesh ? {data_url: this.mesh.dataUrl, name: this.mesh.name, size: this.mesh.size} : null
       let current = null
       if (window.cadSnapshot) {
         // Always keep the agent's mesh context, but never append a "current"
@@ -88,9 +104,10 @@ export const PhotoAttach = {
         const snap = window.cadSnapshot()
         if (snap) current = snap.mesh
       }
-      this.pushEvent("send", {message, photos, current})
+      this.pushEvent("send", {message, photos, stl, current})
       this.input.value = ""
       this.attachments = []
+      this.mesh = null
       this.render()
     })
 
@@ -104,7 +121,9 @@ export const PhotoAttach = {
 
     this.onDragOver = (e) => e.preventDefault()
     this.onDrop = async (e) => {
-      const files = [...(e.dataTransfer?.files || [])].filter((f) => f.type.startsWith("image/"))
+      // STL mime is unreliable cross-OS — match uploads by extension too.
+      const files = [...(e.dataTransfer?.files || [])]
+        .filter((f) => f.type.startsWith("image/") || /\.stl$/i.test(f.name))
       if (files.length) { e.preventDefault(); await this.attach(files) }
     }
     document.addEventListener("dragover", this.onDragOver)
@@ -119,6 +138,16 @@ export const PhotoAttach = {
 
   async attach(files) {
     for (const f of files) {
+      if (isStl(f)) {
+        if (this.mesh) { alert("One STL per turn"); continue }
+        if (f.size > MESH_MAX_BYTES) { alert(`"${f.name}" is ${(f.size / 1048576).toFixed(1)} MB — the limit is ${MESH_MAX_BYTES / 1048576} MB`); continue }
+        try {
+          this.mesh = {dataUrl: await stlDataUrl(f), name: f.name, size: f.size}
+        } catch (err) {
+          alert("Could not read that STL: " + err.message)
+        }
+        continue
+      }
       if (this.attachments.length >= MAX_ATTACHMENTS) break
       try {
         this.attachments.push({dataUrl: await fileToJpegDataUrl(f), name: f.name})
@@ -144,6 +173,18 @@ export const PhotoAttach = {
       chip.append(thumb, rm)
       this.chips.appendChild(chip)
     })
+    if (this.mesh) {
+      const chip = document.createElement("span")
+      chip.className = "relative inline-flex size-12 items-center justify-center rounded-lg border border-zinc-200 px-1 text-center text-[10px] leading-tight text-zinc-600"
+      chip.textContent = `STL · ${this.mesh.name} · ${(this.mesh.size / 1048576).toFixed(1)} MB`
+      chip.title = this.mesh.name
+      const rm = document.createElement("button")
+      rm.type = "button"; rm.textContent = "✕"; rm.setAttribute("aria-label", "remove STL")
+      rm.className = "absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-zinc-900 text-[10px] text-white"
+      rm.addEventListener("click", () => { this.mesh = null; this.render() })
+      chip.append(rm)
+      this.chips.appendChild(chip)
+    }
   },
 }
 

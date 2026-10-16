@@ -72,9 +72,10 @@ defmodule MnftCadWeb.CadLive do
 
       true ->
         photos = Map.get(params, "photos", [])
+        stl = Map.get(params, "stl", %{})
         current = Map.get(params, "current")
 
-        case Sessions.request_turn(socket.assigns.session, message, photos, current) do
+        case Sessions.request_turn(socket.assigns.session, message, photos, stl, current) do
           {:ok, :started} ->
             pending = %Message{
               id: "pending-#{System.unique_integer([:positive])}",
@@ -84,7 +85,13 @@ defmodule MnftCadWeb.CadLive do
                 "photos" =>
                   Enum.map(photos, fn p ->
                     %{"label" => p["label"], "thumb" => Images.thumbnail(p)}
-                  end)
+                  end),
+                "stl" =>
+                  if stl in [nil, %{}] do
+                    nil
+                  else
+                    %{"name" => stl["name"], "bytes" => stl["size"]}
+                  end
               }
             }
 
@@ -133,12 +140,29 @@ defmodule MnftCadWeb.CadLive do
   def handle_info(%{event: "fetch_started"}, socket),
     do: {:noreply, assign(socket, :stage, "reading reference")}
 
+  def handle_info(%{event: "stl_started"}, socket),
+    do: {:noreply, assign(socket, :stage, "analyzing mesh")}
+
   def handle_info(%{event: "fetch_done"}, socket),
     # the stage chip stays on "reading reference" until llm_started flips it
     do: {:noreply, socket}
 
   def handle_info(%{event: "llm_started"}, socket),
     do: {:noreply, assign(socket, :stage, "thinking")}
+
+  def handle_info(%{event: "repair_started", payload: p}, socket) do
+    {:noreply, assign(socket, :stage, "fixing (round #{p[:round]}/#{p[:rounds]})")}
+  end
+
+  # A successful build mid-turn: stream it into the 3D preview immediately.
+  def handle_info(%{event: "model_ready", payload: p}, socket) do
+    model = model_view(p)
+
+    {:noreply,
+     socket
+     |> assign(:model, model)
+     |> assign(:new_model?, model != socket.assigns.model && socket.assigns.tab == "chat")}
+  end
 
   def handle_info(%{event: "exec_started"}, socket),
     do: {:noreply, assign(socket, :stage, "building")}
@@ -486,12 +510,13 @@ defmodule MnftCadWeb.CadLive do
               <button
                 type="button"
                 data-attach
-                aria-label="Attach a photo"
+                aria-label="Attach a photo or STL"
+                title="Attach a photo or STL"
                 class="grid size-10 shrink-0 place-items-center rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-50"
               >
                 <.icon name="hero-camera" class="size-5" />
               </button>
-              <input type="file" accept="image/*" multiple hidden data-file />
+              <input type="file" accept="image/*,.stl" multiple hidden data-file />
               <input
                 id="chat-input"
                 name="message"
@@ -532,6 +557,13 @@ defmodule MnftCadWeb.CadLive do
             class="pointer-events-none absolute inset-0 grid place-items-center text-sm text-zinc-500"
           >
             No model yet. Describe a part in the chat.
+          </div>
+          <div
+            :if={@running? && @stage}
+            id="viewer-progress"
+            class="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg bg-zinc-900/80 px-2.5 py-1.5 font-mono text-xs text-zinc-100"
+          >
+            {@stage}
           </div>
           <div class="absolute inset-x-3 top-3 z-10 flex items-center justify-between gap-2">
             <button
@@ -639,7 +671,10 @@ defmodule MnftCadWeb.CadLive do
   attr(:message, :any, required: true)
 
   defp message(%{message: %{role: :user}} = assigns) do
-    assigns = assign(assigns, :photos, assigns.message.meta["photos"] || [])
+    assigns =
+      assigns
+      |> assign(:photos, assigns.message.meta["photos"] || [])
+      |> assign(:stl_chip, stl_chip(assigns.message.meta["stl"]))
 
     ~H"""
     <div id={@id} class="flex justify-end">
@@ -659,6 +694,9 @@ defmodule MnftCadWeb.CadLive do
           class="mt-1 text-xs text-blue-100"
         >
           {length(@photos)} photo(s) attached
+        </div>
+        <div :if={@stl_chip} class="mt-1 text-xs text-blue-100">
+          {@stl_chip}
         </div>
       </div>
     </div>
@@ -718,5 +756,14 @@ defmodule MnftCadWeb.CadLive do
       </details>
     </div>
     """
+  end
+
+  # "STL · part.stl · 0.4 MB" — text only, no thumbnail exists for an upload.
+  defp stl_chip(nil), do: nil
+
+  defp stl_chip(%{"name" => name} = stl) do
+    bytes = stl["bytes"] || 0
+    mb = :erlang.float_to_binary(bytes / 1_048_576, decimals: 1)
+    "STL · #{name} · #{mb} MB"
   end
 end

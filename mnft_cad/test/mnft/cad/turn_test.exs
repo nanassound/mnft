@@ -40,7 +40,7 @@ defmodule Mnft.Cad.TurnTest do
     }
   end
 
-  defp run_turn(session), do: Turn.run(session.id, session.owner_id, "a 30 mm cube", [], %{})
+  defp run_turn(session), do: Turn.run(session.id, session.owner_id, "a 30 mm cube", [], %{}, %{})
 
   defp llm_ok(reply),
     do: {:ok, %{reply: reply, reasoning: "thinking...", finish_reason: :stop}}
@@ -148,38 +148,71 @@ defmodule Mnft.Cad.TurnTest do
     assert result.repaired
   end
 
-  test "both attempts fail: ok false with error headline", %{session: session} do
+  test "fix loop exhausts its rounds: last error surfaced, code_failed kept", %{session: session} do
+    snapshot = Mnft.Cad.Config.all()
+    cfg = Keyword.put(snapshot, :llm, Keyword.put(snapshot[:llm], :repair_max_rounds, 2))
+
+    Application.put_env(:mnft_cad, :cad, cfg)
+
+    on_exit(fn -> Application.put_env(:mnft_cad, :cad, snapshot) end)
+
     LLMFake.set_script([
       llm_ok("```python\npart = Box(1, 1, 1)\n```"),
-      llm_ok("```python\npart = Box(1, 1, 2)\n```")
+      llm_ok("```python\npart = Box(1, 1, 2)\n```"),
+      llm_ok("```python\npart = Box(1, 1, 3)\n```")
     ])
 
+    fail = fn msg ->
+      %{ok: false, stage: :exec, error: msg, artifacts: nil, mesh: nil, exec_ms: 10}
+    end
+
     EngineFake.set_script([
-      %{
-        ok: false,
-        stage: :exec,
-        error: "ValueError: bad geometry\nmore context",
-        artifacts: nil,
-        mesh: nil,
-        exec_ms: 10
-      },
-      %{
-        ok: false,
-        stage: :exec,
-        error: "ValueError: still bad",
-        artifacts: nil,
-        mesh: nil,
-        exec_ms: 10
-      }
+      fail.("ValueError: bad geometry\nmore context"),
+      fail.("ValueError: still bad"),
+      fail.("ValueError: still bad")
     ])
 
     result = run_turn(session)
+
     refute result.ok
-    assert result.error == "ValueError: still bad"
-    assert result.error_detail =~ "still bad"
-    assert result.code == "part = Box(1, 1, 2)"
-    assert result.code_failed == "part = Box(1, 1, 1)"
+    assert result.error =~ "still failing after 2 fix attempts"
+    assert result.error =~ "ValueError: still bad"
+    assert result.code == "part = Box(1, 1, 3)"
+    assert result.code_failed == "part = Box(1, 1, 3)"
+    assert result.repair_rounds == 2
+    assert length(LLMFake.calls()) == 3
     assert Cad.latest_model(session.id) == nil
+  end
+
+  test "fix loop keeps repairing across rounds until the build succeeds", %{session: session} do
+    LLMFake.set_script([
+      llm_ok("```python\npart = Box(1, 1, 1)\n```"),
+      llm_ok("```python\npart = Box(1, 1, 2)\n```"),
+      llm_ok("```python\npart = Box(30, 30, 30)\n```")
+    ])
+
+    EngineFake.set_script([
+      %{ok: false, stage: :exec, error: "ValueError: nope", artifacts: nil, mesh: nil, exec_ms: 5},
+      %{ok: false, stage: :exec, error: "ValueError: still nope", artifacts: nil, mesh: nil, exec_ms: 5},
+      ok_worker("4444444444444444")
+    ])
+
+    result = run_turn(session)
+
+    assert result.ok
+    assert result.repaired
+    assert result.repair_rounds == 2
+    assert result.code == "part = Box(30, 30, 30)"
+    assert result.artifacts.model_id == "4444444444444444"
+    assert length(LLMFake.calls()) == 3
+
+    # each failed round fed the LATEST error back to the model
+    third = Enum.at(LLMFake.calls(), 2)
+    assert List.last(third.history).content =~ "part = Box(1, 1, 2)"
+    assert third.message =~ "ValueError: still nope"
+
+    # every successful build streamed to the host immediately
+    assert_receive %{event: "model_ready", payload: %{id: "4444444444444444"}}
   end
 
   test "code_missing: conversational reply, no engine call", %{session: session} do
@@ -222,28 +255,14 @@ defmodule Mnft.Cad.TurnTest do
     assert length(LLMFake.calls()) == 1
   end
 
-  test "repair budget skip: slow model keeps the first error", %{session: session} do
-    # force the turn to look already over budget
-    cfg =
-      Mnft.Cad.Config.all()
-      |> Keyword.put(
-        :llm,
-        Keyword.put(
-          Mnft.Cad.Config.llm(),
-          :repair_max_elapsed_s,
-          -1
-        )
-      )
+  test "turn budget exhausted mid-loop keeps the first error", %{session: session} do
+    # force the turn to look already over its wall-clock budget
+    snapshot = Mnft.Cad.Config.all()
+    cfg = Keyword.put(snapshot, :turn_budget_s, 0)
 
     Application.put_env(:mnft_cad, :cad, cfg)
 
-    on_exit(fn ->
-      Application.put_env(
-        :mnft_cad,
-        :cad,
-        Keyword.put(cfg, :llm, Keyword.put(cfg[:llm], :repair_max_elapsed_s, 240))
-      )
-    end)
+    on_exit(fn -> Application.put_env(:mnft_cad, :cad, snapshot) end)
 
     LLMFake.set_script([llm_ok("```python\npart = Box(1, 1, 1)\n```")])
 
@@ -261,7 +280,7 @@ defmodule Mnft.Cad.TurnTest do
     result = run_turn(session)
 
     refute result.ok
-    assert result.error =~ "the model was too slow on this attempt"
+    assert result.error =~ "the turn budget (0 s) ran out"
     assert result.error =~ "RuntimeError: boom"
     assert length(LLMFake.calls()) == 1
   end
@@ -279,7 +298,7 @@ defmodule Mnft.Cad.TurnTest do
       ok_worker("4444444444444444")
     ])
 
-    result = Turn.run(session.id, session.owner_id, "model this part", [photo], %{})
+    result = Turn.run(session.id, session.owner_id, "model this part", [photo], %{}, %{})
 
     assert result.ok
     assert result.meta.vision
@@ -306,7 +325,7 @@ defmodule Mnft.Cad.TurnTest do
     EngineFake.set_script([ok_worker()])
 
     message = "Model this rails https://example.com/z-rails.pdf, length 84HP"
-    result = Turn.run(session.id, session.owner_id, message, [], %{})
+    result = Turn.run(session.id, session.owner_id, message, [], %{}, %{})
 
     assert result.ok
     assert result.meta.vision
@@ -345,7 +364,7 @@ defmodule Mnft.Cad.TurnTest do
     # no-reference passthrough: no fetch events, text model, no images.
     LLMFake.set_script([llm_ok("Sure.")])
 
-    result = Turn.run(session.id, session.owner_id, "what dimensions fit 84HP?", [], %{})
+    result = Turn.run(session.id, session.owner_id, "what dimensions fit 84HP?", [], %{}, %{})
 
     assert result.ok
     refute result.meta.vision
@@ -379,8 +398,8 @@ defmodule Mnft.Cad.TurnTest do
       }
     ])
 
-    Turn.run(session.id, session.owner_id, "a cube", [photo], %{})
-    result = Turn.run(session.id, session.owner_id, "make it bigger", [], %{})
+    Turn.run(session.id, session.owner_id, "a cube", [photo], %{}, %{})
+    result = Turn.run(session.id, session.owner_id, "make it bigger", [], %{}, %{})
 
     assert result.ok
     assert result.meta.vision
@@ -418,8 +437,8 @@ defmodule Mnft.Cad.TurnTest do
       }
     ])
 
-    Turn.run(session.id, session.owner_id, "first", [p1], %{})
-    Turn.run(session.id, session.owner_id, "second", [p2], %{})
+    Turn.run(session.id, session.owner_id, "first", [p1], %{}, %{})
+    Turn.run(session.id, session.owner_id, "second", [p2], %{}, %{})
 
     [first, second] = LLMFake.calls()
     assert length(first.images) == 1
@@ -431,7 +450,7 @@ defmodule Mnft.Cad.TurnTest do
   test "invalid photo short-circuits with the validator's message", %{session: session} do
     bad = [%{data_url: "data:image/gif;base64," <> Base.encode64("GIF"), label: "reference"}]
 
-    result = Turn.run(session.id, session.owner_id, "model this", bad, %{})
+    result = Turn.run(session.id, session.owner_id, "model this", bad, %{}, %{})
 
     refute result.ok
     assert result.error =~ "unsupported media type image/gif"
@@ -487,7 +506,7 @@ defmodule Mnft.Cad.TurnTest do
 
       EngineFake.set_script([same_mesh_worker("newmodel00000001"), changed])
 
-      result = Turn.run(session.id, session.owner_id, "remove the cutout", [], %{})
+      result = Turn.run(session.id, session.owner_id, "remove the cutout", [], %{}, %{})
 
       assert result.ok
       assert result.code == "part = Box(9, 9, 3)"
@@ -535,7 +554,7 @@ defmodule Mnft.Cad.TurnTest do
         same_mesh_worker("newmodel00000002")
       ])
 
-      result = Turn.run(session.id, session.owner_id, "render it again exactly the same", [], %{})
+      result = Turn.run(session.id, session.owner_id, "render it again exactly the same", [], %{}, %{})
 
       assert result.ok
       assert result.code == "part = Box(9, 9, 3)"
@@ -557,7 +576,7 @@ defmodule Mnft.Cad.TurnTest do
         %{ok: false, stage: :exec, error: "boom", artifacts: nil, mesh: nil, exec_ms: 5}
       ])
 
-      result = Turn.run(session.id, session.owner_id, "remove the cutout", [], %{})
+      result = Turn.run(session.id, session.owner_id, "remove the cutout", [], %{}, %{})
 
       assert result.ok
       assert result.code == "part = Box(9, 9, 3)"
@@ -579,7 +598,7 @@ defmodule Mnft.Cad.TurnTest do
       LLMFake.set_script([llm_ok("```python\npart = Box(9, 9, 3)\n```")])
       EngineFake.set_script([same_mesh_worker("newmodel00000001")])
 
-      result = Turn.run(fresh.id, fresh.owner_id, "make a plate", [], %{})
+      result = Turn.run(fresh.id, fresh.owner_id, "make a plate", [], %{}, %{})
 
       assert result.ok
       assert length(LLMFake.calls()) == 1
@@ -599,7 +618,7 @@ defmodule Mnft.Cad.TurnTest do
 
       EngineFake.set_script([taller])
 
-      result = Turn.run(session.id, session.owner_id, "make it 3 mm taller", [], %{})
+      result = Turn.run(session.id, session.owner_id, "make it 3 mm taller", [], %{}, %{})
 
       assert result.ok
       assert length(LLMFake.calls()) == 1
@@ -615,7 +634,7 @@ defmodule Mnft.Cad.TurnTest do
     LLMFake.set_script([llm_ok("```python\npart = Box(5,5,5)\n```")])
     EngineFake.set_script([ok_worker("5555555555555555")])
 
-    assert {:ok, :started} = Sessions.request_turn(session, "a 30 mm cube", [], %{})
+    assert {:ok, :started} = Sessions.request_turn(session, "a 30 mm cube", [], %{}, %{})
     assert_receive %{event: "turn_done"}, 3000
 
     # turn.finish is a cast sent after turn_done; poll until processed
@@ -647,7 +666,7 @@ defmodule Mnft.Cad.TurnTest do
     LLMFake.set_script([{:hold, llm_ok("```python\npart = Box(30,30,30)\n```")}])
     EngineFake.set_script([ok_worker()])
 
-    assert {:ok, :started} = Sessions.request_turn(session, "a 30 mm cube", [], %{})
+    assert {:ok, :started} = Sessions.request_turn(session, "a 30 mm cube", [], %{}, %{})
 
     assert Enum.find_value(1..100, fn _ ->
              if LLMFake.held() != [], do: :held, else: Process.sleep(20) && nil
@@ -700,7 +719,7 @@ defmodule Mnft.Cad.TurnTest do
     LLMFake.set_script([llm_ok("```python\npart = Box(1,1,1)\n```")])
     EngineFake.set_script([ok_worker()])
 
-    assert {:ok, :started} = Sessions.request_turn(session, "model this part", photos, current)
+    assert {:ok, :started} = Sessions.request_turn(session, "model this part", photos, %{}, current)
     assert_receive %{event: "turn_done"}, 3000
 
     [call] = LLMFake.calls()
@@ -711,10 +730,123 @@ defmodule Mnft.Cad.TurnTest do
   end
 
   test "request_turn returns an error when TurnStart rejects the params", %{session: session} do
-    assert {:error, _msg} = Sessions.request_turn(session, "x", ["not-a-map"], %{})
+    assert {:error, _msg} = Sessions.request_turn(session, "x", ["not-a-map"], %{}, %{})
     refute_receive %{event: "turn_started"}
     refute_receive %{event: "turn_done"}, 100
     assert EngineFake.calls() == []
     assert LLMFake.calls() == []
+  end
+
+  # --- uploaded STL turns ---------------------------------------------------------
+
+  @stl_profile %{
+    "ok" => true,
+    "stats" => %{
+      "triangles" => 44,
+      "vertices" => 24,
+      "bbox_min" => [-23.094, -20.0, 0.0],
+      "bbox_max" => [23.094, 20.0, 90.0],
+      "bbox_size" => [46.188, 40.0, 90.0],
+      "volume" => 37_609.7525,
+      "area" => 25_488.86,
+      "watertight" => true,
+      "components" => 1
+    },
+    "sections" => [],
+    "renders" => [Base.encode64("render-png-bytes")]
+  }
+
+  defp set_stl_profile(behavior) do
+    snapshot = Mnft.Cad.Config.all()
+
+    cfg = Keyword.put(snapshot, :stl_profile_fun, {__MODULE__, :stl_profile_stub, []})
+    Application.put_env(:mnft_cad, :cad, cfg)
+    Application.put_env(:mnft_cad, :test_stl_profile, behavior)
+
+    on_exit(fn ->
+      Application.put_env(:mnft_cad, :cad, snapshot)
+      Application.delete_env(:mnft_cad, :test_stl_profile)
+    end)
+  end
+
+  def stl_profile_stub(_stl), do: Application.get_env(:mnft_cad, :test_stl_profile)
+
+  defp stl_upload(name),
+    do: %{
+      "data_url" => "data:model/stl;base64," <> Base.encode64("stl-bytes"),
+      "name" => name,
+      "size" => 9
+    }
+
+  test "STL turn: analysis block in the LLM message, renders labeled stl, meta persists", %{
+    session: session
+  } do
+    set_stl_profile({:ok, @stl_profile})
+    LLMFake.set_script([llm_ok("```python\npart = Box(30,30,30)\n```")])
+    EngineFake.set_script([ok_worker()])
+
+    photo = %{data_url: "data:image/png;base64," <> Base.encode64("png"), label: "reference"}
+
+    result = Turn.run(session.id, session.owner_id, "reverse this STL", [photo], stl_upload("bracket.stl"), %{})
+
+    assert result.ok
+    assert result.meta.vision
+    assert result.meta.model == "test-vision"
+
+    call = hd(LLMFake.calls())
+    assert call.message =~ ~s([Uploaded STL mesh "bracket.stl")
+    assert call.message =~ "Mesh: 44 triangles, 1 body, watertight"
+    # the reconstruction render comes first, then the user's photo
+    assert [%{label: "stl"}, %{label: "reference"}] = call.images
+
+    # stl stage events run between fetching and the LLM call
+    assert_receive %{event: "stl_started", payload: %{name: "bracket.stl"}}
+    assert_receive %{event: "stl_done", payload: %{ok: true, triangles: 44, components: 1}}
+    assert_receive %{event: "llm_started"}
+
+    # persistence: user meta carries stl metadata; renders are not user photos
+    user_msg = Cad.list_messages(session.id) |> hd()
+
+    assert user_msg.meta["stl"] == %{
+             "name" => "bracket.stl",
+             "bytes" => 9,
+             "triangles" => 44,
+             "bbox_size" => [46.188, 40.0, 90.0],
+             "volume" => 37_609.7525,
+             "components" => 1,
+             "watertight" => true
+           }
+
+    assert user_msg.meta["photos"] == [
+             %{"label" => "reference", "media_type" => "image/png", "bytes" => 3}
+           ]
+  end
+
+  test "STL analysis failure appends a note and the turn still builds", %{session: session} do
+    set_stl_profile({:error, "corrupt binary STL (declared 12 triangles, room for 3)"})
+    LLMFake.set_script([llm_ok("Sure — please re-export it.\n")])
+    EngineFake.set_script([ok_worker()])
+
+    result = Turn.run(session.id, session.owner_id, "reverse this STL", [], stl_upload("broken.stl"), %{})
+
+    assert result.ok
+    refute result.meta.vision
+    call = hd(LLMFake.calls())
+
+    assert call.message =~
+             "[The attached STL could not be analyzed (corrupt binary STL (declared 12 triangles, room for 3))"
+
+    assert call.images == []
+
+    assert_receive %{event: "stl_done", payload: %{ok: false, reason: reason}}
+    assert reason =~ "corrupt binary STL"
+
+    user_msg = Cad.list_messages(session.id) |> hd()
+
+    assert user_msg.meta["stl"] == %{
+             "name" => "broken.stl",
+             "bytes" => 9,
+             "error" => "corrupt binary STL (declared 12 triangles, room for 3)"
+           }
   end
 end

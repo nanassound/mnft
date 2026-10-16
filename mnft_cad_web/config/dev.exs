@@ -5,8 +5,13 @@ import Config
 # asset watchers / code reloader (assets are prebuilt into the image).
 in_docker = System.get_env("MNFT_DOCKER") == "1"
 
+# PORT overrides the default 4200 so a second instance can run beside a
+# long-lived one (e.g. while comparing providers).
 config :mnft_cad_web, MnftCadWeb.Endpoint,
-  http: [ip: if(in_docker, do: {0, 0, 0, 0}, else: {127, 0, 0, 1}), port: 4200],
+  http: [
+    ip: if(in_docker, do: {0, 0, 0, 0}, else: {127, 0, 0, 1}),
+    port: String.to_integer(System.get_env("PORT", "4200"))
+  ],
   check_origin: false,
   code_reloader: not in_docker,
   debug_errors: true,
@@ -119,7 +124,7 @@ config :mnft_cad, :cad,
     vision_model: getenv.("LLM_VISION_MODEL", "glm-4.6v"),
     timeout_s: String.to_integer(getenv.("LLM_TIMEOUT_S", "600")),
     max_tokens: String.to_integer(getenv.("LLM_MAX_TOKENS", "32768")),
-    repair_max_elapsed_s: String.to_integer(getenv.("REPAIR_MAX_ELAPSED_S", "240"))
+    repair_max_rounds: String.to_integer(getenv.("REPAIR_MAX_ROUNDS", "3"))
   ],
   references: [
     pdftoppm_bin: getenv.("PDFTOPPM_BIN", "pdftoppm"),
@@ -132,4 +137,12 @@ config :mnft_cad, :cad,
         "REF_PYTHON_BIN",
         Path.expand("../../cad_worker/.venv/bin/python", __DIR__)
       )
+  ],
+  stl: [
+    python_bin:
+      getenv.(
+        "STL_PYTHON_BIN",
+        Path.expand("../../cad_worker/.venv/bin/python", __DIR__)
+      ),
+    max_stl_mb: String.to_integer(getenv.("STL_MAX_MB", "20"))
   ]
