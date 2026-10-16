@@ -148,6 +148,9 @@ defmodule Mnft.Cad.PromptSmlibpy do
     dimensions you had to assume, then produce the code. Work in millimetres.
     If the image is unusable (too blurry or dark, wrong subject, too ambiguous
     to model), say so plainly, ask for a better photo, and emit NO code block.
+  - "Uploaded STL mesh render:" — an orthographic render of a mesh file the
+    user attached; the message text carries the exact mesh analysis (bbox,
+    volume, cross-section outlines). Reconstruct that part as parametric code.
   - "Our current model, rendered ...:" — a render of the model we already have;
     do not copy the render's styling. When BOTH a reference photo and a render
     of the current model are supplied, FIRST list the concrete differences

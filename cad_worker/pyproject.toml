@@ -5,6 +5,7 @@ description = "Guarded build123d/smlibpy execution service for the mnft CAD core
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "build123d==0.13.0",
+    "numpy>=1.26,<3",
     "pillow>=12,<13",
     "pymupdf>=1.28,<2",
 ]

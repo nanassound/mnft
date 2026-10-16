@@ -36,7 +36,8 @@ defmodule Mnft.Cad.Actions.TurnStart do
 
   `photos` and `current` arrive straight from the client as JSON, so their
   maps have string keys (`%{"data_url" => ..., "label" => ...}`; `current`
-  is the mesh JSON). Downstream consumers accept both key styles.
+  is the mesh JSON). `stl` is a single optional upload map (`nil`/`{}` =
+  none). Downstream consumers accept both key styles.
   """
 
   use Jido.Action,
@@ -48,6 +49,7 @@ defmodule Mnft.Cad.Actions.TurnStart do
       # NimbleOptions `:map` requires atom keys; the client sends string
       # keys, so spell the key type out.
       photos: [type: {:list, {:map, :string, :any}}, default: []],
+      stl: [type: {:map, :string, :any}, default: %{}],
       current: [type: {:map, :string, :any}, default: %{}]
     ]
 
@@ -65,6 +67,7 @@ defmodule Mnft.Cad.Actions.TurnStart do
              params.owner_id,
              params.message,
              params.photos,
+             params.stl,
              params.current
            )
          end) do
