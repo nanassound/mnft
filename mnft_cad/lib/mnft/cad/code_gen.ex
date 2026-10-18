@@ -13,6 +13,7 @@ defmodule Mnft.Cad.CodeGen do
   # discard a complete script.
   @tagged_block_re ~r/```(?:python|py|scad|openscad)[ \t]*\r?\n(.*?)```/s
   @any_block_re ~r/```[ \t]*\r?\n(.*?)```/s
+  @cam_block_re ~r/```cam[ \t]*\r?\n(.*?)```/s
   @data_url_re ~r/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]+/
 
   @doc """
@@ -35,6 +36,29 @@ defmodule Mnft.Cad.CodeGen do
   end
 
   def extract_code(_), do: nil
+
+  @doc """
+  The last fenced `cam` block in `text`, decoded: `:none` when the reply has
+  no `cam` block at all, `{:ok, plan}` when it holds a JSON object, else
+  `{:error, msg}` (invalid JSON or non-object body).
+  """
+  def extract_cam_json(text) when is_binary(text) and text != "" do
+    case Regex.scan(@cam_block_re, text) do
+      [] ->
+        :none
+
+      blocks ->
+        body = blocks |> List.last() |> Enum.at(1) |> String.trim()
+
+        case Jason.decode(body) do
+          {:ok, plan} when is_map(plan) -> {:ok, plan}
+          {:ok, _} -> {:error, "the cam block must be a JSON object"}
+          {:error, reason} -> {:error, "the cam block is not valid JSON: #{Exception.message(reason)}"}
+        end
+    end
+  end
+
+  def extract_cam_json(_), do: :none
 
   @doc """
   Replace every complete fenced code block with `[earlier code elided]`.

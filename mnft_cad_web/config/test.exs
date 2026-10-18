@@ -10,6 +10,10 @@ config :mnft_cad, :cad,
   exec_concurrency: 2,
   exec_timeout_s: 60,
   turn_budget_s: 900,
+  cam: [
+    freecad_cmd: "/nonexistent/freecad",
+    timeout_s: 5
+  ],
   llm_module: Mnft.Cad.LLMFake,
   engine: Mnft.Cad.EngineFake,
   llm: [

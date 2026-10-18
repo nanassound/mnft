@@ -24,11 +24,14 @@ import signal
 import sys
 from pathlib import Path
 
+from . import cam
 from . import runner
 
 
-def _arm_hard_deadline() -> None:
-    deadline_s = int(runner.EXEC_TIMEOUT_S) + 5
+def _arm_hard_deadline(cam_extra_s: float = 0.0) -> None:
+    # the CAM phase runs a whole second FreeCAD process after the harness;
+    # its budget (cam timeout + margin) must not be eaten by the exec alarm
+    deadline_s = int(runner.EXEC_TIMEOUT_S) + 5 + int(cam_extra_s)
 
     def _die(_sig, _frame):
         # Last resort: execute()'s own communicate() timeout + killpg already
@@ -64,6 +67,12 @@ def _run_request(line: str, dialect: str = "build123d") -> int:
         model_dir = req["model_dir"]
         if not isinstance(code, str) or not isinstance(model_dir, str):
             raise ValueError("code and model_dir must be strings")
+        cam_plan = req.get("cam_plan")
+        cam_cfg = req.get("cam")
+        if cam_plan is not None and not isinstance(cam_plan, dict):
+            raise ValueError("cam_plan must be an object")
+        if cam_cfg is not None and not isinstance(cam_cfg, dict):
+            raise ValueError("cam must be an object")
     except (ValueError, KeyError, TypeError) as exc:
         sys.stderr.write(f"unusable request: {type(exc).__name__}: {exc}\n")
         return 2
@@ -74,12 +83,19 @@ def _run_request(line: str, dialect: str = "build123d") -> int:
                 "artifacts": None, "mesh": None, "exec_ms": 0})
         return 0
 
-    _arm_hard_deadline()
-    result = runner.execute(code, Path(model_dir), dialect=dialect)
+    _arm_hard_deadline(
+        cam_extra_s=((cam_cfg or {}).get("timeout_s") or cam.DEFAULT_CAM_TIMEOUT_S)
+        if cam_plan
+        else 0.0
+    )
+    result = runner.execute(code, Path(model_dir), dialect=dialect,
+                            cam_plan=cam_plan, cam_cfg=cam_cfg)
     _reply({"ok": result["ok"], "stage": "exec",
             "error": result.get("error"),
             "artifacts": result.get("artifacts"),
             "mesh": result.get("mesh"),
+            "cam_note": result.get("cam_note"),
+            "cam_warnings": result.get("cam_warnings", []),
             "exec_ms": result.get("exec_ms", 0)})
     return 0
 

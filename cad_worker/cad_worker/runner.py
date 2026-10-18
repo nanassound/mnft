@@ -28,7 +28,7 @@ from pathlib import Path
 from . import dialects as _dialects
 
 ALLOWED_IMPORTS = frozenset({"build123d", "math"})
-ALLOWED_FILENAMES = frozenset({"model.stl", "model.step", "model.glb"})
+ALLOWED_FILENAMES = frozenset({"model.stl", "model.step", "model.glb", "model.gcode"})
 MODEL_ID_RE = re.compile(r"^[0-9a-f]{8,32}$")
 _DENY_FUNCS = frozenset({"open", "eval", "exec", "__import__"})
 
@@ -190,8 +190,18 @@ def valid_filename(filename: str) -> bool:
     return filename in ALLOWED_FILENAMES
 
 
-def execute(source: str, model_dir: Path, dialect: str = "build123d") -> dict:
+def execute(
+    source: str,
+    model_dir: Path,
+    dialect: str = "build123d",
+    cam_plan: dict | None = None,
+    cam_cfg: dict | None = None,
+) -> dict:
     """Run *source* through the harness inside *model_dir* (created here).
+
+    When *cam_plan* is present and the STEP export succeeded, a FreeCAD CAM
+    job additionally produces model.gcode (build123d dialect only — OpenSCAD
+    models have no STEP to machine).
 
     Never raises; returns a result dict. Concurrency and retention are owned by
     the Elixir caller — this function is single-shot.
@@ -226,6 +236,7 @@ def execute(source: str, model_dir: Path, dialect: str = "build123d") -> dict:
     if not (stl.is_file() and step.is_file()):
         result["error"] = "harness reported ok but exports are missing"
         return result
+
     result["ok"] = True
     result["artifacts"] = {
         "model_id": model_dir.name,
@@ -238,6 +249,19 @@ def execute(source: str, model_dir: Path, dialect: str = "build123d") -> dict:
         "bbox_mm": raw.get("bbox_mm"),
         "volume_mm3": raw.get("volume_mm3"),
     }
+
+    if cam_plan:
+        if dialect != "build123d" or not step.is_file():
+            result["cam_note"] = "CNC export requires the build123d engine"
+        else:
+            from . import cam as _cam  # noqa: PLC0415 -- FreeCAD env only, lazy
+
+            cam_result = _cam.run_cam(str(step), cam_plan, cam_cfg, model_dir)
+            if "error" in cam_result:
+                result["cam_note"] = cam_result["error"]
+            else:
+                result["artifacts"]["gcode"] = cam_result["gcode"]
+                result["cam_warnings"] = cam_result["warnings"]
     return result
 
 

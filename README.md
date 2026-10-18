@@ -124,6 +124,23 @@ cd cad_worker && uv pip install -e ".[smlibpy]"
 smlibpy is alpha here: less production time than build123d, treat it as a
 second option, not a replacement.
 
+## CNC G-code (CAM)
+
+On the `build123d` engine, every successful build can also produce a GRBL
+`.gcode` for a desktop CNC — the chat reply carries a machining plan
+(material, ops: face/drill/pocket/profile), and the "G-code (GRBL)" download
+appears next to STEP/STL. Requires FreeCAD 1.1+ (`MNFT_FREECAD_CMD`, default
+the macOS bundle; `MNFT_CAM_TIMEOUT_S` caps one CAM job). OpenSCAD models are
+mesh-only and get no CAM.
+
+Tool truth lives in `mnft_cad/priv/cam/toolbits.json` (feeds/speeds per
+material, work envelope) plus the vendored Genmitsu `.fctb` geometry in
+`mnft_cad/priv/cam/toolbits/` — tune feeds by editing the JSON, no code
+changes. The G-code assumes origin = stock min corner, Z0 = stock top, and
+warns in its header about holes narrower than the tool, oversized parts, and
+aluminum lubrication. Feeds are conservative starting points: verify on
+scrap before cutting good material.
+
 ## Examples
 
 Three real turns from the reference web app: the ask, then what the code

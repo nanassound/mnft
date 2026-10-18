@@ -19,7 +19,7 @@ defmodule Mnft.Cad.Engines.OpenScad do
   @timeout_error "execution exceeded the wall clock and was killed"
 
   @impl Mnft.Cad.Engine
-  def execute(code, owner_id) do
+  def execute(code, owner_id, _opts \\ []) do
     with :ok <- static_check(code) do
       run(code, owner_id)
     else

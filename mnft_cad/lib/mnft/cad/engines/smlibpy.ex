@@ -6,7 +6,8 @@ defmodule Mnft.Cad.Engines.Smlibpy do
   def dialect, do: :smlibpy
 
   @impl Mnft.Cad.Engine
-  def execute(code, owner_id), do: Mnft.Cad.Engines.PythonWorker.execute("smlibpy", code, owner_id)
+  def execute(code, owner_id, opts \\ []),
+    do: Mnft.Cad.Engines.PythonWorker.execute("smlibpy", code, owner_id, opts)
 
   @impl Mnft.Cad.Engine
   def healthy?, do: Mnft.Cad.Engines.PythonWorker.healthy?("smlibpy")

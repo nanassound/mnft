@@ -32,10 +32,17 @@ defmodule Mnft.Cad.Engine do
 
   @callback execute(code :: String.t(), owner_id :: String.t()) :: run()
 
+  @doc """
+  Same as `execute/2` with options. Engines that support CAM accept
+  `cam: plan_map` — the validated machining plan; engines without CAM ignore
+  it. Optional so test fakes need not implement it.
+  """
+  @callback execute(code :: String.t(), owner_id :: String.t(), opts :: keyword()) :: run()
+
   @doc "Health probe for the engine's runtime (worker --health, binary presence)."
   @callback healthy?() :: boolean()
 
   @callback dialect() :: atom()
 
-  @optional_callbacks [healthy?: 0, dialect: 0]
+  @optional_callbacks [healthy?: 0, dialect: 0, execute: 3]
 end

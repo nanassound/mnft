@@ -13,7 +13,7 @@ defmodule Mnft.Cad.Turn do
   require Logger
 
   alias Mnft.Cad
-  alias Mnft.Cad.{CodeGen, Config, Events, Images, Model, PhotoCache, Sessions, Stl}
+  alias Mnft.Cad.{CamPlan, CodeGen, Config, Events, Images, Model, PhotoCache, Sessions, Stl}
 
   @truncated_headline "the model's answer was cut off before the code block finished (token limit)"
   @fence_headline "the model's reply contained a code fence but no complete code block"
@@ -168,8 +168,9 @@ defmodule Mnft.Cad.Turn do
   end
 
   defp exec_attempt(result, code, opts) do
+    cam = cam_ctx(result.reply)
     Events.emit(result.session_id, "exec_started", %{})
-    run = engine().execute(code, result.owner_id)
+    run = engine().execute(code, result.owner_id, cam: cam.plan)
     Events.emit(result.session_id, "exec_done", %{})
 
     result
@@ -184,6 +185,7 @@ defmodule Mnft.Cad.Turn do
       |> Map.put(:artifacts, artifact_urls(run.artifacts))
       |> Map.put(:mesh, run.mesh)
       |> Map.put(:model_id, run.artifacts.model_id)
+      |> put_cam(run, cam)
       |> final(Keyword.get(opts, :final, false))
     else
       case run.stage do
@@ -359,8 +361,9 @@ defmodule Mnft.Cad.Turn do
   # A failed re-ask keeps the first result (never regress), but the extra
   # time actually spent still lands in the turn's accounting.
   defp noop_exec(result, code2, _t0) when is_binary(code2) do
+    cam = cam_ctx(result.reply)
     Events.emit(result.session_id, "exec_started", %{noop: true})
-    run = engine().execute(code2, result.owner_id)
+    run = engine().execute(code2, result.owner_id, cam: cam.plan)
     Events.emit(result.session_id, "exec_done", %{noop: true})
 
     result = Map.update(result, :exec_ms, 0, &(&1 + (run.exec_ms || 0)))
@@ -373,6 +376,7 @@ defmodule Mnft.Cad.Turn do
       |> Map.put(:mesh, run.mesh)
       |> Map.put(:artifacts, artifact_urls(run.artifacts))
       |> Map.put(:model_id, run.artifacts.model_id)
+      |> put_cam(run, cam)
     else
       result
     end
@@ -386,6 +390,7 @@ defmodule Mnft.Cad.Turn do
     Events.emit(session_id, "model_ready", %{
       id: run.artifacts.model_id,
       has_glb: not is_nil(run.artifacts[:glb]),
+      has_gcode: not is_nil(run.artifacts[:gcode]),
       script_file: if(path = run.artifacts[:script], do: Path.basename(path)),
       mesh: run.mesh
     })
@@ -408,8 +413,9 @@ defmodule Mnft.Cad.Turn do
   end
 
   defp repair_exec(result, code, next_round, max_rounds, turn_budget_s, history, images, current, vision?, t0) do
+    cam = cam_ctx(result.reply)
     Events.emit(result.session_id, "exec_started", %{repair: true})
-    run = engine().execute(code, result.owner_id)
+    run = engine().execute(code, result.owner_id, cam: cam.plan)
     Events.emit(result.session_id, "exec_done", %{repair: true})
 
     result = Map.update(result, :exec_ms, 0, &(&1 + (run.exec_ms || 0)))
@@ -426,6 +432,7 @@ defmodule Mnft.Cad.Turn do
       |> Map.put(:artifacts, artifact_urls(run.artifacts))
       |> Map.put(:mesh, run.mesh)
       |> Map.put(:model_id, run.artifacts.model_id)
+      |> put_cam(run, cam)
       |> final(true)
     else
       failed =
@@ -499,7 +506,10 @@ defmodule Mnft.Cad.Turn do
         "code_missing" => result.code_missing,
         "error" => result.error,
         "error_detail" => result.error_detail,
-        "code_failed" => result.code_failed
+        "code_failed" => result.code_failed,
+        "cam_plan" => result[:cam_plan],
+        "cam_warnings" => result[:cam_warnings] || [],
+        "cam_note" => result[:cam_note]
       }
     }
 
@@ -509,6 +519,7 @@ defmodule Mnft.Cad.Turn do
           id: result.model_id,
           mesh: normalize_mesh(result.mesh),
           has_glb: !is_nil(result.artifacts[:glb]),
+          has_gcode: !is_nil(result.artifacts[:gcode]),
           script_file: if(path = result.artifacts[:script], do: Path.basename(path))
         }
       else
@@ -556,6 +567,9 @@ defmodule Mnft.Cad.Turn do
       code_missing: result.code_missing,
       artifacts: result.artifacts,
       mesh: result.mesh,
+      cam_plan: result[:cam_plan],
+      cam_warnings: result[:cam_warnings] || [],
+      cam_note: result[:cam_note],
       meta: %{
         llm_ms: result.llm_ms,
         exec_ms: result.exec_ms,
@@ -583,6 +597,9 @@ defmodule Mnft.Cad.Turn do
       artifacts: nil,
       mesh: nil,
       model_id: nil,
+      cam_plan: nil,
+      cam_warnings: [],
+      cam_note: nil,
       llm_ms: 0,
       exec_ms: 0,
       model: Config.llm()[:text_model],
@@ -601,9 +618,58 @@ defmodule Mnft.Cad.Turn do
   defp repairable(result), do: Map.put(result, :repairable, true)
   defp final(result, _), do: Map.put(result, :repairable, false)
 
+  # CAM plan extraction/validation for one exec round. Non-fatal by design:
+  # a missing block means model-only; an invalid block degrades to a chat
+  # note; only build123d turns carry a plan (other engines have no STEP).
+  defp cam_ctx(reply) do
+    ctx = cam_extract(reply)
+
+    if engine_dialect() == :build123d do
+      ctx
+    else
+      case ctx do
+        %{plan: nil, note: nil} -> %{plan: nil, note: nil}
+        _ -> %{plan: nil, note: "CNC export requires the build123d engine"}
+      end
+    end
+  end
+
+  defp cam_extract(reply) do
+    case CodeGen.extract_cam_json(reply) do
+      :none ->
+        %{plan: nil, note: nil}
+
+      {:error, reason} ->
+        %{plan: nil, note: "CAM plan rejected: #{reason}"}
+
+      {:ok, raw} ->
+        case CamPlan.toolbits() do
+          {:ok, tools} ->
+            case CamPlan.validate(raw, tools) do
+              {:ok, plan} -> %{plan: plan, note: nil}
+              {:error, reason} -> %{plan: nil, note: "CAM plan rejected: #{reason}"}
+            end
+
+          {:error, reason} ->
+            %{plan: nil, note: reason}
+        end
+    end
+  end
+
+  # Fold one exec round's CAM outcome into the result. The worker's note
+  # (FreeCAD missing, CAM failure) only matters when the plan was accepted.
+  defp put_cam(result, run, ctx) do
+    note = ctx.note || run[:cam_note]
+
+    result
+    |> Map.put(:cam_plan, ctx.plan)
+    |> Map.put(:cam_warnings, run[:cam_warnings] || [])
+    |> Map.put(:cam_note, if(is_binary(note), do: note, else: nil))
+  end
+
   # Artifact paths on disk (host maps them to URLs however it serves files).
   defp artifact_urls(art) do
-    %{model_id: art.model_id, stl: art.stl, step: art.step, glb: art.glb, script: art[:script]}
+    %{model_id: art.model_id, stl: art.stl, step: art.step, glb: art.glb, gcode: art[:gcode], script: art[:script]}
   end
 
   defp normalize_mesh(nil), do: %{}

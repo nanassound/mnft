@@ -116,6 +116,10 @@ config :mnft_cad, :cad,
     bin: getenv.("OPENSCAD_BIN", "openscad"),
     timeout_s: String.to_integer(getenv.("OPENSCAD_TIMEOUT_S", "60"))
   ],
+  cam: [
+    freecad_cmd: getenv.("MNFT_FREECAD_CMD", "/Applications/FreeCAD.app/Contents/MacOS/FreeCAD"),
+    timeout_s: String.to_integer(getenv.("MNFT_CAM_TIMEOUT_S", "180"))
+  ],
   llm: [
     provider: String.to_atom(getenv.("LLM_PROVIDER", "openai")),
     base_url: blank_to_nil.(getenv.("LLM_BASE_URL", "https://api.z.ai/api/paas/v4")),

@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "id": "0.800mm_Ball_Nose_BN10A",
+  "name": "0.800mm Ball Nose [BN10A]",
+  "shape": "ballend.fcstd",
+  "shape-type": "Ballend",
+  "parameter": {
+    "Diameter": "0.800 mm",
+    "CuttingEdgeHeight": "6.000 mm",
+    "Length": "38.000 mm",
+    "ShankDiameter": "3.175 mm",
+    "Flutes": 2,
+    "Material": "Carbide",
+    "SpindleDirection": "Forward",
+    "Chipload": "0.0061 mm",
+    "Radius": "0.400 mm"
+  },
+  "attribute": {
+    "Vendor": "SainSmart Genmitsu",
+    "ProductId": "BN10A",
+    "Description": "Genmitsu ball nose [BN10A], Nano Blue Coat",
+    "ProductLink": "https://www.sainsmart.com/collections/genmitsu-cnc-router-bits-end-mills/products/genmitsu-10pcs-2-flute-ball-nose-spiral-end-mill-1-8-shank-0-8mm-2-5mm-cutting-diameter-bn10a",
+    "SourceGuid": "b69bad37-9ad4-43bc-98e1-d76657357b44",
+    "SourceType": "ball end mill",
+    "Coating": "ti coated",
+    "ExactStockFreeCADShape": true,
+    "OriginalUnit": "millimeters"
+  }
+}
