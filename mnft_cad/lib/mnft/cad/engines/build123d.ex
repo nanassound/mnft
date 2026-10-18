@@ -27,7 +27,8 @@ defmodule Mnft.Cad.Engines.Build123d do
   Artifacts are absolute file paths (or nil), scoped
   `<models_dir>/<owner_id>/<model_id>`. Never raises.
   """
-  def execute(code, owner_id), do: Mnft.Cad.Engines.PythonWorker.execute("build123d", code, owner_id)
+  def execute(code, owner_id, opts \\ []),
+    do: Mnft.Cad.Engines.PythonWorker.execute("build123d", code, owner_id, opts)
 
   @impl Mnft.Cad.Engine
   @doc "`true` when the worker answers --health (used by the smoke suite)."

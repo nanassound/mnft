@@ -3,7 +3,7 @@ defmodule Mnft.Cad.Engines.PythonWorker do
 
   @timeout_error "execution exceeded the wall clock and was killed"
 
-  def execute(dialect, code, owner_id) do
+  def execute(dialect, code, owner_id, opts \\ []) do
     cfg = Mnft.Cad.Config.all()
     model_id = :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
     model_dir = [cfg[:models_dir], owner_id, model_id] |> Path.join() |> Path.absname()
@@ -11,7 +11,7 @@ defmodule Mnft.Cad.Engines.PythonWorker do
     File.write!(Path.join(model_dir, "model.py"), code)
 
     Mnft.Cad.ExecLimiter.run(fn ->
-      port_roundtrip(cfg, dialect, %{"code" => code, "model_dir" => model_dir})
+      port_roundtrip(cfg, dialect, request(code, model_dir, dialect, cfg, opts))
     end)
     |> normalize(model_dir)
   rescue
@@ -20,6 +20,31 @@ defmodule Mnft.Cad.Engines.PythonWorker do
   catch
     kind, value ->
       %{ok: false, stage: :exec, error: "runner failure: #{kind} #{inspect(value)}", artifacts: nil, mesh: nil, exec_ms: 0}
+  end
+
+  # The worker only receives CAM context for the build123d dialect (the only
+  # one that exports a STEP to machine) and only when the turn carried a
+  # validated plan.
+  defp request(code, model_dir, dialect, cfg, opts) do
+    base = %{"code" => code, "model_dir" => model_dir}
+
+    case {dialect, opts[:cam]} do
+      {"build123d", %{} = plan} ->
+        cam_cfg = cfg[:cam] || []
+
+        Map.merge(base, %{
+          "cam_plan" => plan,
+          "cam" => %{
+            "toolbits_dir" =>
+              cam_cfg[:toolbits_dir] || Application.app_dir(:mnft_cad, "priv/cam/toolbits"),
+            "freecad_cmd" => cam_cfg[:freecad_cmd],
+            "timeout_s" => cam_cfg[:timeout_s]
+          }
+        })
+
+      _ ->
+        base
+    end
   end
 
   @doc """
@@ -63,7 +88,7 @@ defmodule Mnft.Cad.Engines.PythonWorker do
     port = open_port(cfg, ["--dialect", dialect])
     Port.command(port, [Jason.encode!(request), "\n"])
 
-    case collect(port, "", deadline(cfg)) do
+    case collect(port, "", deadline(cfg, request)) do
       {:ok, line} ->
         Port.close(port)
         Jason.decode(line)
@@ -90,7 +115,17 @@ defmodule Mnft.Cad.Engines.PythonWorker do
     )
   end
 
-  defp deadline(cfg), do: ((cfg[:exec_timeout_s] || 60) + 5) * 1000
+  defp deadline(cfg, request \\ %{}) do
+    cam_budget =
+      if is_map(request) and is_map(request["cam_plan"]) do
+        cam = request["cam"] || %{}
+        (cam["timeout_s"] || 180) + 10
+      else
+        0
+      end
+
+    ((cfg[:exec_timeout_s] || 60) + 5 + cam_budget) * 1000
+  end
 
   defp collect(port, buffer, deadline_ms) do
     receive do
@@ -121,7 +156,7 @@ defmodule Mnft.Cad.Engines.PythonWorker do
 
           art ->
             file = fn name -> if art[name], do: Path.join(model_dir, art[name]) end
-            %{model_id: art["model_id"], stl: file.("stl"), step: file.("step"), glb: file.("glb"), script: Path.join(model_dir, "model.py")}
+            %{model_id: art["model_id"], stl: file.("stl"), step: file.("step"), glb: file.("glb"), gcode: file.("gcode"), script: Path.join(model_dir, "model.py")}
         end
 
       %{
@@ -130,6 +165,8 @@ defmodule Mnft.Cad.Engines.PythonWorker do
         error: result["error"],
         artifacts: artifacts,
         mesh: result["mesh"],
+        cam_note: cam_text(result["cam_note"]),
+        cam_warnings: cam_list(result["cam_warnings"]),
         exec_ms: result["exec_ms"] || 0
       }
     else
@@ -139,6 +176,8 @@ defmodule Mnft.Cad.Engines.PythonWorker do
         error: "harness reported ok but exports are missing",
         artifacts: nil,
         mesh: nil,
+        cam_note: nil,
+        cam_warnings: [],
         exec_ms: result["exec_ms"] || 0
       }
     end
@@ -151,11 +190,21 @@ defmodule Mnft.Cad.Engines.PythonWorker do
       error: result["error"],
       artifacts: nil,
       mesh: nil,
+      cam_note: nil,
+      cam_warnings: [],
       exec_ms: result["exec_ms"] || 0
     }
   end
 
   defp normalize({:error, reason}, _model_dir) do
-    %{ok: false, stage: :exec, error: reason, artifacts: nil, mesh: nil, exec_ms: 0}
+    %{ok: false, stage: :exec, error: reason, artifacts: nil, mesh: nil, cam_note: nil, cam_warnings: [], exec_ms: 0}
   end
+
+  defp cam_text(nil), do: nil
+  defp cam_text(""), do: nil
+  defp cam_text(t) when is_binary(t), do: t
+  defp cam_text(other), do: if(is_map(other), do: Jason.encode!(other), else: to_string(other))
+
+  defp cam_list(w) when is_list(w), do: Enum.map(w, &to_string/1)
+  defp cam_list(_), do: []
 end

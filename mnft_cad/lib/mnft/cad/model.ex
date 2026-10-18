@@ -10,7 +10,7 @@ defmodule Mnft.Cad.Model do
   `mesh`: `{"triangles" => n, "bbox_mm" => [x, y, z], "volume_mm3" => v}`.
   """
 
-  defstruct [:id, :session_id, :owner_id, :message_id, :mesh, :has_glb, :script_file, :inserted_at, :updated_at]
+  defstruct [:id, :session_id, :owner_id, :message_id, :mesh, :has_glb, :has_gcode, :script_file, :inserted_at, :updated_at]
 
   @type t :: %__MODULE__{
           id: String.t(),
@@ -19,6 +19,7 @@ defmodule Mnft.Cad.Model do
           message_id: String.t() | nil,
           mesh: map(),
           has_glb: boolean(),
+          has_gcode: boolean(),
           script_file: String.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil

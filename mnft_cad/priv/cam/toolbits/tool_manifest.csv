@@ -1,0 +1,230 @@
+nr,filename,name,type,tapered_type,shape,shape_type,exact_stock_shape,diameter_mm,cutting_edge_height_mm,length_mm,shank_diameter_mm,flutes,angle_half_deg,included_angle_deg,tip_diameter_mm,tip_radius_mm,drill_point_angle_deg,product_id,description
+1,15deg_V-Bit_0.200mm_Tip_WC04A.fctb,15deg V-Bit 0.200mm Tip [WC04A],chamfer mill,,v-bit.fcstd,VBit,True,5.0,17.5,50,6.35,2,7.5,15.0,0.2,,,WC04A,"Genmitsu V 15° engraving [WC04A], Nano Blue Coat"
+2,20deg_V-Bit_0.200mm_Tip_WC04A.fctb,20deg V-Bit 0.200mm Tip [WC04A],chamfer mill,,v-bit.fcstd,VBit,True,6.15,17.0,50,6.35,2,10.0,20.0,0.2,,,WC04A,"Genmitsu V 20° engraving [WC04A], Nano Blue Coat"
+3,60deg_V-Bit_0.200mm_Tip_WC04A.fctb,60deg V-Bit 0.200mm Tip [WC04A],chamfer mill,,v-bit.fcstd,VBit,True,6.35,14.0,50,6.35,2,30.0,60.0,0.2,,,WC04A,"Genmitsu V 60° groove [WC04A], Nano Blue Coat"
+4,90deg_V-Bit_0.200mm_Tip_WC04A.fctb,90deg V-Bit 0.200mm Tip [WC04A],chamfer mill,,v-bit.fcstd,VBit,True,6.35,13.0,50,6.35,2,45.0,90.0,0.2,,,WC04A,"Genmitsu V 90° groove [WC04A], Nano Blue Coat"
+5,6.350mm_Ball_Nose_VR06A.fctb,6.350mm Ball Nose [VR06A],ball end mill,,ballend.fcstd,Ballend,True,6.35,12.7,50,6.35,2,,,,,,VR06A,Genmitsu ball nose groove [VR06A]
+6,9.525mm_Ball_Nose_VR06A.fctb,9.525mm Ball Nose [VR06A],ball end mill,,ballend.fcstd,Ballend,True,9.525,20.0,52,6.35,2,,,,,,VR06A,Genmitsu ball nose groove [VR06A]
+7,12.700mm_Ball_Nose_VR06A.fctb,12.700mm Ball Nose [VR06A],ball end mill,,ballend.fcstd,Ballend,True,12.7,20.0,52,6.35,2,,,,,,VR06A,Genmitsu ball nose groove [VR06A]
+8,90deg_V-Bit_VR06A.fctb,90deg V-Bit [VR06A],chamfer mill,,v-bit.fcstd,VBit,True,6.35,6.35,44,6.35,2,45.0,90.0,0.0,,,VR06A,Genmitsu V 90° groove [VR06A]
+9,90deg_V-Bit_VR06A_2.fctb,90deg V-Bit [VR06A],chamfer mill,,v-bit.fcstd,VBit,True,9.525,9.525,42,6.35,2,45.0,90.0,0.0,,,VR06A,Genmitsu V 90° groove [VR06A]
+10,90deg_V-Bit_VR06A_3.fctb,90deg V-Bit [VR06A],chamfer mill,,v-bit.fcstd,VBit,True,12.7,12.7,44,6.35,2,45.0,90.0,0.0,,,VR06A,Genmitsu V 90° groove [VR06A]
+11,60deg_V-Bit_0.200mm_Tip_VG05B_NLJ3.6002.fctb,60deg V-Bit 0.200mm Tip [VG05B (NLJ3.6002)],chamfer mill,,v-bit.fcstd,VBit,True,3.175,9.0,40,3.175,1,30.0,60.0,0.2,,,VG05B (NLJ3.6002),"Genmitsu V 60° groove [VG05B (NLJ3.6002)], Nano Blue Coat"
+12,60deg_V-Bit_0.100mm_Tip_VG05B_NLJ3.6001.fctb,60deg V-Bit 0.100mm Tip [VG05B (NLJ3.6001)],chamfer mill,,v-bit.fcstd,VBit,True,3.175,7.0,40,3.175,1,30.0,60.0,0.1,,,VG05B (NLJ3.6001),"Genmitsu V 60° groove [VG05B (NLJ3.6001)], Nano Blue Coat"
+13,45deg_V-Bit_0.200mm_Tip_VG05B_NLJ3.4502.fctb,45deg V-Bit 0.200mm Tip [VG05B (NLJ3.4502)],chamfer mill,,v-bit.fcstd,VBit,True,3.175,8.0,40,3.175,1,22.5,45.0,0.2,,,VG05B (NLJ3.4502),"Genmitsu V 45° groove [VG05B (NLJ3.4502)], Nano Blue Coat"
+14,30deg_V-Bit_0.100mm_Tip_VG05B_NLJ3.3001.fctb,30deg V-Bit 0.100mm Tip [VG05B (NLJ3.3001)],chamfer mill,,v-bit.fcstd,VBit,True,3.175,8.0,40,3.175,1,15.0,30.0,0.1,,,VG05B (NLJ3.3001),"Genmitsu V 30° groove [VG05B (NLJ3.3001)], Nano Blue Coat"
+15,20deg_V-Bit_0.100mm_Tip_VG05B_NLJ3.2001.fctb,20deg V-Bit 0.100mm Tip [VG05B (NLJ3.2001)],chamfer mill,,v-bit.fcstd,VBit,True,3.175,10.0,40,3.175,1,10.0,20.0,0.1,,,VG05B (NLJ3.2001),"Genmitsu V 20° groove [VG05B (NLJ3.2001)], Nano Blue Coat"
+16,60deg_V-Bit_VG05A.fctb,60deg V-Bit [VG05A],chamfer mill,,v-bit.fcstd,VBit,True,16.0,13.856,49,6.0,2,30.0,60.0,0.0,,,VG05A,Genmitsu V 60° groove [VG05A]
+17,90deg_V-Bit_VG05A.fctb,90deg V-Bit [VG05A],chamfer mill,,v-bit.fcstd,VBit,True,22.0,11.0,46,6.0,2,45.0,90.0,0.0,,,VG05A,Genmitsu V 90° groove [VG05A]
+18,120deg_V-Bit_VG05A.fctb,120deg V-Bit [VG05A],chamfer mill,,v-bit.fcstd,VBit,True,22.0,6.351,42,6.0,2,60.0,120.0,0.0,,,VG05A,Genmitsu V 120° groove [VG05A]
+19,60deg_V-Bit_VG05A_2.fctb,60deg V-Bit [VG05A],chamfer mill,,v-bit.fcstd,VBit,True,32.0,28.0,63,6.0,2,30.0,60.0,0.0,,,VG05A,Genmitsu V 60° groove [VG05A]
+20,150deg_V-Bit_VG05A.fctb,150deg V-Bit [VG05A],chamfer mill,,v-bit.fcstd,VBit,True,32.0,4.287,40,6.0,2,75.0,150.0,0.0,,,VG05A,Genmitsu V 150° groove [VG05A]
+21,90deg_V-Bit_VG03A.fctb,90deg V-Bit [VG03A],chamfer mill,,v-bit.fcstd,VBit,True,10.0,12.0,50,6.0,2,45.0,90.0,0.0,,,VG03A,Genmitsu V 90° groove [VG03A]
+22,60deg_V-Bit_VG03A.fctb,60deg V-Bit [VG03A],chamfer mill,,v-bit.fcstd,VBit,True,12.7,17.0,50,6.35,2,30.0,60.0,0.0,,,VG03A,Genmitsu V 60° groove [VG03A]
+23,90deg_V-Bit_VG03A_2.fctb,90deg V-Bit [VG03A],chamfer mill,,v-bit.fcstd,VBit,True,12.7,12.0,50,6.35,2,45.0,90.0,0.0,,,VG03A,Genmitsu V 90° groove [VG03A]
+24,30deg_V-Bit_0.100mm_Tip_VE10C.fctb,30deg V-Bit 0.100mm Tip [VE10C],chamfer mill,,v-bit.fcstd,VBit,True,3.175,17.0,38,3.175,2,15.0,30.0,0.1,,,VE10C,Genmitsu V 30° groove [VE10C]
+25,30deg_V-Bit_0.100mm_Tip_VE10B.fctb,30deg V-Bit 0.100mm Tip [VE10B],chamfer mill,,v-bit.fcstd,VBit,True,3.175,17.0,38,3.175,2,15.0,30.0,0.1,,,VE10B,Genmitsu V 30° groove [VE10B]
+26,30deg_V-Bit_0.100mm_Tip_VE10A.fctb,30deg V-Bit 0.100mm Tip [VE10A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,17.0,38,3.175,2,15.0,30.0,0.1,,,VE10A,Genmitsu V 30° groove [VE10A]
+27,90deg_V-Bit_0.100mm_Tip_TR10C.fctb,90deg V-Bit 0.100mm Tip [TR10C],chamfer mill,,v-bit.fcstd,VBit,True,3.175,1.5,38,3.175,3,45.0,90.0,0.1,,,TR10C,Genmitsu V 90° engraving triangular [TR10C]
+28,60deg_V-Bit_0.100mm_Tip_TR10B.fctb,60deg V-Bit 0.100mm Tip [TR10B],chamfer mill,,v-bit.fcstd,VBit,True,3.175,2.6,38,3.175,3,30.0,60.0,0.1,,,TR10B,Genmitsu V 60° engraving triangular [TR10B]
+29,30deg_V-Bit_0.100mm_Tip_TR10A.fctb,30deg V-Bit 0.100mm Tip [TR10A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,5.75,38,3.175,3,15.0,30.0,0.1,,,TR10A,Genmitsu V 30° engraving triangular [TR10A]
+30,0.500mm_Tapered_Ball_7.750deg_TB04B.fctb,0.500mm Tapered Ball 7.750deg [TB04B],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,0.5,20.0,50,6.35,2,7.75,15.5,,0.25,,TB04B,"Genmitsu ball nose tapered [TB04B], Nano Blue Coat"
+31,1.000mm_Tapered_Ball_7.000deg_TB04B.fctb,1.000mm Tapered Ball 7.000deg [TB04B],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,1.0,20.0,50,6.35,2,7.0,14.0,,0.5,,TB04B,"Genmitsu ball nose tapered [TB04B], Nano Blue Coat"
+32,1.500mm_Tapered_Ball_6.500deg_TB04B.fctb,1.500mm Tapered Ball 6.500deg [TB04B],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,1.5,20.0,50,6.35,2,6.5,13.0,,0.75,,TB04B,"Genmitsu ball nose tapered [TB04B], Nano Blue Coat"
+33,2.000mm_Tapered_Ball_6.000deg_TB04B.fctb,2.000mm Tapered Ball 6.000deg [TB04B],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,2.0,20.0,50,6.35,2,6.0,12.0,,1.0,,TB04B,"Genmitsu ball nose tapered [TB04B], Nano Blue Coat"
+34,0.250mm_Tapered_Ball_5.000deg_TB04A.fctb,0.250mm Tapered Ball 5.000deg [TB04A],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,0.25,15.0,38,3.175,2,5.0,10.0,,0.125,,TB04A,"Genmitsu ball nose tapered [TB04A], Nano Blue Coat"
+35,6.350mm_Flat_End_SU05A.fctb,6.350mm Flat End [SU05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,12.0,50,6.35,1,,,,,,SU05A,"Genmitsu flat end [SU05A], Nano Blue Coat"
+36,6.350mm_Flat_End_SU05A_2.fctb,6.350mm Flat End [SU05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,15.0,50,6.35,1,,,,,,SU05A,"Genmitsu flat end [SU05A], Nano Blue Coat"
+37,6.350mm_Flat_End_SU05A_3.fctb,6.350mm Flat End [SU05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,17.0,50,6.35,1,,,,,,SU05A,"Genmitsu flat end [SU05A], Nano Blue Coat"
+38,6.350mm_Flat_End_SU05A_4.fctb,6.350mm Flat End [SU05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,22.0,50,6.35,1,,,,,,SU05A,"Genmitsu flat end [SU05A], Nano Blue Coat"
+39,6.350mm_Flat_End_SU05A_5.fctb,6.350mm Flat End [SU05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,25.0,50,6.35,1,,,,,,SU05A,"Genmitsu flat end [SU05A], Nano Blue Coat"
+40,3.175mm_Flat_End_SS05A.fctb,3.175mm Flat End [SS05A],flat end mill,,endmill.fcstd,Endmill,True,3.175,12.7,51,6.35,2,,,,,,SS05A,"Genmitsu flat end [SS05A], Nano Blue Coat"
+41,3.175mm_Flat_End_SS05A_2.fctb,3.175mm Flat End [SS05A],flat end mill,,endmill.fcstd,Endmill,True,3.175,12.7,64,6.35,2,,,,,,SS05A,"Genmitsu fishtail [SS05A], Nano Blue Coat"
+42,6.350mm_Flat_End_SS05A.fctb,6.350mm Flat End [SS05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,25.4,64,6.35,2,,,,,,SS05A,"Genmitsu fishtail [SS05A], Nano Blue Coat"
+43,6.350mm_Flat_End_SS05A_2.fctb,6.350mm Flat End [SS05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,25.4,76,6.35,1,,,,,,SS05A,"Genmitsu o flute [SS05A], Nano Blue Coat"
+44,6.350mm_Flat_End_SS05A_3.fctb,6.350mm Flat End [SS05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,25.4,76,6.35,2,,,,,,SS05A,"Genmitsu flat end [SS05A], Nano Blue Coat"
+45,3.175mm_Flat_End_SR10A.fctb,3.175mm Flat End [SR10A],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,38,3.175,2,,,,,,SR10A,"Genmitsu flat end straight [SR10A], Nano Blue Coat"
+46,6.350mm_Flat_End_SR05A.fctb,6.350mm Flat End [SR05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,24.0,55,6.35,2,,,,,,SR05A,"Genmitsu flat end straight [SR05A], Nano Blue Coat"
+47,1.580mm_Flat_End_SR03A.fctb,1.580mm Flat End [SR03A],flat end mill,,endmill.fcstd,Endmill,True,1.58,8.0,50,6.35,1,,,,,,SR03A,Genmitsu flat end straight [SR03A]
+48,3.175mm_Flat_End_SR03A.fctb,3.175mm Flat End [SR03A],flat end mill,,endmill.fcstd,Endmill,True,3.175,12.0,50,6.35,1,,,,,,SR03A,Genmitsu flat end straight [SR03A]
+49,3.175mm_Flat_End_SR03A_2.fctb,3.175mm Flat End [SR03A],flat end mill,,endmill.fcstd,Endmill,True,3.175,12.0,50,6.35,2,,,,,,SR03A,Genmitsu flat end straight [SR03A]
+50,5.000mm_Flat_End_SN06A.fctb,5.000mm Flat End [SN06A],flat end mill,,endmill.fcstd,Endmill,True,5.0,15.0,50,6.35,3,,,,,,SN06A,"Genmitsu flat end [SN06A], Nano Blue Coat"
+51,6.000mm_Flat_End_SN06A.fctb,6.000mm Flat End [SN06A],flat end mill,,endmill.fcstd,Endmill,True,6.0,20.0,50,6.35,3,,,,,,SN06A,"Genmitsu flat end [SN06A], Nano Blue Coat"
+52,3.175mm_Flat_End_SD06A_N2LXD3.22.fctb,3.175mm Flat End [SD06A (N2LXD3.22)],flat end mill,,endmill.fcstd,Endmill,True,3.175,22.0,55,3.175,2,,,,,,SD06A (N2LXD3.22),"Genmitsu flat end downcut [SD06A (N2LXD3.22)], Nano Blue Coat"
+53,3.175mm_Flat_End_SD06A_N2LXD3.17.fctb,3.175mm Flat End [SD06A (N2LXD3.17)],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,45,3.175,2,,,,,,SD06A (N2LXD3.17),"Genmitsu flat end downcut [SD06A (N2LXD3.17)], Nano Blue Coat"
+54,3.175mm_Flat_End_SD06A_N2LXD3.15.fctb,3.175mm Flat End [SD06A (N2LXD3.15)],flat end mill,,endmill.fcstd,Endmill,True,3.175,15.0,45,3.175,2,,,,,,SD06A (N2LXD3.15),"Genmitsu flat end downcut [SD06A (N2LXD3.15)], Nano Blue Coat"
+55,3.175mm_Flat_End_SD06A_N2LXD3.12.fctb,3.175mm Flat End [SD06A (N2LXD3.12)],flat end mill,,endmill.fcstd,Endmill,True,3.175,12.0,40,3.175,2,,,,,,SD06A (N2LXD3.12),"Genmitsu flat end downcut [SD06A (N2LXD3.12)], Nano Blue Coat"
+56,3.175mm_Flat_End_SD06A_N2LXD3.10.fctb,3.175mm Flat End [SD06A (N2LXD3.10)],flat end mill,,endmill.fcstd,Endmill,True,3.175,10.0,40,3.175,2,,,,,,SD06A (N2LXD3.10),"Genmitsu flat end downcut [SD06A (N2LXD3.10)], Nano Blue Coat"
+57,3.175mm_Flat_End_SD06A_N2LXD3.08.fctb,3.175mm Flat End [SD06A (N2LXD3.08)],flat end mill,,endmill.fcstd,Endmill,True,3.175,8.0,40,3.175,2,,,,,,SD06A (N2LXD3.08),"Genmitsu flat end downcut [SD06A (N2LXD3.08)], Nano Blue Coat"
+58,6.350mm_Flat_End_SD03A.fctb,6.350mm Flat End [SD03A],flat end mill,,endmill.fcstd,Endmill,True,6.35,12.0,50,6.35,1,,,,,,SD03A,"Genmitsu flat end downcut [SD03A], Nano Blue Coat"
+59,6.350mm_Flat_End_SD03A_2.fctb,6.350mm Flat End [SD03A],flat end mill,,endmill.fcstd,Endmill,True,6.35,17.0,50,6.35,1,,,,,,SD03A,"Genmitsu flat end downcut [SD03A], Nano Blue Coat"
+60,6.350mm_Flat_End_SD03A_3.fctb,6.350mm Flat End [SD03A],flat end mill,,endmill.fcstd,Endmill,True,6.35,22.0,55,6.35,1,,,,,,SD03A,"Genmitsu flat end downcut [SD03A], Nano Blue Coat"
+61,3.175mm_Flat_End_SC05A_N2FLX3.32.fctb,3.175mm Flat End [SC05A (N2FLX3.32)],flat end mill,,endmill.fcstd,Endmill,True,3.175,32.0,65,3.175,2,,,,,,SC05A (N2FLX3.32),"Genmitsu flat end compression [SC05A (N2FLX3.32)], Nano Blue Coat"
+62,3.175mm_Flat_End_SC05A_N2FLX3.28.fctb,3.175mm Flat End [SC05A (N2FLX3.28)],flat end mill,,endmill.fcstd,Endmill,True,3.175,28.0,60,3.175,2,,,,,,SC05A (N2FLX3.28),"Genmitsu flat end compression [SC05A (N2FLX3.28)], Nano Blue Coat"
+63,3.175mm_Flat_End_SC05A_N2FLX3.25.fctb,3.175mm Flat End [SC05A (N2FLX3.25)],flat end mill,,endmill.fcstd,Endmill,True,3.175,25.0,55,3.175,2,,,,,,SC05A (N2FLX3.25),"Genmitsu flat end compression [SC05A (N2FLX3.25)], Nano Blue Coat"
+64,3.175mm_Flat_End_SC05A_N2FLX3.15.fctb,3.175mm Flat End [SC05A (N2FLX3.15)],flat end mill,,endmill.fcstd,Endmill,True,3.175,15.0,40,3.175,2,,,,,,SC05A (N2FLX3.15),"Genmitsu flat end compression [SC05A (N2FLX3.15)], Nano Blue Coat"
+65,3.175mm_Flat_End_SC05A_N2FLX3.12.fctb,3.175mm Flat End [SC05A (N2FLX3.12)],flat end mill,,endmill.fcstd,Endmill,True,3.175,12.0,40,3.175,2,,,,,,SC05A (N2FLX3.12),"Genmitsu flat end compression [SC05A (N2FLX3.12)], Nano Blue Coat"
+66,25.400mm_Flat_End_RB03A.fctb,25.400mm Flat End [RB03A],flat end mill,,endmill.fcstd,Endmill,True,25.4,5.0,40,6.35,3,,,,,,RB03A,Genmitsu flat end surfacing [RB03A]
+67,0.100mm_Drill_PD30A.fctb,0.100mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.1,2.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+68,0.200mm_Drill_PD30A.fctb,0.200mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.2,3.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+69,0.300mm_Drill_PD30A.fctb,0.300mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.3,5.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+70,0.400mm_Drill_PD30A.fctb,0.400mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.4,6.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+71,0.500mm_Drill_PD30A.fctb,0.500mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.5,6.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+72,0.600mm_Drill_PD30A.fctb,0.600mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.6,9.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+73,0.700mm_Drill_PD30A.fctb,0.700mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.7,9.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+74,0.800mm_Drill_PD30A.fctb,0.800mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.8,9.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+75,0.900mm_Drill_PD30A.fctb,0.900mm Drill [PD30A],drill,,drill.fcstd,Drill,True,0.9,9.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+76,1.000mm_Drill_PD30A.fctb,1.000mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.0,9.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+77,1.100mm_Drill_PD30A.fctb,1.100mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.1,9.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+78,1.200mm_Drill_PD30A.fctb,1.200mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.2,9.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+79,1.300mm_Drill_PD30A.fctb,1.300mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.3,9.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+80,1.400mm_Drill_PD30A.fctb,1.400mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.4,9.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+81,1.500mm_Drill_PD30A.fctb,1.500mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.5,9.5,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+82,1.600mm_Drill_PD30A.fctb,1.600mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.6,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+83,1.700mm_Drill_PD30A.fctb,1.700mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.7,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+84,1.800mm_Drill_PD30A.fctb,1.800mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.8,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+85,1.900mm_Drill_PD30A.fctb,1.900mm Drill [PD30A],drill,,drill.fcstd,Drill,True,1.9,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+86,2.000mm_Drill_PD30A.fctb,2.000mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.0,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+87,2.100mm_Drill_PD30A.fctb,2.100mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.1,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+88,2.200mm_Drill_PD30A.fctb,2.200mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.2,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+89,2.300mm_Drill_PD30A.fctb,2.300mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.3,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+90,2.400mm_Drill_PD30A.fctb,2.400mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.4,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+91,2.500mm_Drill_PD30A.fctb,2.500mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.5,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+92,2.600mm_Drill_PD30A.fctb,2.600mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.6,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+93,2.700mm_Drill_PD30A.fctb,2.700mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.7,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+94,2.800mm_Drill_PD30A.fctb,2.800mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.8,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+95,2.900mm_Drill_PD30A.fctb,2.900mm Drill [PD30A],drill,,drill.fcstd,Drill,True,2.9,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+96,3.000mm_Drill_PD30A.fctb,3.000mm Drill [PD30A],drill,,drill.fcstd,Drill,True,3.0,10.0,38,3.175,2,,,,,118.0,PD30A,Genmitsu drill [PD30A]
+97,1.000mm_Ball_Nose_MC50A.fctb,1.000mm Ball Nose [MC50A],ball end mill,,ballend.fcstd,Ballend,True,1.0,4.0,38,3.175,2,,,,,,MC50A,"Genmitsu ball nose [MC50A], Titanium Coat"
+98,1.500mm_Ball_Nose_MC50A.fctb,1.500mm Ball Nose [MC50A],ball end mill,,ballend.fcstd,Ballend,True,1.5,6.0,38,3.175,2,,,,,,MC50A,"Genmitsu ball nose [MC50A], Titanium Coat"
+99,2.000mm_Ball_Nose_MC50A.fctb,2.000mm Ball Nose [MC50A],ball end mill,,ballend.fcstd,Ballend,True,2.0,8.0,38,3.175,2,,,,,,MC50A,"Genmitsu ball nose [MC50A], Titanium Coat"
+100,2.500mm_Ball_Nose_MC50A.fctb,2.500mm Ball Nose [MC50A],ball end mill,,ballend.fcstd,Ballend,True,2.5,14.0,38,3.175,2,,,,,,MC50A,"Genmitsu ball nose [MC50A], Titanium Coat"
+101,3.175mm_Ball_Nose_MC50A.fctb,3.175mm Ball Nose [MC50A],ball end mill,,ballend.fcstd,Ballend,True,3.175,17.0,38,3.175,2,,,,,,MC50A,"Genmitsu ball nose [MC50A], Titanium Coat"
+102,20deg_V-Bit_0.100mm_Tip_MC50A.fctb,20deg V-Bit 0.100mm Tip [MC50A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,18.0,38,3.175,2,10.0,20.0,0.1,,,MC50A,Genmitsu V 20° groove straight [MC50A]
+103,30deg_V-Bit_0.100mm_Tip_MC50A.fctb,30deg V-Bit 0.100mm Tip [MC50A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,18.0,38,3.175,2,15.0,30.0,0.1,,,MC50A,Genmitsu V 30° groove straight [MC50A]
+104,45deg_V-Bit_0.100mm_Tip_MC50A.fctb,45deg V-Bit 0.100mm Tip [MC50A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,18.0,38,3.175,2,22.5,45.0,0.1,,,MC50A,Genmitsu V 45° groove straight [MC50A]
+105,60deg_V-Bit_0.100mm_Tip_MC50A.fctb,60deg V-Bit 0.100mm Tip [MC50A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,18.0,38,3.175,2,30.0,60.0,0.1,,,MC50A,Genmitsu V 60° groove straight [MC50A]
+106,90deg_V-Bit_0.100mm_Tip_MC50A.fctb,90deg V-Bit 0.100mm Tip [MC50A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,18.0,38,3.175,2,45.0,90.0,0.1,,,MC50A,Genmitsu V 90° groove straight [MC50A]
+107,1.100mm_Drill_MC50A.fctb,1.100mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.1,10.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+108,1.200mm_Drill_MC50A.fctb,1.200mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.2,10.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+109,1.300mm_Drill_MC50A.fctb,1.300mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.3,12.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+110,1.400mm_Drill_MC50A.fctb,1.400mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.4,11.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+111,1.500mm_Drill_MC50A.fctb,1.500mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.5,11.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+112,1.600mm_Drill_MC50A.fctb,1.600mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.6,12.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+113,1.700mm_Drill_MC50A.fctb,1.700mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.7,11.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+114,1.800mm_Drill_MC50A.fctb,1.800mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.8,11.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+115,1.900mm_Drill_MC50A.fctb,1.900mm Drill [MC50A],drill,,drill.fcstd,Drill,True,1.9,10.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+116,2.000mm_Drill_MC50A.fctb,2.000mm Drill [MC50A],drill,,drill.fcstd,Drill,True,2.0,11.0,38,3.175,2,,,,,118.0,MC50A,"Genmitsu drill [MC50A], Nano Blue Coat"
+117,1.000mm_Flat_End_MC50A.fctb,1.000mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,1.0,8.0,38,3.175,8,,,,,,MC50A,"Genmitsu flat end corncob [MC50A], Nano Blue Coat"
+118,1.000mm_Flat_End_MC50A_2.fctb,1.000mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,1.0,4.0,38,3.175,2,,,,,,MC50A,Genmitsu flat end straight [MC50A]
+119,1.000mm_Flat_End_MC50A_3.fctb,1.000mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,1.0,4.0,38,3.175,2,,,,,,MC50A,"Genmitsu flat end [MC50A], Titanium Coat"
+120,1.500mm_Flat_End_MC50A.fctb,1.500mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,1.5,8.0,38,3.175,8,,,,,,MC50A,"Genmitsu flat end corncob [MC50A], Nano Blue Coat"
+121,1.500mm_Flat_End_MC50A_2.fctb,1.500mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,1.5,6.0,38,3.175,2,,,,,,MC50A,Genmitsu flat end straight [MC50A]
+122,1.500mm_Flat_End_MC50A_3.fctb,1.500mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,1.5,6.0,38,3.175,2,,,,,,MC50A,"Genmitsu flat end [MC50A], Titanium Coat"
+123,2.000mm_Flat_End_MC50A.fctb,2.000mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,2.0,10.0,38,3.175,8,,,,,,MC50A,"Genmitsu flat end corncob [MC50A], Nano Blue Coat"
+124,2.000mm_Flat_End_MC50A_2.fctb,2.000mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,2.0,12.0,38,3.175,2,,,,,,MC50A,Genmitsu flat end straight [MC50A]
+125,2.000mm_Flat_End_MC50A_3.fctb,2.000mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,2.0,8.0,38,3.175,2,,,,,,MC50A,"Genmitsu flat end [MC50A], Titanium Coat"
+126,2.500mm_Flat_End_MC50A.fctb,2.500mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,2.5,10.0,38,3.175,8,,,,,,MC50A,"Genmitsu flat end corncob [MC50A], Nano Blue Coat"
+127,2.500mm_Flat_End_MC50A_2.fctb,2.500mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,2.5,17.0,38,3.175,2,,,,,,MC50A,Genmitsu flat end straight [MC50A]
+128,2.500mm_Flat_End_MC50A_3.fctb,2.500mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,2.5,14.0,38,3.175,2,,,,,,MC50A,"Genmitsu flat end [MC50A], Titanium Coat"
+129,3.175mm_Flat_End_MC50A.fctb,3.175mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,3.175,13.0,38,3.175,8,,,,,,MC50A,"Genmitsu flat end corncob [MC50A], Nano Blue Coat"
+130,3.175mm_Flat_End_MC50A_2.fctb,3.175mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,3.175,22.0,45,3.175,2,,,,,,MC50A,Genmitsu flat end straight [MC50A]
+131,3.175mm_Flat_End_MC50A_3.fctb,3.175mm Flat End [MC50A],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,38,3.175,2,,,,,,MC50A,"Genmitsu flat end [MC50A], Titanium Coat"
+132,3.175mm_Ball_Nose_MC40A.fctb,3.175mm Ball Nose [MC40A],ball end mill,,ballend.fcstd,Ballend,True,3.175,17.0,38,3.175,2,,,,,,MC40A,Genmitsu ball nose [MC40A]
+133,0.800mm_Flat_End_MC40A.fctb,0.800mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,0.8,6.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+134,0.800mm_Flat_End_MC40A_2.fctb,0.800mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,0.8,6.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+135,1.000mm_Flat_End_MC40A.fctb,1.000mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.0,6.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+136,1.000mm_Flat_End_MC40A_2.fctb,1.000mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.0,6.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+137,1.200mm_Flat_End_MC40A.fctb,1.200mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.2,7.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+138,1.200mm_Flat_End_MC40A_2.fctb,1.200mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.2,7.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+139,1.400mm_Flat_End_MC40A.fctb,1.400mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.4,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+140,1.400mm_Flat_End_MC40A_2.fctb,1.400mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.4,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+141,1.600mm_Flat_End_MC40A.fctb,1.600mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.6,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+142,1.600mm_Flat_End_MC40A_2.fctb,1.600mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.6,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+143,1.800mm_Flat_End_MC40A.fctb,1.800mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.8,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+144,1.800mm_Flat_End_MC40A_2.fctb,1.800mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,1.8,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+145,2.000mm_Flat_End_MC40A.fctb,2.000mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,2.0,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+146,2.000mm_Flat_End_MC40A_2.fctb,2.000mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,2.0,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+147,2.200mm_Flat_End_MC40A.fctb,2.200mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,2.2,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+148,2.200mm_Flat_End_MC40A_2.fctb,2.200mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,2.2,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+149,2.400mm_Flat_End_MC40A.fctb,2.400mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,2.4,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+150,2.400mm_Flat_End_MC40A_2.fctb,2.400mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,2.4,8.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+151,3.000mm_Flat_End_MC40A.fctb,3.000mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,3.0,10.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Nano Blue Coat"
+152,3.000mm_Flat_End_MC40A_2.fctb,3.000mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,3.0,10.0,37,3.175,2,,,,,,MC40A,"Genmitsu flat end corncob [MC40A], Titanium Coat"
+153,3.175mm_Flat_End_MC40A.fctb,3.175mm Flat End [MC40A],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,38,3.175,2,,,,,,MC40A,Genmitsu flat end [MC40A]
+154,30deg_V-Bit_0.100mm_Tip_MC30B.fctb,30deg V-Bit 0.100mm Tip [MC30B],chamfer mill,,v-bit.fcstd,VBit,True,3.175,5.75,27,3.175,1,15.0,30.0,0.1,,,MC30B,Genmitsu V 30° engraving [MC30B]
+155,3.175mm_Flat_End_MC30B.fctb,3.175mm Flat End [MC30B],flat end mill,,endmill.fcstd,Endmill,True,3.175,14.0,38,3.175,8,,,,,,MC30B,Genmitsu flat end corncob [MC30B]
+156,3.175mm_Flat_End_MC30B_2.fctb,3.175mm Flat End [MC30B],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,38,3.175,2,,,,,,MC30B,Genmitsu flat end [MC30B]
+157,3.175mm_Ball_Nose_MC30A.fctb,3.175mm Ball Nose [MC30A],ball end mill,,ballend.fcstd,Ballend,True,3.175,17.0,38,3.175,2,,,,,,MC30A,Genmitsu ball nose [MC30A]
+158,0.800mm_Flat_End_MC30A.fctb,0.800mm Flat End [MC30A],flat end mill,,endmill.fcstd,Endmill,True,0.8,8.0,38,3.175,4,,,,,,MC30A,Genmitsu flat end corncob [MC30A]
+159,3.175mm_Flat_End_MC30A.fctb,3.175mm Flat End [MC30A],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,38,3.175,1,,,,,,MC30A,Genmitsu o flute [MC30A]
+160,0.800mm_Flat_End_FN10A.fctb,0.800mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,0.8,5.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+161,1.000mm_Flat_End_FN10A.fctb,1.000mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,1.0,4.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+162,1.500mm_Flat_End_FN10A.fctb,1.500mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,1.5,8.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+163,2.000mm_Flat_End_FN10A.fctb,2.000mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,2.0,9.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+164,2.000mm_Flat_End_FN10A_2.fctb,2.000mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,2.0,13.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+165,2.000mm_Flat_End_FN10A_3.fctb,2.000mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,2.0,17.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+166,2.000mm_Flat_End_FN10A_4.fctb,2.000mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,2.0,22.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+167,2.500mm_Flat_End_FN10A.fctb,2.500mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,2.5,17.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+168,3.175mm_Flat_End_FN10A.fctb,3.175mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,3.175,10.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+169,3.175mm_Flat_End_FN10A_2.fctb,3.175mm Flat End [FN10A],flat end mill,,endmill.fcstd,Endmill,True,3.175,13.0,38,3.175,2,,,,,,FN10A,"Genmitsu flat end [FN10A], Nano Blue Coat"
+170,3.175mm_Ball_Nose_EM10B.fctb,3.175mm Ball Nose [EM10B],ball end mill,,ballend.fcstd,Ballend,True,3.175,18.0,38,3.175,2,,,,,,EM10B,"Genmitsu ball nose [EM10B], Nano Blue Coat"
+171,60deg_V-Bit_0.100mm_Tip_EM10B.fctb,60deg V-Bit 0.100mm Tip [EM10B],chamfer mill,,v-bit.fcstd,VBit,True,3.175,5.0,38,3.175,1,30.0,60.0,0.1,,,EM10B,"Genmitsu V 60° groove [EM10B], Nano Blue Coat"
+172,2.000mm_Flat_End_EM10B.fctb,2.000mm Flat End [EM10B],flat end mill,,endmill.fcstd,Endmill,True,2.0,7.0,38,3.175,1,,,,,,EM10B,"Genmitsu o flute [EM10B], Nano Blue Coat"
+173,30deg_V-Bit_0.100mm_Tip_EM10A.fctb,30deg V-Bit 0.100mm Tip [EM10A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,5.75,38,3.175,1,15.0,30.0,0.1,,,EM10A,"Genmitsu V 30° engraving [EM10A], Nano Blue Coat"
+174,30deg_V-Bit_0.200mm_Tip_EM10A.fctb,30deg V-Bit 0.200mm Tip [EM10A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,5.5,38,3.175,1,15.0,30.0,0.2,,,EM10A,"Genmitsu V 30° engraving [EM10A], Nano Blue Coat"
+175,2.000mm_Flat_End_EM10A.fctb,2.000mm Flat End [EM10A],flat end mill,,endmill.fcstd,Endmill,True,2.0,8.0,38,3.175,1,,,,,,EM10A,"Genmitsu flat end [EM10A], Nano Blue Coat"
+176,3.175mm_Flat_End_EM10A.fctb,3.175mm Flat End [EM10A],flat end mill,,endmill.fcstd,Endmill,True,3.175,12.0,38,3.175,1,,,,,,EM10A,"Genmitsu flat end [EM10A], Nano Blue Coat"
+177,0.250mm_Tapered_Ball_5.615deg_EM10A.fctb,0.250mm Tapered Ball 5.615deg [EM10A],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,0.25,16.5,38,3.175,2,5.615,11.23,,0.125,,EM10A,"Genmitsu ball nose tapered [EM10A], Nano Blue Coat"
+178,0.500mm_Tapered_Ball_5.181deg_EM10A.fctb,0.500mm Tapered Ball 5.181deg [EM10A],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,0.5,15.0,38,3.175,2,5.181,10.362,,0.25,,EM10A,"Genmitsu ball nose tapered [EM10A], Nano Blue Coat"
+179,0.750mm_Tapered_Ball_4.739deg_EM10A.fctb,0.750mm Tapered Ball 4.739deg [EM10A],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,0.75,15.0,38,3.175,2,4.739,9.478,,0.375,,EM10A,"Genmitsu ball nose tapered [EM10A], Nano Blue Coat"
+180,1.000mm_Tapered_Ball_4.189deg_EM10A.fctb,1.000mm Tapered Ball 4.189deg [EM10A],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,1.0,15.0,38,3.175,2,4.189,8.378,,0.5,,EM10A,"Genmitsu ball nose tapered [EM10A], Nano Blue Coat"
+181,3.175mm_Flat_End_EM05A_N2LXD3.17.fctb,3.175mm Flat End [EM05A (N2LXD3.17)],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,45,3.175,2,,,,,,EM05A (N2LXD3.17),"Genmitsu fishtail downcut [EM05A (N2LXD3.17)], Nano Blue Coat"
+182,3.175mm_Flat_End_EM05A_N1LXD3.17.fctb,3.175mm Flat End [EM05A (N1LXD3.17)],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,45,3.175,1,,,,,,EM05A (N1LXD3.17),"Genmitsu o flute downcut [EM05A (N1LXD3.17)], Nano Blue Coat"
+183,60deg_V-Bit_EM05A.fctb,60deg V-Bit [EM05A],chamfer mill,,v-bit.fcstd,VBit,True,6.35,9.0,50,6.35,2,30.0,60.0,0.0,,,EM05A,"Genmitsu V 60° groove [EM05A], Nano Blue Coat"
+184,6.350mm_Flat_End_EM05A.fctb,6.350mm Flat End [EM05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,15.0,50,6.35,4,,,,,,EM05A,"Genmitsu flat end roughing [EM05A], Nano Blue Coat"
+185,1.000mm_Tapered_Ball_6.250deg_EM05A.fctb,1.000mm Tapered Ball 6.250deg [EM05A],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,1.0,20.0,50,6.35,2,6.25,12.5,,0.5,,EM05A,"Genmitsu ball nose tapered [EM05A], Nano Blue Coat"
+186,10deg_V-Bit_0.100mm_Tip_EM03A.fctb,10deg V-Bit 0.100mm Tip [EM03A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,17.5,27,3.175,1,5.0,10.0,0.1,,,EM03A,"Genmitsu V 10° engraving [EM03A], Chromatic"
+187,20deg_V-Bit_0.200mm_Tip_EM03A.fctb,20deg V-Bit 0.200mm Tip [EM03A],chamfer mill,,v-bit.fcstd,VBit,True,3.175,8.5,27,3.175,1,10.0,20.0,0.2,,,EM03A,"Genmitsu V 20° engraving [EM03A], Chromatic"
+188,0.500mm_Tapered_Ball_4.300deg_EM03A.fctb,0.500mm Tapered Ball 4.300deg [EM03A],tapered mill,tapered_ball,ballend.fcstd,Ballend,False,0.5,15.0,40,3.175,2,4.3,8.6,,0.25,,EM03A,"Genmitsu ball nose tapered [EM03A], Chromatic"
+189,6.350mm_Flat_End_CS05A.fctb,6.350mm Flat End [CS05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,22.0,50,6.35,8,,,,,,CS05A,"Genmitsu flat end corncob [CS05A], Nano Blue Coat"
+190,6.350mm_Flat_End_CS05A_2.fctb,6.350mm Flat End [CS05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,25.0,50,6.35,8,,,,,,CS05A,"Genmitsu flat end corncob [CS05A], Nano Blue Coat"
+191,6.350mm_Flat_End_CS05A_3.fctb,6.350mm Flat End [CS05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,32.0,60,6.35,8,,,,,,CS05A,"Genmitsu flat end corncob [CS05A], Nano Blue Coat"
+192,6.350mm_Flat_End_CS05A_4.fctb,6.350mm Flat End [CS05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,42.0,70,6.35,8,,,,,,CS05A,"Genmitsu flat end corncob [CS05A], Nano Blue Coat"
+193,6.350mm_Flat_End_CS05A_5.fctb,6.350mm Flat End [CS05A],flat end mill,,endmill.fcstd,Endmill,True,6.35,52.0,80,6.35,8,,,,,,CS05A,"Genmitsu flat end corncob [CS05A], Nano Blue Coat"
+194,0.800mm_Ball_Nose_BN10A.fctb,0.800mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,0.8,6.0,38,3.175,2,,,,,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+195,1.000mm_Ball_Nose_BN10A.fctb,1.000mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,1.0,6.0,38,3.175,2,,,,,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+196,1.500mm_Ball_Nose_BN10A.fctb,1.500mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,1.5,8.0,38,3.175,2,,,,,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+197,2.000mm_Ball_Nose_BN10A.fctb,2.000mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,2.0,10.0,38,3.175,2,,,,,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+198,2.000mm_Ball_Nose_BN10A_2.fctb,2.000mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,2.0,12.0,38,3.175,2,,,,,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+199,2.000mm_Ball_Nose_BN10A_3.fctb,2.000mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,2.0,15.0,38,3.175,2,,,,,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+200,2.000mm_Ball_Nose_BN10A_4.fctb,2.000mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,2.0,17.0,38,3.175,2,,,,,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+201,2.000mm_Ball_Nose_BN10A_5.fctb,2.000mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,2.0,22.0,38,3.175,2,,,,,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+202,2.500mm_Ball_Nose_BN10A.fctb,2.500mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,2.5,12.0,38,3.175,2,1.5,3.0,,1.25,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+203,2.500mm_Ball_Nose_BN10A_2.fctb,2.500mm Ball Nose [BN10A],ball end mill,,ballend.fcstd,Ballend,True,2.5,17.0,38,3.175,2,1.0,2.0,,1.25,,BN10A,"Genmitsu ball nose [BN10A], Nano Blue Coat"
+204,30deg_V-Bit_0.100mm_Tip_70V30.fctb,30deg V-Bit 0.100mm Tip [70V30],chamfer mill,,v-bit.fcstd,VBit,True,3.175,6.0,27,3.175,1,15.0,30.0,0.1,,,70V30,"Genmitsu V 30° engraving [70V30], Nano Blue Coat"
+205,20deg_V-Bit_0.100mm_Tip_70V20.fctb,20deg V-Bit 0.100mm Tip [70V20],chamfer mill,,v-bit.fcstd,VBit,True,3.175,8.75,27,3.175,1,10.0,20.0,0.1,,,70V20,"Genmitsu V 20° engraving [70V20], Nano Blue Coat"
+206,15deg_V-Bit_0.100mm_Tip_70V15.fctb,15deg V-Bit 0.100mm Tip [70V15],chamfer mill,,v-bit.fcstd,VBit,True,3.175,11.5,29,3.175,1,7.5,15.0,0.1,,,70V15,"Genmitsu V 15° engraving [70V15], Nano Blue Coat"
+207,3.175mm_Flat_End_70SS17.fctb,3.175mm Flat End [70SS17],flat end mill,,endmill.fcstd,Endmill,True,3.175,17.0,38,3.175,1,,,,,,70SS17,"Genmitsu flat end [70SS17], Nano Blue Coat"
+208,3.175mm_Flat_End_70SF17.fctb,3.175mm Flat End [70SF17],flat end mill,,endmill.fcstd,Endmill,True,3.175,16.0,38,3.175,2,,,,,,70SF17,"Genmitsu flat end [70SF17], Nano Blue Coat"
+209,3.175mm_Ball_Nose_70SB17.fctb,3.175mm Ball Nose [70SB17],ball end mill,,ballend.fcstd,Ballend,True,3.175,17.0,38,3.175,2,,,,,,70SB17,"Genmitsu ball nose [70SB17], Nano Blue Coat"
+210,1.500mm_Flat_End_70C15.fctb,1.500mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,1.5,8.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+211,1.600mm_Flat_End_70C15.fctb,1.600mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,1.6,8.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+212,1.700mm_Flat_End_70C15.fctb,1.700mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,1.7,8.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+213,1.800mm_Flat_End_70C15.fctb,1.800mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,1.8,8.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+214,2.000mm_Flat_End_70C15.fctb,2.000mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,2.0,8.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+215,2.200mm_Flat_End_70C15.fctb,2.200mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,2.2,8.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+216,2.400mm_Flat_End_70C15.fctb,2.400mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,2.4,8.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+217,2.500mm_Flat_End_70C15.fctb,2.500mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,2.5,8.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+218,3.000mm_Flat_End_70C15.fctb,3.000mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,3.0,9.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+219,3.175mm_Flat_End_70C15.fctb,3.175mm Flat End [70C15],flat end mill,,endmill.fcstd,Endmill,True,3.175,10.0,37,3.175,2,,,,,,70C15,"Genmitsu flat end corncob [70C15], Nano Blue Coat"
+220,0.800mm_Flat_End_70C08.fctb,0.800mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,0.8,6.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+221,1.000mm_Flat_End_70C08.fctb,1.000mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,1.0,6.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+222,1.200mm_Flat_End_70C08.fctb,1.200mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,1.2,7.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+223,1.400mm_Flat_End_70C08.fctb,1.400mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,1.4,8.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+224,1.600mm_Flat_End_70C08.fctb,1.600mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,1.6,8.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+225,1.800mm_Flat_End_70C08.fctb,1.800mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,1.8,8.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+226,2.000mm_Flat_End_70C08.fctb,2.000mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,2.0,8.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+227,2.200mm_Flat_End_70C08.fctb,2.200mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,2.2,8.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+228,2.400mm_Flat_End_70C08.fctb,2.400mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,2.4,8.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"
+229,3.000mm_Flat_End_70C08.fctb,3.000mm Flat End [70C08],flat end mill,,endmill.fcstd,Endmill,True,3.0,10.0,37,3.175,2,,,,,,70C08,"Genmitsu flat end corncob [70C08], Nano Blue Coat"

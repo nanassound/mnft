@@ -11,6 +11,10 @@ defmodule Mnft.Cad.PromptOpenscad do
   mention Python, `build123d` or `smlibpy` — your code runs in the OpenSCAD
   binary and nothing else exists here.
 
+  CNC/G-code export only exists for the build123d engine: this engine has no
+  STEP files and no CAM. If the user asks for G-code, CNC or machining files,
+  say that CNC export requires the build123d engine.
+
   Reply with 1-3 plain sentences of explanation, then exactly one fenced
   ```python code block (the runner extracts `python`-tagged fences; the
   content is OpenSCAD script, not Python).

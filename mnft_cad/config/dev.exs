@@ -36,6 +36,12 @@ config :mnft_cad, :cad,
     bin: System.get_env("OPENSCAD_BIN", "openscad"),
     timeout_s: String.to_integer(System.get_env("OPENSCAD_TIMEOUT_S", "60"))
   ],
+  # FreeCAD headless CAM (G-code generation after a successful build123d
+  # build). toolbits_dir defaults to this app's priv/cam/toolbits.
+  cam: [
+    freecad_cmd: System.get_env("MNFT_FREECAD_CMD", "/Applications/FreeCAD.app/Contents/MacOS/FreeCAD"),
+    timeout_s: String.to_integer(System.get_env("MNFT_CAM_TIMEOUT_S", "180"))
+  ],
   # Only the keys that differ from Mnft.Cad.References' @defaults (pdf_dpi is
   # already 300 there). The trim helper needs the cad_worker venv python for
   # Pillow; relative like :worker_python because `mix run` here runs with the

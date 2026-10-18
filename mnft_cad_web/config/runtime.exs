@@ -78,6 +78,10 @@ if config_env() == :prod do
       bin: System.get_env("OPENSCAD_BIN", "openscad"),
       timeout_s: String.to_integer(System.get_env("OPENSCAD_TIMEOUT_S", "60"))
     ],
+    cam: [
+      freecad_cmd: System.get_env("MNFT_FREECAD_CMD", "/Applications/FreeCAD.app/Contents/MacOS/FreeCAD"),
+      timeout_s: String.to_integer(System.get_env("MNFT_CAM_TIMEOUT_S", "180"))
+    ],
     llm: [
       provider: String.to_atom(System.get_env("LLM_PROVIDER", "openai")),
       base_url: System.get_env("LLM_BASE_URL", "https://api.z.ai/api/paas/v4"),

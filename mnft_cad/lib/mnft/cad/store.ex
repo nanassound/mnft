@@ -19,7 +19,7 @@ defmodule Mnft.Cad.Store do
 
   @type user_attrs :: %{content: String.t(), meta: map()}
   @type assistant_attrs :: %{content: String.t(), code: String.t() | nil, meta: map()}
-  @type model_attrs :: %{id: String.t(), mesh: map(), has_glb: boolean(), script_file: String.t() | nil} | nil
+  @type model_attrs :: %{id: String.t(), mesh: map(), has_glb: boolean(), has_gcode: boolean(), script_file: String.t() | nil} | nil
 
   @type turn :: %{
           user_message: Message.t(),

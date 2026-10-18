@@ -257,6 +257,7 @@ defmodule MnftCadWeb.CadLive do
       stl: ModelURL.stl(model.id),
       step: ModelURL.step(model.id),
       glb: if(model.has_glb, do: ModelURL.glb(model.id)),
+      gcode: if(Map.get(model, :has_gcode), do: ModelURL.gcode(model.id)),
       script: if(model.script_file, do: ModelURL.file(model.id, model.script_file)),
       script_label: script_label(model.script_file),
       mesh: model.mesh
@@ -594,6 +595,12 @@ defmodule MnftCadWeb.CadLive do
                 class="rounded-lg border border-zinc-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-white"
               >GLB</a>
               <a
+                :if={@model.gcode}
+                href={@model.gcode}
+                download
+                class="rounded-lg border border-accent bg-white/90 px-3 py-1.5 text-xs font-medium text-accent hover:bg-white"
+              >G-code (GRBL)</a>
+              <a
                 :if={@model.script}
                 href={@model.script}
                 download
@@ -732,6 +739,16 @@ defmodule MnftCadWeb.CadLive do
       <p :if={@message.meta["repaired"]} class="text-xs text-zinc-500">
         Fixed automatically after a first failed attempt.
       </p>
+      <div
+        :if={not is_nil(@message.meta["cam_note"]) or (@message.meta["cam_warnings"] || []) != []}
+        id={"#{@id}-cam"}
+        class="rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs text-amber-900"
+      >
+        <p :if={@message.meta["cam_note"]}>{@message.meta["cam_note"]}</p>
+        <ul :if={(@message.meta["cam_warnings"] || []) != []} class="list-inside list-disc">
+          <li :for={w <- @message.meta["cam_warnings"]}>{w}</li>
+        </ul>
+      </div>
       <button
         :if={@message.meta["code_missing"]}
         type="button"

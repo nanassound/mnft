@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "id": "3.175mm_Ball_Nose_MC40A",
+  "name": "3.175mm Ball Nose [MC40A]",
+  "shape": "ballend.fcstd",
+  "shape-type": "Ballend",
+  "parameter": {
+    "Diameter": "3.175 mm",
+    "CuttingEdgeHeight": "17.000 mm",
+    "Length": "38.000 mm",
+    "ShankDiameter": "3.175 mm",
+    "Flutes": 2,
+    "Material": "HSS",
+    "SpindleDirection": "Forward",
+    "Chipload": "0.0556 mm",
+    "Radius": "1.587 mm"
+  },
+  "attribute": {
+    "Vendor": "SainSmart Genmitsu",
+    "ProductId": "MC40A",
+    "Description": "Genmitsu ball nose [MC40A]",
+    "ProductLink": "https://www.sainsmart.com/collections/genmitsu-cnc-router-bits-end-mills/products/genmitsu-1-8-shank-40-pcs-cnc-cutter-milling-carving-bit-set-mc40a",
+    "SourceGuid": "bd5f8d79-e2e8-4776-a313-c515675c5ea8",
+    "SourceType": "ball end mill",
+    "Coating": "hss",
+    "ExactStockFreeCADShape": true,
+    "OriginalUnit": "millimeters"
+  }
+}

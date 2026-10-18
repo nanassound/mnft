@@ -23,4 +23,7 @@ defmodule MnftCadWeb.ModelURL do
 
   @spec glb(model_id :: String.t()) :: String.t()
   def glb(model_id), do: file(model_id, "model.glb")
+
+  @spec gcode(model_id :: String.t()) :: String.t()
+  def gcode(model_id), do: file(model_id, "model.gcode")
 end

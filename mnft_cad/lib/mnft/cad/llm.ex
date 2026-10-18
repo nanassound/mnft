@@ -132,7 +132,7 @@ defmodule Mnft.Cad.LLM do
     case dialect do
       :smlibpy -> PromptSmlibpy.system() <> PromptSmlibpy.skills_block()
       :openscad -> PromptOpenscad.system() <> PromptOpenscad.skills_block()
-      _ -> Prompt.system() <> Prompt.skills_block()
+      _ -> Prompt.system() <> Prompt.cam_block() <> Prompt.skills_block()
     end
   end
 

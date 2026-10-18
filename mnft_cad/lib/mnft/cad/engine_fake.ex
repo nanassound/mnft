@@ -13,7 +13,7 @@ defmodule Mnft.Cad.EngineFake do
 
   def calls, do: Agent.get(__MODULE__, &Enum.reverse(&1.calls))
 
-  def execute(code, owner_id) do
+  def execute(code, owner_id, opts \\ []) do
     Agent.get_and_update(__MODULE__, fn state ->
       {result, script} =
         List.pop_at(state.script, -1, %{
@@ -26,7 +26,11 @@ defmodule Mnft.Cad.EngineFake do
         })
 
       {result,
-       %{state | script: script, calls: [%{code: code, owner_id: owner_id} | state.calls]}}
+       %{
+         state
+         | script: script,
+           calls: [%{code: code, owner_id: owner_id, cam: opts[:cam]} | state.calls]
+       }}
     end)
   end
 end

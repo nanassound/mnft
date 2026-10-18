@@ -7,6 +7,8 @@ defmodule Mnft.Cad.Prompt do
   regenerated identical code while claiming compliance.
   """
 
+  alias Mnft.Cad.CamPlan
+
   @system ~S"""
     You are a CAD assistant that writes build123d code.
 
@@ -161,6 +163,58 @@ defmodule Mnft.Cad.Prompt do
   """
 
   def system, do: @system
+
+  @cam_block ~S"""
+  # CNC machining plan (CAM)
+
+  This host can also produce GRBL G-code for a desktop CNC (3-axis router,
+  mm, absolute). After the python block, emit exactly one ```cam fenced block
+  containing ONLY this JSON object:
+
+  {"material": "wood" | "aluminum",
+   "ops": [{"op": "face" | "pocket" | "profile" | "drill", "toolbit": "<id>", "peck_mm": <number>}]}
+
+  `peck_mm` is optional and only valid on drill ops (chip-clearing peck depth
+  in mm; use it for holes deeper than 2x their diameter).
+
+  Available toolbit ids:
+  """
+
+  @doc """
+  The build123d-only CAM plan section: instructions plus the toolbit ids from
+  `priv/cam/toolbits.json` (read per call — the file is the single truth).
+  "" when the toolbits config is missing/broken: CAM degrades, never the turn.
+  """
+  def cam_block do
+    ids = CamPlan.toolbit_ids()
+
+    if ids == [] do
+      ""
+    else
+      @cam_block <> Enum.join(ids, ", ") <> """
+
+      Rules:
+      - order ops face -> drill -> pocket -> profile (profile cuts the part
+        off the stock, so it must run last);
+      - face: only when the part has a flat machinable top face worth truing
+        (plates, boxes); skip it for organic or mostly-vertical shapes;
+      - drill: one op per hole size; choose the flat toolbit whose diameter is
+        CLOSEST to the hole diameter without exceeding it (the machine drills
+        at the centre, so the tool size is the hole size); vbit-20 only for
+        engraved marks, never for real through holes;
+      - pocket/profile: choose the largest toolbit narrower than the narrowest
+        feature — smaller bits cut much slower;
+      - profile: the outer cutout; always a flat toolbit;
+      - material: "wood" or "aluminum" — from the user's stated material or
+        the part's obvious intent; default "wood";
+      - plate-class 2.5D parts only: no 3D relief, no V-carving, no parts that
+        need 4th-axis or two-sided machining;
+      - if the part is not machinable this way (or the request is purely
+        conversational), omit the cam block entirely — never emit an empty or
+        incomplete one.
+      """
+    end
+  end
 
   @doc """
   Concatenated markdown from the skills dir (sorted by filename), or "" when
