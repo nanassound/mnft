@@ -164,8 +164,8 @@ defmodule Mnft.Cad.Turn do
     run = engine().execute(code, result.owner_id)
     Events.emit(result.session_id, "exec_done", %{})
 
-    result
-    |> Map.update(:exec_ms, 0, &(&1 + (run.exec_ms || 0)))
+    # rebind: the engine contract's exec_ms feeds the result meta + telemetry
+    result = Map.update(result, :exec_ms, 0, &(&1 + (run.exec_ms || 0)))
 
     if run.ok do
       result

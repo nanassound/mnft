@@ -8,8 +8,9 @@
   "scripts": {
     "dev": "vite --port 4210",
     "build": "vite build",
+    "build:worker": "vite build --config vite.worker.config.js",
     "preview": "vite preview --port 4210",
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "dependencies": {
     "replicad": "^1.2.0",

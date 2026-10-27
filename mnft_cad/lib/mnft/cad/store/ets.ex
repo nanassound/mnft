@@ -14,6 +14,11 @@ defmodule Mnft.Cad.Store.Ets do
 
   Model artifact FILES are never here — they are files under `:models_dir`;
   the journal stores metadata only.
+
+  Embedders that keep state fully in memory (e.g. the browser bundle, where
+  there is no writable filesystem) set `config :mnft_cad, :cad, journal: false`:
+  no `Mnft.Cad.Journal` process is started, nothing is appended, and boot does
+  no replay. The default (key unset) keeps the journal-first durability above.
   """
 
   @behaviour Mnft.Cad.Store
@@ -34,13 +39,17 @@ defmodule Mnft.Cad.Store.Ets do
       :ets.new(name, [type, :named_table, :public, read_concurrency: true])
     end)
 
-    path = journal_path(cfg)
+    journal? = cfg[:journal] != false
 
-    {:ok, _} = Journal.start_link(path: path)
+    if journal? do
+      path = journal_path(cfg)
 
-    Journal.lines() |> Enum.each(&apply_op/1)
+      {:ok, _} = Journal.start_link(path: path)
 
-    {:ok, %{}}
+      Journal.lines() |> Enum.each(&apply_op/1)
+    end
+
+    {:ok, %{journal: journal?}}
   end
 
   defp journal_path(cfg), do: Path.join(cfg[:data_dir] || "data", "mnft_cad.jsonl")
@@ -214,6 +223,10 @@ defmodule Mnft.Cad.Store.Ets do
 
   # Journal-first, then ETS. If the journal asks for compaction, snapshot from
   # the PRE-apply state (this op is not yet in ETS) and then apply.
+  # With `journal: false` the write path stops after ETS — nothing touches
+  # `Mnft.Cad.Journal` (this is the single journal chokepoint for all writes).
+  defp append_or_compact!(%{journal: false}, _op), do: :ok
+
   defp append_or_compact!(_state, op) do
     case Journal.append(op) do
       :ok -> :ok

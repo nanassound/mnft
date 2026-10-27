@@ -18,7 +18,7 @@ defmodule Mnft.Cad.LLM do
 
   import ReqLLM.Context
   alias ReqLLM.Message.ContentPart
-  alias Mnft.Cad.{CodeGen, Config, Prompt, PromptOpenscad, PromptSmlibpy}
+  alias Mnft.Cad.{CodeGen, Config, Prompt, PromptOpenscad, PromptReplicad, PromptSmlibpy}
 
   @type history :: [%{required(:role) => :user | :assistant, required(:content) => String.t()}]
   @type image :: %{
@@ -118,7 +118,9 @@ defmodule Mnft.Cad.LLM do
     end
   end
 
-  defp system_prompt do
+  @doc false
+  # Public for the dialect-routing tests only; callers use generate/5.
+  def system_prompt do
     engine = Mnft.Cad.Config.get(:engine)
 
     dialect =
@@ -132,6 +134,7 @@ defmodule Mnft.Cad.LLM do
     case dialect do
       :smlibpy -> PromptSmlibpy.system() <> PromptSmlibpy.skills_block()
       :openscad -> PromptOpenscad.system() <> PromptOpenscad.skills_block()
+      :replicad -> PromptReplicad.system() <> PromptReplicad.skills_block()
       _ -> Prompt.system() <> Prompt.skills_block()
     end
   end

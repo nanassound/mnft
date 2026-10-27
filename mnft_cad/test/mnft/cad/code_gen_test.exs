@@ -210,6 +210,71 @@ defmodule Mnft.Cad.CodeGenTest do
     end
   end
 
+  describe "replicad dialect (browser)" do
+    test "extract_code returns the js-tagged block" do
+      text = "Here you go.\n\n```js\nconst part = sketchCircle(5).extrude(10);\n```\n"
+
+      assert CodeGen.extract_code(text) == "const part = sketchCircle(5).extrude(10);"
+    end
+
+    test "extract_code handles the javascript tag and last-block-wins" do
+      text = "```javascript\nconst a = 1;\n```\nmid\n```javascript\nconst part = a;\n```"
+
+      assert CodeGen.extract_code(text) == "const part = a;"
+    end
+
+    test "extract_code still prefers a python-tagged block when both exist" do
+      text = "```js\nconst x = 1;\n```\n```python\npart = Box(1)\n```"
+
+      assert CodeGen.extract_code(text) == "part = Box(1)"
+    end
+
+    test "extract_code is not fooled by an unclosed js fence" do
+      assert CodeGen.extract_code("```js\nconst part = sketchCircle(5)") == nil
+    end
+
+    test "partial_code recovers an unterminated js fence" do
+      text = "```js\nconst part = sketchCircle(5).extrude(10);"
+
+      assert CodeGen.partial_code(text) == "const part = sketchCircle(5).extrude(10);"
+    end
+
+    test "build_repair_message(:replicad, ...) fences the old code as js" do
+      msg = CodeGen.build_repair_message(:replicad, "const part = bad();", "SyntaxError: nope")
+
+      assert msg =~ "```js"
+      assert msg =~ "const part = bad();"
+      assert msg =~ "SyntaxError: nope"
+      assert msg =~ "translate()"
+      assert msg =~ "measureShapeVolumeProperties"
+    end
+
+    test "build_truncated_repair_message(:replicad, ...) asks for one complete js block" do
+      msg = CodeGen.build_truncated_repair_message(:replicad, "const part = sketchCir")
+
+      assert msg =~ "```js"
+      assert msg =~ "under 60 lines"
+      assert msg =~ "const part = sketchCir"
+    end
+
+    test "build_truncated_repair_message(:replicad, nil) still fences js" do
+      assert CodeGen.build_truncated_repair_message(:replicad, nil) =~ "```js"
+    end
+
+    test "build_noop_message(:replicad, ...) asks for one complete js block" do
+      msg =
+        CodeGen.build_noop_message(
+          :replicad,
+          "make it taller",
+          "bbox 40 x 40 x 90 mm, 44 triangles, 37600 mm3"
+        )
+
+      assert msg =~ "```js"
+      assert msg =~ "make it taller"
+      assert msg =~ "bbox 40 x 40 x 90 mm"
+    end
+  end
+
   describe "redaction + summaries" do
     test "redact_data_urls strips image bytes" do
       dirty = ~s(HTTP 400: {"error":{"message":"bad part near data:image/png;base64,AAAA=="})

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>mnft · browser core — mnft_cad + replicad in this tab</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/vendor/three/three.module.js",
+          "three/addons/controls/OrbitControls.js": "/vendor/three/OrbitControls.js"
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --bg: #0d0f14;
+        --panel: #14161c;
+        --edge: #23262e;
+        --text: #d7dae2;
+        --dim: #8a90a0;
+        --accent: #f5a524;
+        --ok: #7dd487;
+        --err: #e5726f;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 12px 18px;
+        border-bottom: 1px solid var(--edge);
+      }
+      header h1 { font-size: 16px; margin: 0; }
+      header h1 span { color: var(--accent); }
+      .chip {
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        color: var(--dim);
+        border: 1px solid var(--edge);
+        border-radius: 999px;
+        padding: 3px 10px;
+        white-space: nowrap;
+      }
+      .chip[data-on="true"] { color: var(--ok); border-color: var(--ok); }
+      .chip[data-err="true"] { color: var(--err); border-color: var(--err); }
+      main {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(360px, 44%) 1fr;
+        gap: 14px;
+        padding: 14px 18px;
+        min-height: 0;
+      }
+      @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+      .col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 12px;
+      }
+      #transcript {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 120px;
+      }
+      .bubble { max-width: 88%; padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .bubble.user { align-self: flex-end; background: #1d2530; border: 1px solid #2a3547; }
+      .bubble.assistant { align-self: flex-start; background: #191c23; border: 1px solid var(--edge); }
+      .bubble.error { align-self: center; color: var(--err); border: 1px solid var(--err); background: transparent; font-family: ui-monospace, monospace; font-size: 12px; }
+      #stages {
+        display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+        padding: 8px 12px;
+        font-family: ui-monospace, monospace; font-size: 11px;
+      }
+      #stages .stage { color: var(--dim); }
+      #stages .stage[data-active="true"] { color: var(--accent); }
+      #stages .stage[data-done="true"] { color: var(--ok); }
+      #stages .arrow { color: var(--edge); }
+      .input-row { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--edge); }
+      #prompt {
+        flex: 1;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+      #prompt:focus { outline: none; border-color: var(--accent); }
+      #run {
+        background: var(--accent);
+        color: #14161c;
+        border: 0;
+        border-radius: 8px;
+        padding: 9px 18px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #run:disabled { opacity: 0.45; cursor: default; }
+      #viewport-wrap { flex: 1; min-height: 320px; position: relative; overflow: hidden; }
+      #viewport-wrap canvas { display: block; width: 100%; height: 100%; }
+      #meta { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 12px; font-size: 12px; font-family: ui-monospace, monospace; color: var(--dim); }
+      #meta .stat b { color: var(--text); font-weight: 600; }
+      #downloads { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 12px; }
+      #downloads a { color: var(--accent); font-size: 12px; font-family: ui-monospace, monospace; text-decoration: none; }
+      #downloads a:hover { text-decoration: underline; }
+      details.settings { padding: 10px 12px; font-size: 13px; }
+      details.settings summary { cursor: pointer; color: var(--dim); }
+      details.settings .grid { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; margin-top: 10px; align-items: center; }
+      details.settings label { color: var(--dim); font-size: 12px; }
+      details.settings input, details.settings select {
+        background: var(--bg); color: var(--text);
+        border: 1px solid var(--edge); border-radius: 6px;
+        padding: 6px 8px; font-size: 12px; font-family: ui-monospace, monospace;
+        width: 100%;
+      }
+      details.settings button {
+        grid-column: 2; justify-self: start;
+        background: transparent; color: var(--accent);
+        border: 1px solid var(--accent); border-radius: 6px;
+        padding: 5px 14px; font-size: 12px; cursor: pointer;
+      }
+      #settings-status { grid-column: 2; font-size: 11px; color: var(--dim); font-family: ui-monospace, monospace; }
+      .placeholder { color: var(--dim); font-size: 12px; padding: 6px 2px; font-family: ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>mnft <span>browser core</span></h1>
+      <span class="chip" id="chip-vm">VM booting…</span>
+      <span class="chip" id="chip-engine">engine ·</span>
+      <span class="chip" id="chip-journal">journal ·</span>
+      <span class="chip" id="chip-llm">LLM ·</span>
+      <span class="chip" id="chip-occt" data-on="false">OCCT loading…</span>
+      <span class="chip" id="chip-session" hidden></span>
+    </header>
+
+    <main>
+      <section class="col">
+        <div class="panel" id="transcript">
+          <div class="placeholder" id="transcript-hint">the BEAM is booting in this tab…</div>
+        </div>
+        <div class="panel">
+          <div id="stages">
+            <span class="stage" data-stage="llm">llm</span><span class="arrow">→</span>
+            <span class="stage" data-stage="exec">exec</span><span class="arrow">→</span>
+            <span class="stage" data-stage="turn">turn</span>
+          </div>
+          <div class="input-row">
+            <input id="prompt" type="text" placeholder="describe a part… (e.g. a 40 mm hexagonal pen holder with a 3 mm wall)"
+                   autocomplete="off" disabled />
+            <button id="run" disabled>Run</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="col">
+        <div class="panel" id="viewport-wrap"></div>
+        <div class="panel">
+          <div id="meta">
+            <span class="stat" id="stat-tris"></span>
+            <span class="stat" id="stat-bbox"></span>
+            <span class="stat" id="stat-vol"></span>
+            <span class="stat" id="stat-ms"></span>
+          </div>
+          <div id="downloads"></div>
+        </div>
+        <div class="panel">
+          <details class="settings" id="settings">
+            <summary>LLM settings (BYOK — key stays in this browser)</summary>
+            <div class="grid">
+              <label for="set-provider">provider</label>
+              <select id="set-provider">
+                <option value="openai">openai (compatible)</option>
+                <option value="anthropic">anthropic (compatible)</option>
+                <option value="deepseek">deepseek</option>
+                <option value="zai">z.ai (GLM)</option>
+              </select>
+              <label for="set-base">base URL</label>
+              <input id="set-base" type="text" placeholder="blank = provider default; openai + base URL covers deepseek etc." autocomplete="off" />
+              <label for="set-key">API key</label>
+              <input id="set-key" type="password" placeholder="sk-…" autocomplete="off" />
+              <label for="set-model">model id</label>
+              <input id="set-model" type="text" placeholder="e.g. glm-4.7" autocomplete="off" />
+              <button id="set-save">Save</button>
+              <span id="settings-status"></span>
+            </div>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

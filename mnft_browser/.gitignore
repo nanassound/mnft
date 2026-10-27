@@ -1,0 +1,6 @@
+/public/out/
+/public/kernel/
+/public/vendor/
+/_build/
+/deps/
+.elixir_ls/

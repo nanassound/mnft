@@ -9,19 +9,22 @@ defmodule Mnft.Cad.CodeGen do
   alias Mnft.Cad.Prompt
 
   @tagged_block_re ~r/```(?:python|py)[ \t]*\r?\n(.*?)```/s
+  @js_block_re ~r/```(?:js|javascript)[ \t]*\r?\n(.*?)```/s
   @any_block_re ~r/```[ \t]*\r?\n(.*?)```/s
   @data_url_re ~r/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]+/
 
   @doc """
-  Return the last non-empty fenced python block in `text`, else nil.
-  Tagged (python/py) blocks win; the bare-fence pattern is only consulted
-  when no tagged block exists at all.
+  Return the last non-empty fenced code block in `text`, else nil.
+  Tagged blocks win (`python`/`py` first, then `js`/`javascript` for the
+  browser replicad dialect); the bare-fence pattern is only consulted when
+  no tagged block exists at all.
   """
   def extract_code(text) when is_binary(text) and text != "" do
     blocks =
-      case matches(@tagged_block_re, text) do
-        [] -> matches(@any_block_re, text)
-        tagged -> tagged
+      cond do
+        (tagged = matches(@tagged_block_re, text)) != [] -> tagged
+        (js = matches(@js_block_re, text)) != [] -> js
+        true -> matches(@any_block_re, text)
       end
 
     Enum.reverse(blocks)
@@ -74,6 +77,8 @@ defmodule Mnft.Cad.CodeGen do
 
   defp strip_lang_tag("python" <> rest), do: drop_first_nl(rest)
   defp strip_lang_tag("py" <> rest), do: drop_first_nl(rest)
+  defp strip_lang_tag("javascript" <> rest), do: drop_first_nl(rest)
+  defp strip_lang_tag("js" <> rest), do: drop_first_nl(rest)
   defp strip_lang_tag("\n" <> rest), do: rest
   defp strip_lang_tag(rest), do: rest
 
@@ -200,6 +205,31 @@ defmodule Mnft.Cad.CodeGen do
     |> String.trim_trailing()
   end
 
+  def build_repair_message(:replicad, code, error) do
+    tail = error |> repair_error() |> String.slice(-2000, 2000)
+
+    """
+    Your replicad (browser JavaScript) code failed.
+
+    Error:
+    #{tail}
+
+    Code you generated:
+    ```js
+    #{code}
+    ```
+
+    Fix the problem and reply with 1-3 plain sentences plus exactly one
+    corrected, complete ```js block that binds the final shape to `part`.
+    Follow the gotchas in your instructions (`translate()` is destructive —
+    never reuse a translated shape; `sketchRectangle`/`sketchCircle` are
+    centre-origin; `sketchPolysides` takes the CIRCUMRADIUS — across-flats
+    is `across / 2 / Math.cos(pi / 6)`; volumes come from
+    `measureShapeVolumeProperties`, there is no `.volume()`).
+    """
+    |> String.trim_trailing()
+  end
+
   def build_repair_message(dialect, code, error) when dialect in [:build123d, nil] do
     build_repair_message(code, error)
   end
@@ -234,6 +264,31 @@ defmodule Mnft.Cad.CodeGen do
     build_truncated_repair_message(partial)
   end
 
+  def build_truncated_repair_message(:replicad, partial) do
+    partial_block =
+      if partial do
+        """
+        What you managed to output:
+        ```js
+        #{partial}
+        ```
+
+
+        """
+      else
+        ""
+      end
+
+    """
+    Your previous answer was cut off before the ```js code block finished (token limit).
+
+    #{partial_block}Return the complete script this time, in exactly one ```js block.
+    Bind the final shape to `part`. Keep it under 60 lines: prefer simplified
+    geometry over a heavy sweep/twist when in doubt.
+    """
+    |> String.trim_trailing()
+  end
+
   def build_truncated_repair_message(dialect, partial) when dialect in [:build123d, nil] do
     build_truncated_repair_message(partial)
   end
@@ -256,6 +311,21 @@ defmodule Mnft.Cad.CodeGen do
 
   def build_noop_message(:smlibpy, user_message, stats_line) do
     build_noop_message(user_message, stats_line)
+  end
+
+  def build_noop_message(:replicad, user_message, stats_line) do
+    """
+    Your new code produced a model identical to the previous one (#{stats_line}) —
+    the geometry did not change at all, but the user's request was:
+
+    "#{String.trim(user_message)}"
+
+    Re-read the request, decide which concrete feature it changes, and reply with
+    1-3 sentences plus exactly one complete ```js block that binds the final
+    shape to `part`. Only if you are certain the user asked to keep the model
+    exactly as-is, say so plainly and repeat the code unchanged.
+    """
+    |> String.trim_trailing()
   end
 
   def build_noop_message(dialect, user_message, stats_line) when dialect in [:build123d, nil] do
