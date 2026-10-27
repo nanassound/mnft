@@ -3,3 +3,11 @@
 
 # BEAM crash dumps
 erl_crash.dump
+
+# browser spike artifacts
+node_modules/
+dist/
+cad_worker_web/public/
+popcorn_demo/public/out/
+popcorn_demo/deps/
+popcorn_demo/_build/
