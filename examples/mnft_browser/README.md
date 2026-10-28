@@ -48,5 +48,8 @@ holder — the port of `cad_worker`'s sample part to the replicad dialect.
   viewer. `window.__popcorn` in the console reaches the kernel bridge
   directly.
 
-The embedding guide for the core itself is
-[`mnft_cad/README.md`](../../core/mnft_cad/README.md).
+The embedding guide for the core is
+[`mnft_cad/README.md`](../../core/mnft_cad/README.md) (its engines are
+build123d and OpenSCAD). The replicad engine this app runs — dialect
+quickref, parity with the Python worker, security posture — is documented
+in [`cad_worker_web/README.md`](../../core/cad_worker_web/README.md).
