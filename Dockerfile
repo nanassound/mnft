@@ -28,7 +28,7 @@ RUN mix local.hex --force && mix local.rebar --force
 # Preserve the repo's relative layout: mnft_cad_web's mix.exs declares
 # {:mnft_cad, path: "../../core/mnft_cad"}.
 COPY core/mnft_cad/mix.exs core/mnft_cad/mix.lock core/mnft_cad/
-COPY examples/mnft_cad_web/mix.exs examples/mnft_cad/mix.lock examples/mnft_cad_web/
+COPY examples/mnft_cad_web/mix.exs examples/mnft_cad_web/mix.lock examples/mnft_cad_web/
 WORKDIR /build/examples/mnft_cad_web
 RUN mix deps.get --only prod
 
