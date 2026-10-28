@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>mnft · cad_worker_web — replicad dialect in the browser</title>
+    <style>
+      :root {
+        --bg: #0d0f14;
+        --panel: #14161c;
+        --edge: #23262e;
+        --text: #d7dae2;
+        --dim: #8a90a0;
+        --accent: #f5a524;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--edge);
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      header h1 { font-size: 15px; margin: 0; }
+      header h1 span { color: var(--accent); }
+      header small { color: var(--dim); }
+      #status {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--dim);
+        padding: 3px 10px;
+        border: 1px solid var(--edge);
+        border-radius: 999px;
+      }
+      #status[data-busy="true"] { color: var(--accent); border-color: var(--accent); }
+      main { flex: 1; display: flex; min-height: 0; }
+      #side {
+        width: 420px;
+        min-width: 320px;
+        border-right: 1px solid var(--edge);
+        display: flex;
+        flex-direction: column;
+        padding: 12px;
+        gap: 10px;
+      }
+      textarea {
+        flex: 1;
+        min-height: 200px;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 10px;
+        font: 12px/1.5 ui-monospace, "JetBrains Mono", monospace;
+        resize: none;
+      }
+      textarea:focus { outline: 1px solid var(--accent); }
+      #run {
+        background: var(--accent);
+        color: #14161c;
+        font-weight: 600;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      #run:disabled { opacity: 0.45; cursor: wait; }
+      #stats { font-size: 12px; color: var(--dim); min-height: 1em; }
+      #error {
+        font: 11px/1.5 ui-monospace, monospace;
+        color: #ff7b72;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow: auto;
+      }
+      #downloads { display: flex; gap: 12px; flex-wrap: wrap; }
+      #downloads a { font-size: 12px; color: var(--accent); }
+      #viewport { flex: 1; position: relative; }
+      #viewport canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>mnft <span>cad_worker_web</span></h1>
+      <small>replicad dialect · OCCT 8 in WebAssembly · sandboxed in a worker</small>
+      <span id="status">loading…</span>
+    </header>
+    <main>
+      <div id="side">
+        <textarea id="code" spellcheck="false"></textarea>
+        <button id="run" disabled>Run dialect</button>
+        <div id="stats"></div>
+        <pre id="error"></pre>
+        <div id="downloads"></div>
+      </div>
+      <div id="viewport"></div>
+    </main>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

@@ -8,5 +8,5 @@ images
 **/__pycache__
 **/.pytest_cache
 **/.env
-mnft_cad_headless
-mnft_cad_web/priv/static/assets
+examples/mnft_cad_headless
+examples/mnft_cad_web/priv/static/assets

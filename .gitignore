@@ -3,3 +3,12 @@
 
 # BEAM crash dumps
 erl_crash.dump
+
+# browser build artifacts
+node_modules/
+dist/
+dist-host/
+core/cad_worker_web/public/
+examples/mnft_browser/public/out/
+examples/mnft_browser/public/kernel/
+examples/mnft_browser/public/vendor/

@@ -1,0 +1,25 @@
+{
+  "name": "cad-worker-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "mnft browser dialect worker: guarded replicad (OCCT-in-WASM) execution — the web twin of cad_worker",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite --port 4210",
+    "build": "vite build",
+    "build:worker": "vite build --config vite.worker.config.js",
+    "preview": "vite preview --port 4210",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "replicad": "^1.2.0",
+    "replicad-opencascadejs": "^1.1.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "acorn": "^8.14.0",
+    "acorn-walk": "^8.3.4",
+    "vite": "^6.3.5"
+  }
+}

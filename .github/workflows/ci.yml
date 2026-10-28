@@ -30,15 +30,15 @@ jobs:
         run: pipx install uv
       - name: Python worker env
         run: |
-          cd cad_worker
+          cd core/cad_worker
           uv venv --python 3.12
           uv pip install -e ".[smlibpy]" pytest
       - name: Compile core
-        run: cd mnft_cad && mix deps.get && mix compile --warnings-as-errors
-      # EngineConfigTest shells out to `mix run` in mnft_cad_web, which needs
-      # its deps on disk before the core suite runs.
+        run: cd core/mnft_cad && mix deps.get && mix compile --warnings-as-errors
+      # EngineConfigTest shells out to `mix run` in examples/mnft_cad_web, which
+      # needs its deps on disk before the core suite runs.
       - name: Fetch web app deps
-        run: cd mnft_cad_web && mix deps.get
+        run: cd examples/mnft_cad_web && mix deps.get
       - name: Install poppler (reference-PDF tests)
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then
@@ -47,10 +47,10 @@ jobs:
             sudo apt-get update && sudo apt-get install -y poppler-utils
           fi
       - name: Core tests
-        run: cd mnft_cad && mix test
+        run: cd core/mnft_cad && mix test
       - name: Reference web app
-        run: cd mnft_cad_web && mix deps.get && mix compile --warnings-as-errors && mix test
+        run: cd examples/mnft_cad_web && mix deps.get && mix compile --warnings-as-errors && mix test
       - name: Headless example
-        run: cd mnft_cad_headless && mix deps.get && mix compile --warnings-as-errors && MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"
+        run: cd examples/mnft_cad_headless && mix deps.get && mix compile --warnings-as-errors && MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"
       - name: Python worker tests
-        run: cd cad_worker && .venv/bin/python -m pytest -q
+        run: cd core/cad_worker && .venv/bin/python -m pytest -q
