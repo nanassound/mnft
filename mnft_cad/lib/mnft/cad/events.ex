@@ -11,8 +11,16 @@ defmodule Mnft.Cad.Events do
 
   Events: `turn_started`, `llm_started`, `llm_done`, `exec_started`,
   `exec_done`, `turn_done` (payload = full result map), `turn_failed`.
+  The automatic fix loop adds `repair_started`
+  (`%{round:, rounds:}`) before a fix round's `llm_started`, and every
+  successful build emits `model_ready`
+  (`%{id:, has_glb:, script_file:, mesh:}`) immediately — hosts can render
+  the model in their preview before the turn finishes.
   Reference fetching adds `fetch_started` (`%{count: n}`) and `fetch_done`
   (`%{fetched:, pages:, failed: [%{url:, reason:}]}`) before the first
+  `llm_started`. An uploaded STL adds `stl_started` (`%{name:}`) and
+  `stl_done` (`%{ok: true, triangles:, components:}` or
+  `%{ok: false, reason:}`) after reference fetching, still before the first
   `llm_started`.
   Also emits `[:mnft_cad, :cad, :event]` telemetry.
   """

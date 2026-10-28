@@ -8,6 +8,7 @@ defmodule Mnft.Cad.Engines.PythonWorker do
     model_id = :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
     model_dir = [cfg[:models_dir], owner_id, model_id] |> Path.join() |> Path.absname()
     File.mkdir_p!(model_dir)
+    File.write!(Path.join(model_dir, "model.py"), code)
 
     Mnft.Cad.ExecLimiter.run(fn ->
       port_roundtrip(cfg, dialect, %{"code" => code, "model_dir" => model_dir})
@@ -120,7 +121,7 @@ defmodule Mnft.Cad.Engines.PythonWorker do
 
           art ->
             file = fn name -> if art[name], do: Path.join(model_dir, art[name]) end
-            %{model_id: art["model_id"], stl: file.("stl"), step: file.("step"), glb: file.("glb")}
+            %{model_id: art["model_id"], stl: file.("stl"), step: file.("step"), glb: file.("glb"), script: Path.join(model_dir, "model.py")}
         end
 
       %{

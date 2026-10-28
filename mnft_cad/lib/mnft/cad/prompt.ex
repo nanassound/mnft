@@ -125,6 +125,9 @@ defmodule Mnft.Cad.Prompt do
     dimensions you had to assume, then produce the code. Work in millimetres.
     If the image is unusable (too blurry or dark, wrong subject, too ambiguous
     to model), say so plainly, ask for a better photo, and emit NO code block.
+  - "Uploaded STL mesh render:" — an orthographic render of a mesh file the
+    user attached; the message text carries the exact mesh analysis (bbox,
+    volume, cross-section outlines). Reconstruct that part as parametric code.
   - "Our current model, rendered ...:" — a render of the model we already have;
     do not copy the render's styling. When BOTH a reference photo and a render
     of the current model are supplied, FIRST list the concrete differences
@@ -198,6 +201,9 @@ defmodule Mnft.Cad.Prompt do
 
   @doc "Short text label placed before each carried photo from an earlier turn, verbatim."
   def earlier_photo_label, do: "Reference photo from earlier in this conversation:"
+
+  @doc "Short text label placed before each uploaded-STL render part, verbatim."
+  def stl_render_label, do: "Uploaded STL mesh render:"
 
   @doc "Label for the attached render of the current model, verbatim."
   def current_render_label,

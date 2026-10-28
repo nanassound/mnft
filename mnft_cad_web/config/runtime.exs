@@ -86,7 +86,7 @@ if config_env() == :prod do
       vision_model: System.get_env("LLM_VISION_MODEL", "glm-4.6v"),
       timeout_s: String.to_integer(System.get_env("LLM_TIMEOUT_S", "600")),
       max_tokens: String.to_integer(System.get_env("LLM_MAX_TOKENS", "32768")),
-      repair_max_elapsed_s: String.to_integer(System.get_env("REPAIR_MAX_ELAPSED_S", "240"))
+      repair_max_rounds: String.to_integer(System.get_env("REPAIR_MAX_ROUNDS", "3"))
     ],
     references: [
       pdftoppm_bin: System.get_env("PDFTOPPM_BIN", "pdftoppm"),
@@ -95,5 +95,9 @@ if config_env() == :prod do
       max_pages: String.to_integer(System.get_env("REF_MAX_PAGES", "3")),
       pdf_dpi: String.to_integer(System.get_env("REF_PDF_DPI", "300")),
       python_bin: System.get_env("REF_PYTHON_BIN", "/opt/venv/bin/python")
+    ],
+    stl: [
+      python_bin: System.get_env("STL_PYTHON_BIN", "/opt/venv/bin/python"),
+      max_stl_mb: String.to_integer(System.get_env("STL_MAX_MB", "20"))
     ]
 end

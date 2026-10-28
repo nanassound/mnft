@@ -20,7 +20,7 @@ defmodule Mnft.Cad.Engines.Build123d do
   atom keys:
 
       %{ok: boolean, stage: "static_check" | "exec", error: term,
-        artifacts: %{model_id: String.t(), stl: path, step: path, glb: path} | nil,
+        artifacts: %{model_id: String.t(), stl: path, step: path, glb: path, script: path | nil} | nil,
         mesh: %{triangles: term, bbox_mm: term, volume_mm3: term} | nil,
         exec_ms: integer}
 

@@ -5,9 +5,12 @@ defmodule Mnft.Cad.Sessions do
 
   Stage events go through `Mnft.Cad.Events.emit/3` (hosts bridge to their own
   PubSub); event names are `turn_started` (payload `%{started_ms: ...}`),
-  `llm_started`, `llm_done`, `exec_started`, `exec_done`, `turn_done`
-  (payload = full result map), `turn_failed`, on topic
-  `"cad_session:" <> session_id`.
+  `stl_started`, `stl_done`, `fetch_started`, `fetch_done`,
+  `repair_started` (`%{round:, rounds:}`), `model_ready`
+  (`%{id:, has_glb:, script_file:, mesh:}` — emitted on every successful
+  build, before the turn finishes), `llm_started`, `llm_done`,
+  `exec_started`, `exec_done`, `turn_done` (payload = full result map),
+  `turn_failed`, on topic `"cad_session:" <> session_id`.
   """
 
   alias Mnft.Cad.Events
@@ -96,7 +99,7 @@ defmodule Mnft.Cad.Sessions do
   @busy_message "a build is already running for this session — wait for it to finish"
   @start_failed_message "could not start the turn — please try again"
 
-  def request_turn(%Session{} = session, message, photos, current) do
+  def request_turn(%Session{} = session, message, photos, stl, current) do
     case ensure_server(session) do
       {:ok, server} ->
         if agent_status(server) != :idle do
@@ -110,6 +113,7 @@ defmodule Mnft.Cad.Sessions do
                 owner_id: session.owner_id,
                 message: message,
                 photos: photos,
+                stl: stl || %{},
                 current: current || %{}
               },
               source: "/cad/" <> session.id

@@ -39,8 +39,8 @@ defmodule Mnft.Cad.Engines.OpenScad do
       Path.absname(Path.join([Mnft.Cad.Config.get(:models_dir), owner_id, model_id]))
 
     with :ok <- mkdir(model_dir),
-         scad = Path.join(model_dir, "part.scad"),
-         :ok <- File.write(scad, code) |> wrap("cannot write part.scad") do
+         scad = Path.join(model_dir, "model.scad"),
+         :ok <- File.write(scad, code) |> wrap("cannot write model.scad") do
       {ms, result} = :timer.tc(fn -> run_openscad(cfg, model_dir) end)
 
       case result do
@@ -100,7 +100,7 @@ defmodule Mnft.Cad.Engines.OpenScad do
       "--hardwarnings",
       "--backend",
       "manifold",
-      "part.scad"
+      "model.scad"
     ]
 
     port =
@@ -183,7 +183,7 @@ defmodule Mnft.Cad.Engines.OpenScad do
           ok: true,
           stage: :exec,
           error: nil,
-          artifacts: %{model_id: model_id, stl: stl_path, step: nil, glb: glb},
+          artifacts: %{model_id: model_id, stl: stl_path, step: nil, glb: glb, script: Path.join(model_dir, "model.scad")},
           mesh: mesh,
           exec_ms: exec_ms
         }

@@ -34,8 +34,8 @@ defmodule Mnft.Cad.HistoryTest do
 
     EngineFake.set_script([ok_worker(), ok_worker()])
 
-    Turn.run(session.id, owner, "rails https://example.com/z-rails.pdf, length 84HP", [], %{})
-    Turn.run(session.id, owner, "Make it 126HP", [], %{})
+    Turn.run(session.id, owner, "rails https://example.com/z-rails.pdf, length 84HP", [], %{}, %{})
+    Turn.run(session.id, owner, "Make it 126HP", [], %{}, %{})
 
     # the second turn's prompt history carries the extracted datasheet text
     second = Enum.at(LLMFake.calls(), 1)

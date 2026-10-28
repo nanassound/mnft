@@ -200,6 +200,7 @@ defmodule Mnft.Cad.Store.Ets do
           owner_id: session.owner_id,
           mesh: model_attrs.mesh || %{},
           has_glb: !!model_attrs.has_glb,
+          script_file: model_attrs[:script_file],
           inserted_at: ts,
           updated_at: ts
         }
@@ -400,6 +401,7 @@ defmodule Mnft.Cad.Store.Ets do
       "message_id" => m.message_id,
       "mesh" => m.mesh,
       "has_glb" => m.has_glb,
+      "script_file" => m.script_file,
       "inserted_at" => iso(m.inserted_at),
       "updated_at" => iso(m.updated_at)
     }

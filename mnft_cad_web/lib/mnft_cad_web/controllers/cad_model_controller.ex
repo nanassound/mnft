@@ -6,16 +6,18 @@ defmodule MnftCadWeb.CadModelController do
   @content_types %{
     "model.stl" => "model/stl",
     "model.step" => "application/step",
-    "model.glb" => "model/gltf-binary"
+    "model.glb" => "model/gltf-binary",
+    "model.py" => "text/x-python",
+    "model.scad" => "text/plain"
   }
 
   @doc """
   Download one artifact. Scoped by the cookie owner: a model id is only
-  resolvable for its owner. Invariant: nothing outside model.stl/step/glb is
-  ever served.
+  resolvable for its owner. Invariant: nothing outside
+  model.stl/step/glb/py/scad is ever served.
   """
   def download(conn, %{"model_id" => model_id, "filename" => filename})
-      when filename in ["model.stl", "model.step", "model.glb"] do
+      when filename in ["model.stl", "model.step", "model.glb", "model.py", "model.scad"] do
     owner_id = conn.assigns.owner_id
 
     with %Cad.Model{} = model <- Cad.get_model(owner_id, model_id),

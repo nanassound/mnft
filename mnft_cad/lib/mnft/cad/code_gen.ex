@@ -8,16 +8,18 @@ defmodule Mnft.Cad.CodeGen do
 
   alias Mnft.Cad.Prompt
 
-  @tagged_block_re ~r/```(?:python|py)[ \t]*\r?\n(.*?)```/s
+  # scad/openscad tags: the OpenSCAD dialect demands python-tagged fences,
+  # but models sometimes emit the natural tag anyway — read it rather than
+  # discard a complete script.
+  @tagged_block_re ~r/```(?:python|py|scad|openscad)[ \t]*\r?\n(.*?)```/s
   @js_block_re ~r/```(?:js|javascript)[ \t]*\r?\n(.*?)```/s
   @any_block_re ~r/```[ \t]*\r?\n(.*?)```/s
   @data_url_re ~r/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]+/
 
   @doc """
-  Return the last non-empty fenced code block in `text`, else nil.
-  Tagged blocks win (`python`/`py` first, then `js`/`javascript` for the
-  browser replicad dialect); the bare-fence pattern is only consulted when
-  no tagged block exists at all.
+  Tagged blocks win (`python`/`py`/`scad`/`openscad` first, then
+  `js`/`javascript` for the browser replicad dialect); the bare-fence
+  pattern is only consulted when no tagged block exists at all.
   """
   def extract_code(text) when is_binary(text) and text != "" do
     blocks =
@@ -79,6 +81,8 @@ defmodule Mnft.Cad.CodeGen do
   defp strip_lang_tag("py" <> rest), do: drop_first_nl(rest)
   defp strip_lang_tag("javascript" <> rest), do: drop_first_nl(rest)
   defp strip_lang_tag("js" <> rest), do: drop_first_nl(rest)
+  defp strip_lang_tag("scad" <> rest), do: drop_first_nl(rest)
+  defp strip_lang_tag("openscad" <> rest), do: drop_first_nl(rest)
   defp strip_lang_tag("\n" <> rest), do: rest
   defp strip_lang_tag(rest), do: rest
 
@@ -334,14 +338,16 @@ defmodule Mnft.Cad.CodeGen do
 
   @doc """
   The on-screen model's numbers as text -- the render may show UI, so the
-  model gets the real numbers directly.
+  model gets the real numbers directly. nil when the engine reported no
+  figures (the line is then omitted rather than guessing numbers).
   """
-  def current_model_line(%{"bbox_mm" => bbox, "triangles" => tri, "volume_mm3" => vol}) do
-    [x, y, z] = Enum.map(bbox, &fmt_number/1)
-
-    "Current model: bbox #{x} x #{y} x #{z} mm, #{tri(tri)} triangles, " <>
-      "volume #{fmt_number(vol)} mm3."
+  def current_model_line(%{"bbox_mm" => [x, y, z], "triangles" => tri, "volume_mm3" => vol})
+      when is_number(x) and is_number(y) and is_number(z) and is_number(vol) do
+    "Current model: bbox #{fmt_number(x)} x #{fmt_number(y)} x #{fmt_number(z)} mm, " <>
+      "#{tri(tri)} triangles, volume #{fmt_number(vol)} mm3."
   end
+
+  def current_model_line(_current), do: nil
 
   @doc """
   Build the current turn's user content. Text-only turns return a plain
@@ -363,7 +369,10 @@ defmodule Mnft.Cad.CodeGen do
     do: String.trim(message)
 
   def build_user_content(message, [], current) do
-    String.trim(message) <> "\n\n" <> current_model_line(current)
+    case current_model_line(current) do
+      nil -> String.trim(message)
+      line -> String.trim(message) <> "\n\n" <> line
+    end
   end
 
   def build_user_content(message, images, current) do
@@ -374,6 +383,7 @@ defmodule Mnft.Cad.CodeGen do
         label =
           cond do
             img[:label] in ["current", :current] -> Prompt.current_render_label()
+            img[:label] in ["stl", :stl] -> Prompt.stl_render_label()
             img[:label] in ["earlier", :earlier] -> Prompt.earlier_photo_label()
             true -> Prompt.reference_image_label()
           end
@@ -381,9 +391,12 @@ defmodule Mnft.Cad.CodeGen do
         acc ++ [%{type: :text, text: label}, image_part(img)]
       end)
 
-    if current in [nil, %{}],
-      do: parts,
-      else: parts ++ [%{type: :text, text: current_model_line(current)}]
+    line = if current in [nil, %{}], do: nil, else: current_model_line(current)
+
+    case line do
+      nil -> parts
+      line -> parts ++ [%{type: :text, text: line}]
+    end
   end
 
   @doc """

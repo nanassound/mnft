@@ -38,7 +38,7 @@ defmodule MnftCadWeb.CadLiveTest do
         ok: true,
         stage: :exec,
         error: nil,
-        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil},
+        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil, script: "/tmp/x/model.py"},
         mesh: %{"triangles" => 12, "bbox_mm" => [30.0, 30.0, 30.0], "volume_mm3" => 27_000.0},
         exec_ms: 5
       }
@@ -79,6 +79,7 @@ defmodule MnftCadWeb.CadLiveTest do
     assert eventually(fn -> has_element?(view, "#model-info") end)
     assert render(view) =~ "bbox 30.0 × 30.0 × 30.0 mm · 12 triangles"
     assert has_element?(view, "a[href='/m/abcdef0123456789/model.stl']")
+    assert has_element?(view, "a[href='/m/abcdef0123456789/model.py']")
     refute has_element?(view, "#turn-status")
 
     # the turn was persisted: user + assistant messages, model row
@@ -219,7 +220,7 @@ defmodule MnftCadWeb.CadLiveTest do
         ok: true,
         stage: :exec,
         error: nil,
-        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil},
+        artifacts: %{model_id: "abcdef0123456789", stl: "x", step: "x", glb: nil, script: "/tmp/x/model.py"},
         mesh: %{"triangles" => 12, "bbox_mm" => [30.0, 30.0, 30.0], "volume_mm3" => 27_000.0},
         exec_ms: 5
       }
@@ -262,5 +263,94 @@ defmodule MnftCadWeb.CadLiveTest do
       tries == 0 -> false
       true -> Process.sleep(30) && eventually(fun, tries - 1)
     end
+  end
+
+  # --- uploaded STL turn ----------------------------------------------------------
+
+  @stl_profile %{
+    "ok" => true,
+    "stats" => %{
+      "triangles" => 12,
+      "vertices" => 8,
+      "bbox_min" => [0.0, 0.0, 0.0],
+      "bbox_max" => [10.0, 10.0, 10.0],
+      "bbox_size" => [10.0, 10.0, 10.0],
+      "volume" => 1000.0,
+      "area" => 600.0,
+      "watertight" => true,
+      "components" => 1
+    },
+    "sections" => [],
+    "renders" => [Base.encode64("render-bytes")]
+  }
+
+  def stl_profile_stub(_stl), do: Application.get_env(:mnft_cad_web, :test_stl_profile)
+
+  test "fix rounds update the stage chip and model_ready streams into the viewer", %{
+    conn: conn,
+    session: session
+  } do
+    {:ok, view, _html} = live(conn, ~p"/app/s/#{session.id}")
+
+    Mnft.Cad.Events.emit(session.id, "turn_started", %{started_ms: System.system_time(:millisecond)})
+    Mnft.Cad.Events.emit(session.id, "repair_started", %{round: 2, rounds: 3})
+
+    assert eventually(fn -> render(view) =~ "fixing (round 2/3)" end)
+
+    Mnft.Cad.Events.emit(session.id, "model_ready", %{
+      id: "abcdef0123456789",
+      has_glb: true,
+      script_file: "model.py",
+      mesh: %{"bbox_mm" => [30.0, 30.0, 30.0], "triangles" => 12, "volume_mm3" => 27_000.0}
+    })
+
+    assert eventually(fn ->
+             html = render(view)
+             html =~ "/m/abcdef0123456789/model.stl" && html =~ "bbox 30.0 × 30.0 × 30.0 mm · 12 triangles"
+           end)
+  end
+
+  test "STL turn: analysis runs, bubble shows the STL chip, turn completes", %{
+    conn: conn,
+    session: session
+  } do
+    snapshot = Mnft.Cad.Config.all()
+
+    cfg = Keyword.put(snapshot, :stl_profile_fun, {__MODULE__, :stl_profile_stub, []})
+    Application.put_env(:mnft_cad, :cad, cfg)
+    Application.put_env(:mnft_cad_web, :test_stl_profile, {:ok, @stl_profile})
+
+    on_exit(fn ->
+      Application.put_env(:mnft_cad, :cad, snapshot)
+      Application.delete_env(:mnft_cad_web, :test_stl_profile)
+    end)
+
+    scripted_turn()
+
+    {:ok, view, _html} = live(conn, ~p"/app/s/#{session.id}")
+
+    stl = %{
+      "data_url" => "data:model/stl;base64," <> Base.encode64("stl-bytes"),
+      "name" => "part.stl",
+      "size" => 10
+    }
+
+    render_hook(view, "send", %{
+      "message" => "reconstruct this",
+      "photos" => [],
+      "stl" => stl,
+      "current" => nil
+    })
+
+    assert eventually(fn -> has_element?(view, "#model-info") end)
+
+    html = render(view)
+    assert html =~ "STL · part.stl · 0.0 MB"
+    assert html =~ "reconstruct this"
+
+    # persisted user meta carries the STL metadata alongside the finished turn
+    user_msg = Cad.list_messages(session.id) |> hd()
+    assert user_msg.meta["stl"]["name"] == "part.stl"
+    assert user_msg.meta["stl"]["triangles"] == 12
   end
 end

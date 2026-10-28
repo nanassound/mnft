@@ -21,5 +21,5 @@ config :mnft_cad, :cad,
     vision_model: "test-vision",
     timeout_s: 1,
     max_tokens: 1024,
-    repair_max_elapsed_s: 240
+    repair_max_rounds: 3
   ]
