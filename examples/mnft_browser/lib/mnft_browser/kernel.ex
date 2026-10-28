@@ -33,7 +33,7 @@ defmodule MnftBrowser.Kernel do
   def handle_call(["turn", session_id, message], _from, state) do
     case current_session(session_id, state) do
       {:ok, session} ->
-        case Mnft.Cad.Sessions.request_turn(session, message, [], %{}) do
+        case Mnft.Cad.Sessions.request_turn(session, message, [], %{}, %{}) do
           {:ok, :started} -> {:reply, %{ok: true}, %{state | session: session}}
           {:error, reason} -> {:reply, %{ok: false, error: reason_to_string(reason)}, state}
         end
