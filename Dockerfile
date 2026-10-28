@@ -26,22 +26,22 @@ RUN apt-get update \
 RUN mix local.hex --force && mix local.rebar --force
 
 # Preserve the repo's relative layout: mnft_cad_web's mix.exs declares
-# {:mnft_cad, path: "../mnft_cad"}.
-COPY mnft_cad/mix.exs mnft_cad/mix.lock mnft_cad/
-COPY mnft_cad_web/mix.exs mnft_cad_web/mix.lock mnft_cad_web/
-WORKDIR /build/mnft_cad_web
+# {:mnft_cad, path: "../../core/mnft_cad"}.
+COPY core/mnft_cad/mix.exs core/mnft_cad/mix.lock core/mnft_cad/
+COPY examples/mnft_cad_web/mix.exs examples/mnft_cad/mix.lock examples/mnft_cad_web/
+WORKDIR /build/examples/mnft_cad_web
 RUN mix deps.get --only prod
 
 WORKDIR /build
-COPY mnft_cad/config mnft_cad/config
-COPY mnft_cad/lib mnft_cad/lib
-COPY mnft_cad/priv mnft_cad/priv
-COPY mnft_cad_web/config mnft_cad_web/config
-COPY mnft_cad_web/priv mnft_cad_web/priv
-COPY mnft_cad_web/assets mnft_cad_web/assets
-COPY mnft_cad_web/lib mnft_cad_web/lib
+COPY core/mnft_cad/config core/mnft_cad/config
+COPY core/mnft_cad/lib core/mnft_cad/lib
+COPY core/mnft_cad/priv core/mnft_cad/priv
+COPY examples/mnft_cad_web/config examples/mnft_cad_web/config
+COPY examples/mnft_cad_web/priv examples/mnft_cad_web/priv
+COPY examples/mnft_cad_web/assets examples/mnft_cad_web/assets
+COPY examples/mnft_cad_web/lib examples/mnft_cad_web/lib
 
-WORKDIR /build/mnft_cad_web
+WORKDIR /build/examples/mnft_cad_web
 # esbuild/tailwind download their own platform binaries (no node). Order
 # matters: mix compile must run first so the LiveView colocated-CSS compiler
 # output exists before tailwind/esbuild resolve their sources.
@@ -56,7 +56,7 @@ RUN mix release --overwrite
 # rate-limited, hence the astral.sh standalone installer rather than a uv image.
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
  && cp /root/.local/bin/uv /usr/local/bin/uv
-COPY cad_worker /build/cad_worker
+COPY core/cad_worker /build/cad_worker
 ENV UV_PYTHON_INSTALL_DIR=/opt/python
 RUN uv python install 3.12 \
  && uv venv /opt/venv --python 3.12 \
@@ -75,10 +75,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd -g 10001 app && useradd -u 10001 -g 10001 -m -s /usr/sbin/nologin app
 WORKDIR /app
-COPY --from=builder /build/mnft_cad_web/_build/prod/rel/mnft_cad_web/ ./
+COPY --from=builder /build/examples/mnft_cad_web/_build/prod/rel/mnft_cad_web/ ./
 COPY --from=builder /opt/python /opt/python
 COPY --from=builder /opt/venv /opt/venv
-COPY cad_worker /app/cad_worker
+COPY core/cad_worker /app/cad_worker
 RUN mkdir -p /data/models && chown -R app:app /data /app
 USER app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \

@@ -23,19 +23,25 @@ actually wants.
 Everything here is open source, Apache-2.0.
 
 ```
-mnft_cad/       the core. Turn pipeline, pluggable engines (build123d,
-                OpenSCAD), pluggable storage (an ETS table backed by an
-                fsynced journal by default), BYO-key multi-provider LLM.
-                Pure Elixir/OTP: it ships without a web framework, an auth
-                layer, or a database server.
-mnft_cad_web/   a reference Phoenix app. Chat UI, 3D viewer, anonymous cookie
-                owner. Run it and see.
-mnft_cad_headless/
-                a headless reference: the core with the UI stripped away,
-                running many owners, many sessions, and all turns at once.
-cad_worker/     a small Python CLI that runs build123d code behind static
-                checks, rlimits and a hard wall clock. The build123d
-                engine's runtime.
+core/mnft_cad/       the core. Turn pipeline, pluggable engines (build123d,
+                     OpenSCAD), pluggable storage (an ETS table backed by an
+                     fsynced journal by default), BYO-key multi-provider LLM.
+                     Pure Elixir/OTP: it ships without a web framework, an auth
+                     layer, or a database server.
+core/cad_worker/     a small Python CLI that runs build123d code behind static
+                     checks, rlimits and a hard wall clock. The build123d
+                     engine's runtime.
+core/cad_worker_web/ the browser twin of cad_worker: a guarded JS dialect
+                     runner over replicad, the real OCCT 8 kernel compiled
+                     to WebAssembly. The browser engine's runtime.
+examples/mnft_cad_web/      a reference Phoenix app. Chat UI, 3D viewer,
+                           anonymous cookie owner. Run it and see.
+examples/mnft_cad_headless/ a headless reference: the core with the UI
+                           stripped away, running many owners, many sessions,
+                           and all turns at once.
+examples/mnft_browser/      the browser reference: the whole core compiled to
+                           WebAssembly (the BEAM in the browser, via Popcorn),
+                           CAD in a Web Worker, no server at all.
 ```
 
 ## Try it
@@ -51,15 +57,29 @@ Requirements:
   Without it everything else works, but PDFs are not read.
 
 ```bash
-cd cad_worker && uv venv --python 3.12 && uv pip install -e . pytest && cd ..
-cp .env.example mnft_cad_web/.env      # then add your LLM_API_KEY
-cd mnft_cad_web && mix setup
+cd core/cad_worker && uv venv --python 3.12 && uv pip install -e . pytest && cd ../..
+cp .env.example examples/mnft_cad_web/.env      # then add your LLM_API_KEY
+cd examples/mnft_cad_web && mix setup
 mix phx.server                            # http://localhost:4200
 ```
 
 ```bash
 # no UI?
-cd mnft_cad_headless && mix deps.get && MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"
+cd examples/mnft_cad_headless && mix deps.get && MNFT_HEADLESS_FAKE=1 mix run -e "MnftCadHeadless.run()"
+```
+
+### In the browser (WASM, no server)
+
+`examples/mnft_browser` runs the same core compiled to WebAssembly (the
+BEAM in the browser, via [Popcorn](https://hex.pm/packages/popcorn)) with
+`core/cad_worker_web`'s replicad/OCCT kernel in a Web Worker. Nothing runs
+server-side: bring your own key in the page's settings panel (it travels
+browser → provider only); without one, a scripted sample turn runs. Needs
+Elixir 1.19+ and Node.js/npm.
+
+```bash
+cd core/cad_worker_web && npm install && cd ../../examples/mnft_browser
+mix deps.get && mix dev    # http://localhost:4000
 ```
 
 ### With Docker
@@ -84,7 +104,7 @@ this is a sandbox.
 
 ## Engines
 
-Pick with `MNFT_ENGINE` in `mnft_cad_web/.env`. Defaults to `build123d`.
+Pick with `MNFT_ENGINE` in `examples/mnft_cad_web/.env`. Defaults to `build123d`.
 
 | `MNFT_ENGINE` | Kernel | Output | Setup |
 |---|---|---|---|
@@ -117,7 +137,7 @@ Then set `MNFT_ENGINE=openscad`.
 available):
 
 ```bash
-cd cad_worker && uv pip install -e ".[smlibpy]"
+cd core/cad_worker && uv pip install -e ".[smlibpy]"
 # then set MNFT_ENGINE=smlibpy
 ```
 
@@ -163,12 +183,13 @@ Set `LLM_PROVIDER=anthropic` and leave `LLM_BASE_URL` empty for Claude models.
 ## Tests
 
 ```bash
-cd cad_worker && .venv/bin/python -m pytest -q
-cd mnft_cad && mix test
-cd mnft_cad_web && mix test
+cd core/cad_worker && .venv/bin/python -m pytest -q
+cd core/mnft_cad && mix test
+cd examples/mnft_cad_web && mix test
+cd core/cad_worker_web && npm test   # browser dialect, not yet in CI
 ```
 
-CI runs all three on Linux and macOS.
+CI runs the first three on Linux and macOS.
 
 ## Acknowledgement
 
