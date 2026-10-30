@@ -29,6 +29,10 @@ defmodule Mnft.Cad.LLM do
 
   @no_key_error "no LLM API key configured — set llm.api_key (string, {:system, \"VAR\"}, or {mod, fun, args})"
 
+  @empty_reasoning_error "model returned empty content (reasoning consumed the token budget)"
+  # Verified live: deepseek-flash accepts max_tokens up to at least 65_536.
+  @max_budget_hard_cap 65_536
+
   @spec generate(String.t(), history(), [image()], map() | nil, boolean()) ::
           {:ok, %{reply: String.t(), reasoning: String.t(), finish_reason: term()}}
           | {:error, String.t()}
@@ -37,7 +41,22 @@ defmodule Mnft.Cad.LLM do
 
     case resolve_api_key(cfg[:api_key]) do
       {:ok, key} ->
-        do_generate(message, history, images, current, vision?, Keyword.put(cfg, :api_key, key))
+        cfg = Keyword.put(cfg, :api_key, key)
+
+        # Reasoning models think before writing, and reasoning + content
+        # share max_tokens: a hard prompt can burn the whole budget on
+        # thinking and return empty content. Reasoning length varies per
+        # sample, so one retry with doubled headroom (vendor accepts at
+        # least 65_536 on deepseek-flash) recovers most of them.
+        budget = cfg[:max_tokens]
+
+        case do_generate(message, history, images, current, vision?, cfg, budget) do
+          {:error, @empty_reasoning_error} when budget * 2 <= @max_budget_hard_cap ->
+            do_generate(message, history, images, current, vision?, cfg, budget * 2)
+
+          other ->
+            other
+        end
 
       :error ->
         {:error, @no_key_error}
@@ -81,7 +100,7 @@ defmodule Mnft.Cad.LLM do
 
   defp resolve_api_key(_), do: :error
 
-  defp do_generate(message, history, images, current, vision?, cfg) do
+  defp do_generate(message, history, images, current, vision?, cfg, max_tokens) do
     model = model_spec(vision?)
 
     context =
@@ -93,7 +112,7 @@ defmodule Mnft.Cad.LLM do
 
     opts = [
       api_key: cfg[:api_key],
-      max_tokens: cfg[:max_tokens],
+      max_tokens: max_tokens,
       receive_timeout: cfg[:timeout_s] * 1000,
       total_timeout: cfg[:timeout_s] * 1000
     ]
@@ -103,7 +122,7 @@ defmodule Mnft.Cad.LLM do
         reply = response |> ReqLLM.Response.text() |> String.trim()
 
         if reply == "" do
-          {:error, "model returned empty content (reasoning consumed the token budget)"}
+          {:error, @empty_reasoning_error}
         else
           {:ok,
            %{

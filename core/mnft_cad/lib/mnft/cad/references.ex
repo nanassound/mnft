@@ -518,9 +518,17 @@ defmodule Mnft.Cad.References do
   end
 
   defp error_reason(e) do
-    case Exception.message(e) do
-      "" -> "internal error"
-      msg -> msg
+    # Popcorn's fetch bridge produces reasons (e.g.
+    # `Mint.TransportError{reason: {:fetch, binary}}`) whose message
+    # formatting itself raises; degrade to inspect instead of crashing the
+    # failure note.
+    try do
+      case Exception.message(e) do
+        "" -> "internal error"
+        msg -> msg
+      end
+    rescue
+      _ -> inspect(e, truncate: 140)
     end
   end
 
