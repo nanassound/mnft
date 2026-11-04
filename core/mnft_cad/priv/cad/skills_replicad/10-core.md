@@ -36,8 +36,12 @@ available.
   `outer.cut(inner.translate(0, 0, wall))` is correct only because `inner`
   is never used again.
 - **`sketchRectangle(w, h)` and `sketchCircle(r)` are centre-origin** —
-  the centre sits on the sketch origin. To offset, build a translated copy
-  (once!) or plan coordinates accordingly.
+  the centre sits on the sketch origin. To offset a sketch, `.translate(x, y, z)`
+  it (non-destructive: it returns a moved copy, the original stays usable)
+  or extrude first and translate the solid.
+- **Sketch `.translate()` is dialect-provided** (replicad 1.2 has none) and
+  follows the 2D contract: NON-destructive, returns a new moved sketch.
+  Only solid `Shape.translate()` is destructive.
 - **`sketchPolysides(radius, n)` takes the CIRCUMRADIUS.** A hexagon
   specified by across-flats `af` (the apothem) converts as
   `af / 2 / Math.cos(pi / 6)`. Self-check: bbox X extent then reads

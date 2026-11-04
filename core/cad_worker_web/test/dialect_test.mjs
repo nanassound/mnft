@@ -120,3 +120,37 @@ test("assembly: array of shapes is accepted", async () => {
   // sketchRectangle is centre-origin: a spans -5..5, b spans 15..25
   assert.ok(Math.abs(res.stats.bboxMM.max[0] - 25) < 1e-6, JSON.stringify(res.stats.bboxMM));
 });
+
+test("sketch translate: circle can be moved before extrude (production TypeError)", async () => {
+  // Regression: replicad 1.2 has no Sketch.translate, so generated code
+  // calling `sketchCircle(5).translate(10, 0)` surfaced a raw
+  // "translate is not a function" TypeError to the user. The dialect
+  // patches it in with the Blueprint contract.
+  const code = `
+    const part = sketchCircle(5).translate(10, 0, 0).extrude(2);
+  `;
+  const res = await run(code);
+  assert.equal(res.ok, true, res.error);
+  // centre-origin circle r=5 moved to x=10: x spans 5..15, extrude z 0..2
+  const bb = res.stats.bboxMM;
+  assert.ok(Math.abs(bb.min[0] - 5) < 1e-6, JSON.stringify(bb));
+  assert.ok(Math.abs(bb.max[0] - 15) < 1e-6, JSON.stringify(bb));
+  assert.ok(Math.abs(bb.min[2] - 0) < 1e-6, JSON.stringify(bb));
+  assert.ok(Math.abs(bb.max[2] - 2) < 1e-6, JSON.stringify(bb));
+});
+
+test("sketch translate is non-destructive: the source sketch stays usable", async () => {
+  // Solid translate frees its source (replicad 1.2); sketch translate must
+  // not — the moved copy leaves the original intact for reuse.
+  const code = `
+    const base = sketchCircle(5);
+    const moved = base.translate([10, 0, 0]);
+    const assembly = [base.extrude(2), moved.extrude(2)];
+  `;
+  const res = await run(code);
+  assert.equal(res.ok, true, res.error);
+  // two discs: the base spans -5..5, the moved one 5..15
+  const bb = res.stats.bboxMM;
+  assert.ok(Math.abs(bb.min[0] - -5) < 1e-6, JSON.stringify(bb));
+  assert.ok(Math.abs(bb.max[0] - 15) < 1e-6, JSON.stringify(bb));
+});

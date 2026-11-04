@@ -225,10 +225,12 @@ defmodule Mnft.Cad.CodeGen do
 
     Fix the problem and reply with 1-3 plain sentences plus exactly one
     corrected, complete ```js block that binds the final shape to `part`.
-    Follow the gotchas in your instructions (`translate()` is destructive —
-    never reuse a translated shape; `sketchRectangle`/`sketchCircle` are
-    centre-origin; `sketchPolysides` takes the CIRCUMRADIUS — across-flats
-    is `across / 2 / Math.cos(pi / 6)`; volumes come from
+    Follow the gotchas in your instructions (`translate()` on solids is
+    destructive — never reuse a translated shape; sketches translate
+    NON-destructively and return a moved copy;
+    `sketchRectangle`/`sketchCircle` are centre-origin; `sketchPolysides`
+    takes the CIRCUMRADIUS — across-flats is
+    `across / 2 / Math.cos(pi / 6)`; volumes come from
     `measureShapeVolumeProperties`, there is no `.volume()`).
     """
     |> String.trim_trailing()

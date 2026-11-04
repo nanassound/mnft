@@ -47,6 +47,11 @@ dialect quickref taught to the LLM, like build123d's own idioms):
 
 - **`shape.translate()` is destructive** in replicad 1.2 — the source shape
   is freed. Place independently-built shapes; never reuse a translated one.
+- **`sketchCircle(r).translate(x, y, z)` works** — replicad 1.2 has no
+  `Sketch.translate`, so the dialect patches it in: non-destructive, returns
+  a moved copy (the source stays usable), vector form `[x, y, z]` accepted.
+  Generated code reaches for it constantly (raw `TypeError` in production
+  before the patch).
 - `sketchRectangle`/`sketchCircle` are **centre-origin**.
 - Bare trig names (`sin`, `cos`, `pi`, `radians`, …) are dialect
   pre-bindings, not JS globals.

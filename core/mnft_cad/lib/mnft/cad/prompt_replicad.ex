@@ -52,7 +52,10 @@ defmodule Mnft.Cad.PromptReplicad do
     after translating it (e.g. `outer.cut(inner.translate(0, 0, wall))` is
     fine ONLY because `inner` is not used again afterwards).
   - `sketchRectangle` and `sketchCircle` are CENTRE-ORIGIN: the centre is
-    the sketch origin, not a corner.
+    the sketch origin, not a corner. To offset a sketch, `.translate(x, y, z)`
+    it — sketches translate NON-destructively (it returns a moved copy, the
+    original stays usable; a vector `[x, y, z]` works too). Solids'
+    `.translate()` is the destructive one (see above).
   - `sketchPolysides(radius, n)` takes the CIRCUMRADIUS, not the
     across-flats width. For a hexagon specified across flats: convert with
     `across / 2 / Math.cos(pi / 6)` (across-flats = apothem =
@@ -94,24 +97,24 @@ defmodule Mnft.Cad.PromptReplicad do
   @skills_dir Path.expand("../../../priv/cad/skills_replicad", __DIR__)
 
   @skills_block (if File.dir?(@skills_dir) do
-    parts =
-      @skills_dir
-      |> then(&Path.wildcard(Path.join(&1, "*.md")))
-      |> Enum.sort()
-      |> Enum.map(&File.read!/1)
-      |> Enum.map(&String.trim/1)
+                   parts =
+                     @skills_dir
+                     |> then(&Path.wildcard(Path.join(&1, "*.md")))
+                     |> Enum.sort()
+                     |> Enum.map(&File.read!/1)
+                     |> Enum.map(&String.trim/1)
 
-    case parts do
-      [] ->
-        ""
+                   case parts do
+                     [] ->
+                       ""
 
-      parts ->
-        "\n\n# replicad skills (embedded at compile time from priv/cad/skills_replicad)\n\n" <>
-          Enum.join(parts, "\n\n---\n\n") <> "\n"
-    end
-  else
-    ""
-  end)
+                     parts ->
+                       "\n\n# replicad skills (embedded at compile time from priv/cad/skills_replicad)\n\n" <>
+                         Enum.join(parts, "\n\n---\n\n") <> "\n"
+                   end
+                 else
+                   ""
+                 end)
 
   @doc """
   The compile-time concatenation of `priv/cad/skills_replicad/*.md` (sorted

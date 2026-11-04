@@ -21,6 +21,35 @@ import { exportShapeSTL, exportShapeSTEP } from "replicad/shape-functions";
 import { parse } from "acorn";
 import { simple as walk } from "acorn-walk";
 
+// replicad 1.2 ships `translate()` on Shape3D and Blueprint but NOT on
+// Sketch — `sketchCircle(5).translate(10, 0)` dies with
+// "TypeError: ... .translate is not a function" (hit in production: model
+// code reaches for it constantly, in every dialect translate moves things).
+// Give Sketch the Blueprint contract: NON-destructive, returns a new moved
+// sketch. Clone-then-translate keeps Shape.translate's destructiveness
+// (it frees its source in this build) away from the caller's sketch.
+// The extrusion origin must travel with the wire or a follow-up
+// extrude/revolve starts on the old plane; baseFace is dropped because a
+// translated sketch no longer sits on its source face.
+if (!replicad.Sketch.prototype.translate) {
+  replicad.Sketch.prototype.translate = function (
+    vectorOrxDist,
+    yDist = 0,
+    zDist = 0,
+  ) {
+    const [xDist, yyDist, zzDist] =
+      typeof vectorOrxDist === "number"
+        ? [vectorOrxDist, yDist, zDist]
+        : vectorOrxDist;
+    const { x, y, z } = this.defaultOrigin;
+    const wire = this.wire.clone().translate(xDist, yyDist, zzDist);
+    return new replicad.Sketch(wire, {
+      defaultOrigin: [x + xDist, y + yyDist, z + zzDist],
+      defaultDirection: this.defaultDirection,
+    });
+  };
+}
+
 export const DIALECT = "replicad";
 export const ALLOWED_IMPORTS = new Set(["replicad"]);
 export const SHAPE_NAMES = ["part", "result", "assembly", "obj"];
