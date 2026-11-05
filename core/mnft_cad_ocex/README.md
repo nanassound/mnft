@@ -1,0 +1,69 @@
+# mnft_cad_ocex
+
+Native engine pack for [`mnft_cad`](../mnft_cad): executes the **ocex** JSON
+construction dialect in the BEAM via [OCEx](https://hex.pm/packages/ocex)
+native bindings to Open CASCADE Technology 7.9.3. Full STEP + STL fidelity,
+no Python, no external binary — the compiled NIF is the runtime.
+
+The core stays pure Elixir; only consumers that opt into this pack compile
+OCEx. Wire it with:
+
+```elixir
+# mix.exs
+{:mnft_cad_ocex, path: "core/mnft_cad_ocex"}
+
+# config
+config :mnft_cad, :cad, engine: MnftOcex.Engine
+```
+
+## The ocex dialect
+
+A straight-line JSON stack program (the LLM writes it; `MnftOcex.Dialect`
+validates before any native call; `MnftOcex.Interpreter` executes):
+
+```json
+{"ops": [
+  {"op": "box", "size": [60, 40, 5]},
+  {"op": "cylinder", "r": 4, "h": 20, "at": [30, 20, -5]},
+  {"op": "cut"},
+  {"op": "fillet_all", "r": 1}
+]}
+```
+
+| op | params | effect |
+|---|---|---|
+| `box` | `size:[x,y,z]`, `at?` | corner-anchored solid |
+| `cylinder` | `r`, `h`, `at?` | base-centred, extends +z |
+| `sphere` | `r`, `at?` | centred solid |
+| `translate` | `delta:[dx,dy,dz]` | moves the top shape |
+| `union` / `cut` / `intersect` | — | consume the top two (top = tool) |
+| `fillet_all` | `r` | rounds every edge of the top shape |
+
+Rules: millimetres, ≤200 ops, all dimensions positive and finite, the final
+stack must hold exactly one shape. Booleans pop blank-then-tool — push the
+blank first. Cuts that miss the part are silent no-ops (in *every* kernel).
+
+## Tests
+
+```sh
+mix test                          # unit + engine contract + kernel geometry
+mix test --include cross_kernel   # + agreement vs the build123d Python worker
+```
+
+The cross-kernel test needs `core/cad_worker/.venv` (build123d). Golden
+model: 100×100×10 plate, 5×5 grid of r=3 through-bores, analytic volume
+92931.4165 mm³ — verified identical (to all digits) on OCEx and build123d.
+
+## Production notes
+
+- **Isolate the geometry.** OCEx kernel calls are serialised per BEAM node
+  and cannot be cancelled; a native fault in OCCT kills the whole VM. Run
+  this engine in its own BEAM node/container (the core's
+  `Mnft.Cad.ExecLimiter` already caps concurrent builds).
+- **Throughput** (measured 5 Nov 2026, this repo's spike):
+  ~1.5 ms small op, ~7 ms boolean, ~33 ms per typical model, ~680 ops/s per
+  node. RAM ~115 MB idle vs ~391 MB for a build123d worker.
+- **STEP export** prints OCCT transfer chatter to stdout (upstream cosmetic).
+- The OCCT toolkit must be present at runtime; builds need
+  `OpenCASCADE_DIR` or the default `~/.local/occt-7.9.3` source install
+  (see `Projects/ocex-spike/README.md` for the full environment recipe).

@@ -4,7 +4,10 @@ defmodule Mnft.Cad.Engine do
 
   Implementations: `Mnft.Cad.Engines.Build123d` (Python worker over a Port;
   STEP/STL/GLB, full fidelity) and `Mnft.Cad.Engines.OpenScad` (the openscad
-  binary over a Port; mesh-only — no STEP). Selection is `:engine` under
+  binary over a Port; mesh-only — no STEP). `MnftBrowser.Engines.Replicad`
+  (page-side worker) and `MnftOcex.Engine` (the `mnft_cad_ocex` engine pack:
+  the `ocex` JSON construction dialect executed in-process via OCEx NIFs,
+  opt-in native dependency) live outside this core. Selection is `:engine` under
   `:mnft_cad, :cad` config; tests use `Mnft.Cad.EngineFake`.
 
   The returned map is the engine contract; the turn pipeline only knows this
