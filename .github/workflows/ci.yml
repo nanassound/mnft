@@ -39,6 +39,29 @@ jobs:
       # needs its deps on disk before the core suite runs.
       - name: Fetch web app deps
         run: cd examples/mnft_cad_web && mix deps.get
+      # The web app pulls in core/mnft_cad_ocex (path dep) -> :ocex NIF, which
+      # needs the pinned OCCT 7.9.3 toolkit at compile time. Install prereqs,
+      # build once, cache, and export OpenCASCADE_DIR for later steps.
+      - name: OCEx native prereqs
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install cmake pkg-config freetype harfbuzz
+          else
+            sudo apt-get update && sudo apt-get install -y cmake pkg-config libfreetype-dev libharfbuzz-dev
+          fi
+      - name: Restore pinned OCCT toolkit
+        id: occt-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/occt-7.9.3
+          key: occt-7.9.3-${{ runner.os }}
+      - name: Build pinned OCCT toolkit
+        if: steps.occt-cache.outputs.cache-hit != 'true'
+        run: |
+          cd examples/mnft_cad_web
+          OCEX_BUILD_JOBS=4 sh deps/ocex/scripts/install-occt.sh "$HOME/.local/occt-7.9.3"
+      - name: Export OpenCASCADE_DIR
+        run: echo "OpenCASCADE_DIR=$HOME/.local/occt-7.9.3/lib/cmake/opencascade" >> "$GITHUB_ENV"
       - name: Install poppler (reference-PDF tests)
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then
@@ -48,6 +71,10 @@ jobs:
           fi
       - name: Core tests
         run: cd core/mnft_cad && mix test
+      # Cross-kernel test is excluded by default (needs the build123d worker
+      # against the smlibpy-only CI venv); everything else runs on both OSes.
+      - name: OCEx engine pack tests
+        run: cd core/mnft_cad_ocex && mix deps.get && mix test
       - name: Reference web app
         run: cd examples/mnft_cad_web && mix deps.get && mix compile --warnings-as-errors && mix test
       - name: Headless example
