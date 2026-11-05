@@ -30,6 +30,7 @@ defmodule MnftCadWeb.MixProject do
   defp deps do
     [
       {:mnft_cad, path: "../../core/mnft_cad"},
+      {:mnft_cad_ocex, path: "../../core/mnft_cad_ocex"},
       {:phoenix, "~> 1.8.15"},
       {:phoenix_live_view, "~> 1.2"},
       {:phoenix_html, "~> 4.1"},
