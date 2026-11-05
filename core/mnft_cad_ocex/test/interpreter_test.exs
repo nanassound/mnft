@@ -81,6 +81,82 @@ defmodule MnftOcex.InterpreterTest do
     assert_in_delta volume(ops), 11_911.206462910166, 1.0e-3
   end
 
+  # --- sketch layer: polygon / extrude / rotate --------------------------------
+
+  @hex_prism_area 0.5 * 6 * 400 * :math.sin(:math.pi() / 3)
+
+  test "polygon + extrude builds a hexagonal prism with analytic volume" do
+    ops = [
+      %{"op" => "polygon", "n" => 6, "r" => 20},
+      %{"op" => "extrude", "h" => 10}
+    ]
+
+    assert_in_delta volume(ops), @hex_prism_area * 10, 1.0e-3
+  end
+
+  test "prism is sugar for polygon + extrude (identical volume)" do
+    sugar =
+      volume([
+        %{"op" => "polygon", "n" => 6, "r" => 20},
+        %{"op" => "extrude", "h" => 10}
+      ])
+
+    explicit = volume([%{"op" => "prism", "n" => 6, "r" => 20, "h" => 10}])
+    assert_in_delta sugar, explicit, 1.0e-6
+  end
+
+  test "extrude honours a custom direction (downward is valid, in-plane is rejected)" do
+    ops = [
+      %{"op" => "polygon", "n" => 6, "r" => 20},
+      %{"op" => "extrude", "h" => 10, "dir" => [0, 0, -1]}
+    ]
+
+    assert_in_delta volume(ops), @hex_prism_area * 10, 1.0e-3
+  end
+
+  test "in-plane extrusion is a tagged degenerate error" do
+    ops = [
+      %{"op" => "polygon", "n" => 6, "r" => 20},
+      %{"op" => "extrude", "h" => 10, "dir" => [1, 0, 0]}
+    ]
+
+    assert {:error, msg} = Interpreter.run(ops)
+    assert msg =~ "op 2" and msg =~ "planar face"
+  end
+
+  test "polygon honours at placement" do
+    ops = [
+      %{"op" => "polygon", "n" => 6, "r" => 20, "at" => [50, 0, 0]},
+      %{"op" => "extrude", "h" => 10}
+    ]
+
+    assert_in_delta volume(ops), @hex_prism_area * 10, 1.0e-3
+  end
+
+  test "rotate preserves volume" do
+    base = [
+      %{"op" => "polygon", "n" => 6, "r" => 20},
+      %{"op" => "extrude", "h" => 10}
+    ]
+
+    assert_in_delta volume(base ++ [%{"op" => "rotate", "axis" => [0, 0, 1], "degrees" => 45}]),
+                    @hex_prism_area * 10,
+                    1.0e-3
+  end
+
+  test "extrude on a solid is a tagged error" do
+    ops = [%{"op" => "box", "size" => [10, 10, 10]}, %{"op" => "extrude", "h" => 5}]
+    assert {:error, msg} = Interpreter.run(ops)
+    assert msg =~ "op 2" and msg =~ "planar face"
+  end
+
+  test "rotate on an empty stack is a tagged error" do
+    assert {:error, msg} =
+             Interpreter.run([%{"op" => "rotate", "axis" => [0, 0, 1], "degrees" => 90}])
+
+    assert msg =~ "op 1" and msg =~ "stack is empty"
+  end
+
   test "cut with only a tool on the stack is a tagged error" do
     assert {:error, msg} = Interpreter.run([%{"op" => "box", "size" => [1, 2, 3]}, %{"op" => "cut"}])
     assert msg =~ "op 2" and msg =~ "blank and a tool"

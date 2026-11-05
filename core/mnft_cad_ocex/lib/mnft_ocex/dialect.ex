@@ -29,7 +29,8 @@ defmodule MnftOcex.Dialect do
 
   @stack_ops ~w(union cut intersect)
   @shape_ops ~w(box cylinder sphere prism)
-  @known_ops @shape_ops ++ @stack_ops ++ ~w(translate fillet_all)
+  @profile_ops ~w(polygon)
+  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ ~w(translate fillet_all extrude rotate)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   def validate(code) when is_binary(code) do
@@ -107,6 +108,34 @@ defmodule MnftOcex.Dialect do
   defp check_params("sphere", op, i), do: positive(op, "r", i)
 
   defp check_params("translate", op, i), do: vec3(op, "delta", i, &coord?/1, "finite numbers")
+  defp check_params("polygon", op, i) do
+    with :ok <- ngon_n(op, i),
+         :ok <- positive(op, "r", i),
+         do: optional_number(op, "rot", i)
+  end
+
+  defp check_params("extrude", op, i) do
+    with :ok <- positive(op, "h", i), do: nonzero_vec3(op, "dir", i)
+  end
+
+  defp check_params("rotate", op, i) do
+    case nonzero_vec3(op, "axis", i) do
+      :ok ->
+        case Map.fetch(op, "degrees") do
+          {:ok, degrees} ->
+            if is_number(degrees) and finite?(degrees) and abs(degrees) <= 3600,
+              do: :ok,
+              else: {:error, "ocex: op #{i}: \"degrees\" must be a finite number within ±3600"}
+
+          :error ->
+            {:error, "ocex: op #{i}: missing \"degrees\""}
+        end
+
+      error ->
+        error
+    end
+  end
+
   defp check_params("fillet_all", op, i), do: positive(op, "r", i)
 
   defp check_params("prism", op, i) do
@@ -177,6 +206,45 @@ defmodule MnftOcex.Dialect do
   end
 
   defp positive_num?(_other), do: false
+
+  defp ngon_n(op, i) do
+    case Map.fetch(op, "n") do
+      {:ok, n} when is_integer(n) and n >= 3 and n <= 120 ->
+        :ok
+
+      {:ok, _other} ->
+        {:error, "ocex: op #{i}: \"n\" must be an integer from 3 to 120"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"n\""}
+    end
+  end
+
+  defp optional_number(op, key, i) do
+    case Map.fetch(op, key) do
+      {:ok, value} ->
+        if is_number(value) and finite?(value),
+          do: :ok,
+          else: {:error, "ocex: op #{i}: \"#{key}\" must be a finite number"}
+
+      :error ->
+        :ok
+    end
+  end
+
+  defp nonzero_vec3(op, key, i) do
+    case vec3(op, key, i, &coord?/1, "finite numbers") do
+      :ok ->
+        [dx, dy, dz] = op[key]
+
+        if dx == 0 and dy == 0 and dz == 0,
+          do: {:error, "ocex: op #{i}: \"#{key}\" must not be the zero vector"},
+          else: :ok
+
+      error ->
+        error
+    end
+  end
 
   defp coord?(value) when is_number(value), do: finite?(value) and abs(value) <= @max_coord
   defp coord?(_other), do: false

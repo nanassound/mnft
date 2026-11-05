@@ -131,4 +131,48 @@ defmodule MnftOcex.DialectTest do
     assert {:error, msg} = err(String.duplicate("a", 21_000))
     assert msg =~ "exceeds"
   end
+
+  # --- sketch layer: polygon / extrude / rotate --------------------------------
+
+  test "polygon validates n as an integer >= 3" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "n": 2, "r": 20}]}))
+    assert msg =~ "integer from 3 to 120"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "n": 2.5, "r": 20}]}))
+    assert msg =~ "integer from 3 to 120"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "r": 20}]}))
+    assert msg =~ "missing \"n\""
+  end
+
+  test "polygon validates r and optional rot" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "n": 6}]}))
+    assert msg =~ "missing \"r\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "n": 6, "r": 20, "rot": "x"}]}))
+    assert msg =~ "\"rot\" must be a finite number"
+  end
+
+  test "extrude validates h and a nonzero dir" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "extrude"}]}))
+    assert msg =~ "missing \"h\""
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "extrude", "h": 10, "dir": [0, 0, 0]}]}))
+
+    assert msg =~ "must not be the zero vector"
+  end
+
+  test "rotate validates a nonzero axis and finite degrees" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "rotate", "axis": [0, 0, 0], "degrees": 90}]}))
+    assert msg =~ "must not be the zero vector"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "rotate", "axis": [0, 0, 1]}]}))
+    assert msg =~ "missing \"degrees\""
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "rotate", "axis": [0, 0, 1], "degrees": "ninety"}]}))
+
+    assert msg =~ "\"degrees\" must be a finite number"
+  end
 end

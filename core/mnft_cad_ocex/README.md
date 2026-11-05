@@ -38,6 +38,9 @@ validates before any native call; `MnftOcex.Interpreter` executes):
 | `translate` | `delta:[dx,dy,dz]` | moves the top shape |
 | `union` / `cut` / `intersect` | — | consume the top two (top = tool) |
 | `fillet_all` | `r` | rounds every edge of the top shape |
+| `polygon` | `n`, `r`, `rot?`, `at?` | planar n-gon **face** in XY (not a solid) |
+| `extrude` | `h`, `dir?` | pops a face, pushes a solid (out-of-plane only) |
+| `rotate` | `axis`, `degrees` | spins the top shape about a world axis |
 
 Rules: millimetres, ≤200 ops, all dimensions positive and finite, the final
 stack must hold exactly one shape. Booleans pop blank-then-tool — push the

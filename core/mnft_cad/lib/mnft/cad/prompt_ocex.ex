@@ -41,6 +41,9 @@ defmodule Mnft.Cad.PromptOcex do
   | cut        | —                                        | blank minus tool |
   | intersect  | —                                        | common of the top two |
   | fillet_all | r                                        | replaces the top shape, every edge rounded to r |
+  | polygon    | n, r, rot?, at?                          | planar n-gon FACE in the XY plane — a face, NOT a solid |
+  | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
+  | rotate     | axis:[x,y,z], degrees                    | spins the top shape about a world axis through the origin |
 
   The model must:
   - be deterministic (same input, same model);
@@ -51,6 +54,11 @@ defmodule Mnft.Cad.PromptOcex do
   - stay under 200 ops.
 
   ocex gotchas (hit in real runs — follow exactly):
+  - `polygon` pushes a FACE, not a solid: booleans and `fillet_all` need
+    solids, so `extrude` the face first. `prism` is sugar for polygon+extrude.
+  - `extrude` direction must point OUT of the face's plane (for `polygon`
+    faces, keep a nonzero z in `dir`) — in-plane extrusion is rejected as
+    degenerate.
   - Bores that miss the part or stop inside it are SILENT no-ops or shallow
     pockets, never errors: check every hole fully crosses the blank
     (extend cylinders past both faces with `at` below the base).

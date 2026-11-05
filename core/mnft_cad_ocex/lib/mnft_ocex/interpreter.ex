@@ -55,6 +55,57 @@ defmodule MnftOcex.Interpreter do
 
   defp apply_op(%{"op" => "prism", "n" => n, "r" => r, "h" => h} = op, stack, _i) do
     rot = deg_to_rad(Map.get(op, "rot", 0))
+
+    with {:ok, face} <- regular_ngon_face(n, r, rot),
+         {:ok, shape} <- OCEx.extrude(face, {0.0, 0.0, h * 1.0}),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    end
+  end
+
+  # Sketch-layer seed: `polygon` pushes a planar n-gon FACE; `extrude` turns a
+  # face into a solid. Named solids like `prism` are sugar over this pair.
+  defp apply_op(%{"op" => "polygon", "n" => n, "r" => r} = op, stack, _i) do
+    rot = deg_to_rad(Map.get(op, "rot", 0))
+
+    with {:ok, face} <- regular_ngon_face(n, r, rot),
+         {:ok, face} <- place(face, op) do
+      {:ok, [face | stack]}
+    end
+  end
+
+  defp apply_op(%{"op" => "extrude", "h" => h} = op, [top | rest], i) do
+    [dx, dy, dz] = Map.get(op, "dir", [0, 0, 1])
+    len = :math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    with {:ok, solid} <- OCEx.extrude(top, {dx / len * h, dy / len * h, dz / len * h}) do
+      {:ok, [solid | rest]}
+    else
+      {:error, reason} ->
+        {:error,
+         "ocex: op #{i}: extrude needs a planar face on the stack (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "extrude"}, [], i),
+    do: {:error, "ocex: op #{i}: extrude needs a face on the stack (stack is empty)"}
+
+  defp apply_op(%{"op" => "rotate", "axis" => [x, y, z], "degrees" => degrees}, [top | rest], i) do
+    with {:ok, shape} <- OCEx.rotate(top, {0.0, 0.0, 0.0}, {x, y, z}, degrees * 1.0) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: rotate failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "rotate"}, [], i),
+    do: {:error, "ocex: op #{i}: rotate needs a shape on the stack (stack is empty)"}
+
+  # --- sketch helpers ----------------------------------------------------------
+
+  # Regular n-gon in the XY plane, circumradius r, centred on the origin,
+  # first vertex at angle `rot`. Returns a planar face.
+  defp regular_ngon_face(n, r, rot) do
     step = 2 * :math.pi() / n
 
     vertices =
@@ -63,6 +114,10 @@ defmodule MnftOcex.Interpreter do
         {r * :math.cos(angle), r * :math.sin(angle), 0.0}
       end
 
+    with {:ok, wire} <- closed_wire(vertices), do: OCEx.face(wire)
+  end
+
+  defp closed_wire(vertices) do
     pairs = Enum.zip(vertices, tl(vertices) ++ [hd(vertices)])
 
     edges =
@@ -73,14 +128,7 @@ defmodule MnftOcex.Interpreter do
         end
       end)
 
-    with {:ok, edges} <- edges,
-         edges = Enum.reverse(edges),
-         {:ok, wire} <- OCEx.wire(edges),
-         {:ok, face} <- OCEx.face(wire),
-         {:ok, shape} <- OCEx.extrude(face, {0.0, 0.0, h * 1.0}),
-         {:ok, shape} <- place(shape, op) do
-      {:ok, [shape | stack]}
-    end
+    with {:ok, edges} <- edges, do: OCEx.wire(Enum.reverse(edges))
   end
 
   # --- transforms --------------------------------------------------------------
