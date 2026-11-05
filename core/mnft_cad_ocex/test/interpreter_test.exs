@@ -13,6 +13,28 @@ defmodule MnftOcex.InterpreterTest do
     assert_in_delta volume([%{"op" => "box", "size" => [60, 40, 5]}]), 60 * 40 * 5, 1.0e-6
   end
 
+  test "a hex prism matches its analytic volume" do
+    # regular hexagon area = (3 * sqrt(3) / 2) * r^2 with r the circumradius
+    r = 10.0
+    area = 3 * :math.sqrt(3) / 2 * r * r
+
+    ops = [%{"op" => "prism", "n" => 6, "r" => r, "h" => 8}]
+    assert_in_delta volume(ops), area * 8, 1.0e-6
+  end
+
+  test "a hex prism bore removes its analytic area from a plate" do
+    r = 5.0
+    hex_area = 3 * :math.sqrt(3) / 2 * r * r
+
+    ops = [
+      %{"op" => "box", "size" => [60, 40, 5]},
+      %{"op" => "prism", "n" => 6, "r" => r, "h" => 20, "at" => [30, 20, -5]},
+      %{"op" => "cut"}
+    ]
+
+    assert_in_delta volume(ops), 60 * 40 * 5 - hex_area * 5, 1.0e-4
+  end
+
   test "the 25-bore plate matches its analytic volume" do
     ops = MnftOcex.TestPrograms.bore_plate_ops()
     assert_in_delta volume(ops), MnftOcex.TestPrograms.bore_plate_volume(), 1.0e-4

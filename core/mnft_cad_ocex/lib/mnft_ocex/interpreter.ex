@@ -53,6 +53,36 @@ defmodule MnftOcex.Interpreter do
     end
   end
 
+  defp apply_op(%{"op" => "prism", "n" => n, "r" => r, "h" => h} = op, stack, _i) do
+    rot = deg_to_rad(Map.get(op, "rot", 0))
+    step = 2 * :math.pi() / n
+
+    vertices =
+      for k <- 0..(n - 1) do
+        angle = rot + k * step
+        {r * :math.cos(angle), r * :math.sin(angle), 0.0}
+      end
+
+    pairs = Enum.zip(vertices, tl(vertices) ++ [hd(vertices)])
+
+    edges =
+      Enum.reduce_while(pairs, {:ok, []}, fn {a, b}, {:ok, acc} ->
+        case OCEx.edge(a, b) do
+          {:ok, edge} -> {:cont, {:ok, [edge | acc]}}
+          {:error, _msg} = error -> {:halt, error}
+        end
+      end)
+
+    with {:ok, edges} <- edges,
+         edges = Enum.reverse(edges),
+         {:ok, wire} <- OCEx.wire(edges),
+         {:ok, face} <- OCEx.face(wire),
+         {:ok, shape} <- OCEx.extrude(face, {0.0, 0.0, h * 1.0}),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    end
+  end
+
   # --- transforms --------------------------------------------------------------
 
   defp apply_op(%{"op" => "translate", "delta" => [dx, dy, dz]}, [top | rest], _i) do
@@ -130,4 +160,6 @@ defmodule MnftOcex.Interpreter do
       :error -> {:ok, shape}
     end
   end
+
+  defp deg_to_rad(degrees) when is_number(degrees), do: degrees * :math.pi() / 180
 end

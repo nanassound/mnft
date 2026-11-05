@@ -24,6 +24,33 @@ defmodule MnftOcex.DialectTest do
     assert msg =~ "invalid JSON"
   end
 
+  test "accepts a prism with sides, radius and height" do
+    json =
+      Jason.encode!(%{
+        "ops" => [%{"op" => "prism", "n" => 6, "r" => 10, "h" => 5, "at" => [30, 20, 0]}]
+      })
+
+    assert {:ok, [_op]} = Dialect.validate(json)
+  end
+
+  test "rejects a prism with fewer than 3 sides" do
+    json = Jason.encode!(%{"ops" => [%{"op" => "prism", "n" => 2, "r" => 10, "h" => 5}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "\"n\" must be between 3 and 64"
+  end
+
+  test "rejects a prism with a non-integer n" do
+    json = Jason.encode!(%{"ops" => [%{"op" => "prism", "n" => 6.5, "r" => 10, "h" => 5}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "\"n\" must be an integer"
+  end
+
+  test "rejects a prism without n" do
+    json = Jason.encode!(%{"ops" => [%{"op" => "prism", "r" => 10, "h" => 5}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "missing \"n\""
+  end
+
   test "rejects a program without an ops array" do
     assert {:error, msg} = err(~s({"model": "plate"}))
     assert msg =~ "\"ops\""

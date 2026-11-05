@@ -35,6 +35,7 @@ defmodule Mnft.Cad.PromptOcex do
   | box        | size:[x,y,z], at:[x,y,z]?                | solid, corner-anchored at `at` (default origin) |
   | cylinder   | r, h, at:[x,y,z]?                        | solid, base-centred at `at` (default origin), extends +z |
   | sphere     | r, at:[x,y,z]?                           | solid, centred at `at` (default origin) |
+  | prism      | n, r, h, at:[x,y,z]?, rot?               | solid regular n-gon (3..64) extruded h along +z; `r` is the CIRCUMRADIUS (vertex distance), base-centred at `at`, first vertex at `rot` degrees from +x. n=6 gives a hexagon |
   | translate  | delta:[dx,dy,dz]                         | replaces the top shape with its moved copy |
   | union      | —                                        | fuse of the top two |
   | cut        | —                                        | blank minus tool |
@@ -72,7 +73,10 @@ defmodule Mnft.Cad.PromptOcex do
   - A standoff/spacer: cylinder body, fillet_all for break edges.
   - An L-bracket: two boxes fused with `union`, then one `translate` on the
     result to final placement, then fillet_all only if every edge should round.
-  - Keep bores' cylinders taller than the blank (start below z=0) so cuts are
+  - A hex (honeycomb) bore: `prism` with n:6, `r` = half the across-flats
+    distance divided by cos(30°) — i.e. circumradius = acrossFlats / 2 / 0.8660.
+    Push it with `at` below the blank base and `cut` it like a cylinder bore.
+  - Keep bores' tools taller than the blank (start below z=0) so cuts are
     guaranteed through-holes.
   """
 

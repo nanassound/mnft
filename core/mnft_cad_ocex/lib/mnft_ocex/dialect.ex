@@ -12,6 +12,9 @@ defmodule MnftOcex.Dialect do
       box       {"size": [x, y, z], "at": [x, y, z]?}   corner-anchored solid
       cylinder  {"r": r, "h": h, "at": [x, y, z]?}      base-centred, extends +z
       sphere    {"r": r, "at": [x, y, z]?}              centred at `at`
+      prism     {"n": n, "r": r, "h": h, "at": [x, y, z]?, "rot": deg?}
+                regular n-gon (3..64) extruded h along +z; `r` is the
+                circumradius, base-centred at `at`, first vertex at angle `rot`
       translate {"delta": [dx, dy, dz]}                 moves the top shape
       union | cut | intersect                          consumes the top two
       fillet_all {"r": r}                               rounds every edge
@@ -25,7 +28,7 @@ defmodule MnftOcex.Dialect do
   @min_positive 1.0e-6
 
   @stack_ops ~w(union cut intersect)
-  @shape_ops ~w(box cylinder sphere)
+  @shape_ops ~w(box cylinder sphere prism)
   @known_ops @shape_ops ++ @stack_ops ++ ~w(translate fillet_all)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
@@ -102,8 +105,16 @@ defmodule MnftOcex.Dialect do
   end
 
   defp check_params("sphere", op, i), do: positive(op, "r", i)
+
   defp check_params("translate", op, i), do: vec3(op, "delta", i, &coord?/1, "finite numbers")
   defp check_params("fillet_all", op, i), do: positive(op, "r", i)
+
+  defp check_params("prism", op, i) do
+    with :ok <- sides(op, i),
+         :ok <- positive(op, "r", i) do
+      positive(op, "h", i)
+    end
+  end
 
   defp check_params(name, op, i) when name in @stack_ops do
     case Map.fetch(op, "at") do
@@ -113,6 +124,22 @@ defmodule MnftOcex.Dialect do
   end
 
   defp check_params(_name, _op, _i), do: :ok
+
+  defp sides(op, i) do
+    case Map.fetch(op, "n") do
+      {:ok, n} when is_integer(n) and n >= 3 and n <= 64 ->
+        :ok
+
+      {:ok, n} when is_integer(n) ->
+        {:error, "ocex: op #{i}: \"n\" must be between 3 and 64, got #{n}"}
+
+      {:ok, _other} ->
+        {:error, "ocex: op #{i}: \"n\" must be an integer (number of sides)"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"n\""}
+    end
+  end
 
   # --- value helpers -----------------------------------------------------------
 
@@ -156,5 +183,4 @@ defmodule MnftOcex.Dialect do
 
   defp finite?(value) when is_float(value), do: abs(value) <= Float.max_finite()
   defp finite?(value) when is_integer(value), do: true
-  defp finite?(_other), do: false
 end
