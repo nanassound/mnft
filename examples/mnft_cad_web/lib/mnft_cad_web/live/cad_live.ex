@@ -388,8 +388,9 @@ defmodule MnftCadWeb.CadLive do
   end
 
   defp inline_token("**" <> inner), do: %{kind: :strong, text: String.slice(inner, 0, String.length(inner) - 2)}
-  defp inline_token("`" <> inner), do: %{kind: :code, text: String.slice(inner, 0, String.length(inner) - 1)}
-  defp inline_token("*" <> inner), do: %{kind: :em, text: String.slice(inner, 0, String.length(inner) - 1)}
+  defp inline_token("`" <> inner) when inner != "", do: %{kind: :code, text: String.slice(inner, 0, String.length(inner) - 1)}
+  defp inline_token("*" <> inner) when inner != "", do: %{kind: :em, text: String.slice(inner, 0, String.length(inner) - 1)}
+  defp inline_token(other), do: %{kind: :plain, text: other}
 
   defp push_plain("", acc), do: acc
   defp push_plain(text, acc), do: [%{kind: :plain, text: text} | acc]
