@@ -154,7 +154,7 @@ defmodule MnftOcex.Dialect do
   defp coord?(value) when is_number(value), do: finite?(value) and abs(value) <= @max_coord
   defp coord?(_other), do: false
 
-  defp finite?(value) when is_float(value), do: :math.is_finite(value)
+  defp finite?(value) when is_float(value), do: abs(value) <= Float.max_finite()
   defp finite?(value) when is_integer(value), do: true
   defp finite?(_other), do: false
 end
