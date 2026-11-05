@@ -13,7 +13,7 @@ defmodule Mnft.Cad.CodeGen do
   # discard a complete script.
   @tagged_block_re ~r/```(?:python|py|scad|openscad)[ \t]*\r?\n(.*?)```/s
   @js_block_re ~r/```(?:js|javascript)[ \t]*\r?\n(.*?)```/s
-  @any_block_re ~r/```[ \t]*\r?\n(.*?)```/s
+  @any_block_re ~r/```[a-z0-9_-]*[ \t]*\r?\n(.*?)```/is
   @data_url_re ~r/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]+/
 
   @doc """
@@ -234,7 +234,7 @@ defmodule Mnft.Cad.CodeGen do
     |> String.trim_trailing()
   end
 
-  def build_repair_message(dialect, code, error) when dialect in [:build123d, nil] do
+  def build_repair_message(dialect, code, error) when dialect in [:build123d, :ocex, nil] do
     build_repair_message(code, error)
   end
 
@@ -293,7 +293,7 @@ defmodule Mnft.Cad.CodeGen do
     |> String.trim_trailing()
   end
 
-  def build_truncated_repair_message(dialect, partial) when dialect in [:build123d, nil] do
+  def build_truncated_repair_message(dialect, partial) when dialect in [:build123d, :ocex, nil] do
     build_truncated_repair_message(partial)
   end
 
@@ -332,7 +332,7 @@ defmodule Mnft.Cad.CodeGen do
     |> String.trim_trailing()
   end
 
-  def build_noop_message(dialect, user_message, stats_line) when dialect in [:build123d, nil] do
+  def build_noop_message(dialect, user_message, stats_line) when dialect in [:build123d, :ocex, nil] do
     build_noop_message(user_message, stats_line)
   end
 
