@@ -358,7 +358,7 @@ defmodule MnftOcex.InterpreterTest do
   # --- finishing: chamfer_all / shell, face selectors --------------------------
 
   test "shell with a lid opening hollows the box (golden)" do
-    # Golden measured 20 Jan 2026 on OCCT 7.9.3: OCCT's thick-solid offsets the
+    # Golden measured 6 Nov 2026 on OCCT 7.9.3: OCCT's thick-solid offsets the
     # remaining faces, so corner geometry differs from a naive box cavity —
     # kernel-measured value, do not replace with an analytic formula.
     open_top = [
@@ -377,7 +377,7 @@ defmodule MnftOcex.InterpreterTest do
   end
 
   test "chamfer_all bevels every edge of a plate (golden)" do
-    # Golden measured 20 Jan 2026 on OCCT 7.9.3 via OCEx.chamfer (d applies to
+    # Golden measured 6 Nov 2026 on OCCT 7.9.3 via OCEx.chamfer (d applies to
     # both adjacent faces); plates change shape -> re-measure, don't guess.
     ops = [%{"op" => "box", "size" => [60, 40, 5]}, %{"op" => "chamfer_all", "d" => 1}]
     assert_in_delta volume(ops), 11_795.333333333327, 1.0e-3
@@ -418,7 +418,7 @@ defmodule MnftOcex.InterpreterTest do
   end
 
   test "a thread-shaped sweep along a helix builds a solid (golden)" do
-    # Golden measured 20 Jan 2026 on OCCT 7.9.3 with the corrected-frame
+    # Golden measured 6 Nov 2026 on OCCT 7.9.3 with the corrected-frame
     # PipeShell; the profile is a triangle perpendicular to the helix start
     # tangent (0, r, pitch/2pi) normalized. Re-measure if the kernel changes.
     t2y = 0.04769215134145742
@@ -456,7 +456,7 @@ defmodule MnftOcex.InterpreterTest do
   # --- selected-edge finishing: fillet / chamfer --------------------------------
 
   test "fillet on the top face of a plate rounds its edges (golden)" do
-    # Golden measured 20 Jan 2026 on OCCT 7.9.3; re-measure if kernel changes.
+    # Golden measured 6 Nov 2026 on OCCT 7.9.3; re-measure if kernel changes.
     ops = [
       %{"op" => "box", "size" => [60, 40, 5]},
       %{"op" => "fillet", "r" => 2, "on" => %{"normal" => [0, 0, 1], "through" => [0, 0, 5]}}
@@ -466,7 +466,7 @@ defmodule MnftOcex.InterpreterTest do
   end
 
   test "chamfer on the top face of a plate bevels its edges (golden)" do
-    # Golden measured 20 Jan 2026 on OCCT 7.9.3; re-measure if kernel changes.
+    # Golden measured 6 Nov 2026 on OCCT 7.9.3; re-measure if kernel changes.
     ops = [
       %{"op" => "box", "size" => [60, 40, 5]},
       %{"op" => "chamfer", "d" => 1, "on" => %{"normal" => [0, 0, 1], "through" => [0, 0, 5]}}
@@ -476,7 +476,7 @@ defmodule MnftOcex.InterpreterTest do
   end
 
   test "a perpendicular selector rounds all four wall tops (golden)" do
-    # Golden measured 20 Jan 2026 on OCCT 7.9.3; re-measure if kernel changes.
+    # Golden measured 6 Nov 2026 on OCCT 7.9.3; re-measure if kernel changes.
     ops = [
       %{"op" => "box", "size" => [60, 40, 5]},
       %{"op" => "fillet", "r" => 2, "on" => %{"perpendicular" => [0, 0, 1]}}

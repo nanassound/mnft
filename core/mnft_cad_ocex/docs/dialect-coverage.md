@@ -64,17 +64,32 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | export formats | boundary | ✅ engine exports STL/STEP | GLB preview best-effort |
 | assembly/joints | boundary | ⛔ | mnft models single parts today; assembly is a separate dialect later |
 
-## Priority order (value ÷ effort)
+## Status after the 8-list sweep (Nov 2026)
 
-1. `polyline` + `close` + `planar face` — unlocks L/T/I brackets, keyways, gaskets
-2. `pattern_circular` / `pattern_linear` — bolt circles, vent arrays (kills 25-op hand loops)
-3. `revolve` + `loft` — knobs, funnels, vases, tapered parts
-4. `mirror` + `scale` — two one-liners (OCEx calls exist)
-5. `chamfer_all`, `shell` — finishing parity with OpenSCAD-level expectations
-6. `sweep` along polyline/helix — handles, rails, threads
-7. Selected-edge fillet/chamfer — needs the selector language, design first
-8. `circle` as face, text faces — small, standalone
+All eight priority lists from the first audit are landed: polyline, patterns
+(+ compound-aware booleans), revolve/loft/cone/torus, mirror/scale,
+chamfer_all/shell (selector engine), sweep/helix, selected-edge
+fillet/chamfer, circle/text faces (Graduate font vendored). Every verb came
+with its prompt row, static validation, interpreter op, and tests asserted
+against analytic geometry; shell and the sweep goldens use kernel-measured
+values where OCCT geometry is not a naive analytic solid (dated comments).
 
-Rule: every new verb lands with its prompt row, static validation, interpreter
-op, and tests asserted against analytic geometry — then gets a line in the
-corpus table above. The audit shrinks; coverage only goes up.
+## Remaining gaps (value ÷ effort)
+
+1. Arc / spline 2D outlines — `polyline` covers straight edges only; OCEx has
+   `arc` and `spline` bindings. Unlocks organic profiles and filleted 2D
+   sketches. Consider a `profile` op that chains line/arc/spline segments.
+2. Slot / Tee / Trapezoid sugar — thin wrappers over `polyline`; add on
+   telemetry demand, not speculatively.
+3. Gear — compound op (involute or simplified trapezoid teeth via
+   polyline+extrude); needs a tooth-profile generator, later batch.
+4. offset / thicken — `shell` covers hollowing with a required opening; pure
+   outward offset (grow a 2D profile, thicken a surface) has no op and no
+   faithful composition.
+5. Thread sugar — machinery verified (profile + helix + sweep golden); a
+   dedicated `thread` op would hide the tangent-stub and profile-placement
+   gotchas from the prompt entirely.
+
+Rule unchanged: every new verb lands with its prompt row, static validation,
+interpreter op, and tests asserted against analytic geometry — then gets a
+line in the corpus table above. The audit shrinks; coverage only goes up.
