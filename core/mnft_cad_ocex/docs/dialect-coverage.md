@@ -22,13 +22,13 @@ sugar over profiles + sweeps, never new machinery.
 | layer | dialect ops | status |
 |---|---|---|
 | named solids | box, cylinder, sphere, prism (sugar: polygon+extrude), cone, torus | ✅ |
-| profiles | polygon, polyline | ✅ seed — arc+spline+slot missing |
+| profiles | polygon, polyline, circle | ✅ seed — arc+spline+slot missing |
 | sweeps | extrude, revolve, loft, sweep, helix | ✅ |
 | booleans | union, cut, intersect | ✅ |
 | transforms | translate, rotate, mirror, scale | ✅ mirror fuses the reflection in; scale is origin-anchored |
 | finishing | fillet_all, chamfer_all, fillet, chamfer, shell | ✅ selectors by face plane |
 | patterns | pattern_linear, pattern_circular | ✅ fuse copies through the original (Σcount ≤ 1000) |
-| domain | — | ❌ thread (decomp: triangle profile + helix sweep), gear, text (OCEx has font faces) |
+| domain | text | 🟡 thread machinery complete (golden), gear ❌ compound op later |
 
 ## Corpus audit v1 (build123d ~ Operations/Objects, CadQuery, OpenSCAD)
 
@@ -42,7 +42,7 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | Cone | named solid | ✅ cone | frustum via r2; r2=0 gives an apex |
 | Torus | named solid | ✅ torus | about z, centred at `at` |
 | Polygon / RegularPolygon | profile | 🟡 polygon covers regular n-gons; arbitrary polygons → polyline (✅) | |
-| Rectangle / Circle sketch | profile | ❌ | box covers rects; circle-as-face missing |
+| Rectangle / Circle sketch | profile | ✅ circle | box covers rects; circle face in XY (a face, not a solid) |
 | Polyline + close | profile | ✅ polyline | L/T/I brackets, keyways, gaskets |
 | Spline / Bézier | profile | ❌ | organic 2D outlines (OCEx has spline) |
 | Slot / Tee / Trapezoid sketches | profile | 🟡 sugar over polyline | thin wrappers; add on demand |
@@ -56,7 +56,7 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | mirror | transform | ✅ mirror | fuses the reflection into the shape (mirror-completes) |
 | linear/circular pattern | pattern | ✅ pattern_linear / pattern_circular | fuse copies through the original; a patterned bore cuts all instances |
 | scale | transform | ✅ scale | uniform, about the world origin |
-| text | domain | ❌ | OCEx has font-backed faces (FreeType/HarfBuzz) |
+| text | domain | ✅ text | bundled Graduate font (OFL license ships with the pack); size is em, baseline at origin/`at` |
 | thread | domain | 🟡 machinery complete | triangle profile + helix + sweep verified (golden); teeth need tuning per thread form |
 | gear | domain | ❌ | compound op, later |
 | boolean fuse/cut/common | boolean | ✅ | |

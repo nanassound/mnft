@@ -501,4 +501,41 @@ defmodule MnftOcex.DialectTest do
 
     assert msg =~ "zero vector"
   end
+
+  # --- domain faces: circle / text ----------------------------------------------
+
+  test "circle validates r and optional at" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "circle", "r": 3}]}))
+    assert {:ok, _} = err(~s({"ops": [{"op": "circle", "r": 3, "at": [50, 50, 0]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "circle", "r": 0}]}))
+    assert msg =~ "\"r\""
+  end
+
+  test "text validates s and size" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "text", "s": "TEAM", "size": 10}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "   ", "size": 10}]}))
+    assert msg =~ "must be a non-empty string"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "", "size": 10}]}))
+    assert msg =~ "must be a non-empty string"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "size": 10}]}))
+    assert msg =~ "missing \"s\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "TEAM"}]}))
+    assert msg =~ "missing \"size\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "TEAM", "size": 0}]}))
+    assert msg =~ "\"size\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "TEAM", "size": 1001}]}))
+    assert msg =~ "up to 1000"
+
+    long = String.duplicate("a", 257)
+    json = Jason.encode!(%{"ops" => [%{"op" => "text", "s" => long, "size" => 10}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "at most 256"
+  end
 end

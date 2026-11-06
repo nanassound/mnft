@@ -88,6 +88,24 @@ defmodule MnftOcex.Interpreter do
     end
   end
 
+  defp apply_op(%{"op" => "circle", "r" => r} = op, stack, _i) do
+    with {:ok, edge} <- OCEx.circle(r),
+         {:ok, wire} <- OCEx.wire([edge]),
+         {:ok, face} <- OCEx.face(wire),
+         {:ok, face} <- place(face, op) do
+      {:ok, [face | stack]}
+    end
+  end
+
+  # `text` pushes a planar face compound in the bundled Graduate font,
+  # baseline at the origin / `at`; `extrude` embosses or engraves it.
+  defp apply_op(%{"op" => "text", "s" => s, "size" => size} = op, stack, _i) do
+    with {:ok, %{shape: shape}} <- OCEx.text(s, font_bytes(), size),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    end
+  end
+
   # `polyline` pushes a planar FACE through the points when `close` (default
   # true); `close: false` keeps an open WIRE — a sweep path.
   defp apply_op(%{"op" => "polyline", "pts" => pts} = op, stack, _i) do
@@ -595,6 +613,29 @@ defmodule MnftOcex.Interpreter do
        "ocex: op #{i}: malformed op #{inspect(op)} (validation should have rejected this)"}
 
   # --- helpers -----------------------------------------------------------------
+
+  @font_path "fonts/Graduate-Regular.ttf"
+
+  # The Graduate varsity font ships with this pack (license alongside it in
+  # priv/fonts); loaded once per node and memoized in persistent_term.
+  defp font_bytes do
+    case :persistent_term.get({__MODULE__, :font_bytes}, :missing) do
+      {:ok, bytes} -> bytes
+      :missing -> load_font()
+    end
+  end
+
+  defp load_font do
+    path =
+      case :code.priv_dir(:mnft_cad_ocex) do
+        {:error, _bad_name} -> Path.join([File.cwd!(), "priv", @font_path])
+        dir -> Path.join(to_string(dir), @font_path)
+      end
+
+    bytes = File.read!(path)
+    :persistent_term.put({__MODULE__, :font_bytes}, {:ok, bytes})
+    bytes
+  end
 
   defp place(shape, op) do
     case Map.fetch(op, "at") do

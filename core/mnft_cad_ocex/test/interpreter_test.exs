@@ -494,4 +494,37 @@ defmodule MnftOcex.InterpreterTest do
     assert {:error, msg} = Interpreter.run(ops)
     assert msg =~ "op 2" and msg =~ "selector matched no faces"
   end
+
+  # --- domain faces: circle / text ----------------------------------------------
+
+  test "a circle face extrudes into an analytic cylinder" do
+    ops = [%{"op" => "circle", "r" => 3}, %{"op" => "extrude", "h" => 10}]
+    assert_in_delta volume(ops), :math.pi() * 9 * 10, 1.0e-2
+  end
+
+  test "a circle face honours at placement" do
+    ops = [%{"op" => "circle", "r" => 3, "at" => [50, 50, 0]}, %{"op" => "extrude", "h" => 10}]
+
+    assert {:ok, shape} = Interpreter.run(ops)
+    assert_in_delta volume(ops), :math.pi() * 9 * 10, 1.0e-2
+
+    assert {:ok, {{x0, y0, z0}, {x1, y1, z1}}} = OCEx.bounds(shape)
+    assert_in_delta x0, 47.0, 1.0e-6
+    assert_in_delta x1, 53.0, 1.0e-6
+    assert_in_delta y0, 47.0, 1.0e-6
+    assert_in_delta y1, 53.0, 1.0e-6
+    assert_in_delta z1, 10.0, 1.0e-6
+  end
+
+  test "text pushes faces whose extrusion follows area times height" do
+    {:ok, face} = Interpreter.run([%{"op" => "text", "s" => "TEAM", "size" => 10}])
+    {:ok, area} = OCEx.area(face)
+
+    ops = [%{"op" => "text", "s" => "TEAM", "size" => 10}, %{"op" => "extrude", "h" => 2}]
+    assert {:ok, shape} = Interpreter.run(ops)
+    {:ok, v} = OCEx.volume(shape)
+
+    # the guide's own invariant: extruding a planar face gives volume = area * h
+    assert_in_delta v, area * 2, 1.0e-3
+  end
 end

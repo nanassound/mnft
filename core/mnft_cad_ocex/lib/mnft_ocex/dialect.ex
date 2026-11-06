@@ -34,7 +34,7 @@ defmodule MnftOcex.Dialect do
   @max_points 512
   @max_pattern_instances 1000
   @max_selectors 8
-  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all chamfer_all fillet chamfer extrude rotate revolve loft mirror scale shell sweep helix)
+  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all chamfer_all fillet chamfer extrude rotate revolve loft mirror scale shell sweep helix circle text)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   def validate(code) when is_binary(code) do
@@ -237,6 +237,53 @@ defmodule MnftOcex.Dialect do
     case Map.fetch(op, "on") do
       {:ok, selector} -> validate_selector(selector, i)
       :error -> {:error, "ocex: op #{i}: missing \"on\""}
+    end
+  end
+
+  defp check_params("circle", op, i) do
+    with :ok <- positive(op, "r", i), do: optional_at(op, i)
+  end
+
+  defp check_params("text", op, i) do
+    with :ok <- text_s(op, i),
+         :ok <- text_size(op, i) do
+      optional_at(op, i)
+    end
+  end
+
+  @max_text_bytes 256
+
+  defp text_s(op, i) do
+    case Map.fetch(op, "s") do
+      {:ok, s} when is_binary(s) ->
+        cond do
+          byte_size(s) > @max_text_bytes ->
+            {:error, "ocex: op #{i}: \"s\" must be at most #{@max_text_bytes} characters"}
+
+          String.trim(s) == "" ->
+            {:error, "ocex: op #{i}: \"s\" must be a non-empty string"}
+
+          true ->
+            :ok
+        end
+
+      {:ok, _other} ->
+        {:error, "ocex: op #{i}: \"s\" must be a non-empty string"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"s\""}
+    end
+  end
+
+  defp text_size(op, i) do
+    case Map.fetch(op, "size") do
+      {:ok, size} ->
+        if is_number(size) and finite?(size) and size >= @min_positive and size <= 1000,
+          do: :ok,
+          else: {:error, "ocex: op #{i}: \"size\" must be a positive number up to 1000"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"size\""}
     end
   end
 

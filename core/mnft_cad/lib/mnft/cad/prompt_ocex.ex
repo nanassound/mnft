@@ -48,6 +48,8 @@ defmodule Mnft.Cad.PromptOcex do
   | chamfer    | d, on[selector]                          | replaces the top shape, only the edges of the SELECTED faces bevelled to d |
   | polygon    | n, r, rot?, at?                          | planar n-gon FACE in the XY plane — a face, NOT a solid |
   | polyline   | pts:[[x,y,z]…], close?=true, at?         | planar face through the points (close:false → open wire for sweep paths) |
+  | circle     | r, at?                                   | planar circular FACE in XY, centred at `at` — a face, NOT a solid; bores use `cylinder` |
+  | text       | s ≤ 256 chars, size (em), at?            | planar text FACE in the bundled varsity font, baseline at origin/`at`; `extrude` to emboss |
   | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
   | revolve    | axis:[x,y,z], at?[0,0,0], degrees?360    | pops the top FACE, pushes the solid swept about the axis through `at` (degrees ≤ 360) |
   | loft       | sections 2..50                           | pops that many faces — first pushed = FIRST section — pushes a ruled solid through them |
@@ -94,6 +96,11 @@ defmodule Mnft.Cad.PromptOcex do
     30-tall box); `{"perpendicular": [0,0,1]}` = every VERTICAL face (walls).
     Edges shared by two selected faces are finished ONCE; `fillet_all`/
     `chamfer_all` remain the tools for literally every edge.
+  - `circle` is a FACE (like `polygon`), not a solid: `extrude` it, or cut a
+    bore with a `cylinder` — never cut with the circle face.
+  - `text` renders in the bundled Graduate varsity font; `size` is the em
+    size, NOT cap height. The baseline sits at the origin/`at`; `extrude`
+    the text face for embossing, or use it as a `cut` tool for engraving.
   - `extrude` direction must point OUT of the face's plane (for `polygon`
     faces, keep a nonzero z in `dir`) — in-plane extrusion is rejected as
     degenerate.

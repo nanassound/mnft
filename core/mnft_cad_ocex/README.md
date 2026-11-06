@@ -46,6 +46,8 @@ validates before any native call; `MnftOcex.Interpreter` executes):
 | `shell` | `t`, `open[selector…]` | hollows the top shape; `open` (required ≥1) selectors name the removed faces |
 | `polygon` | `n`, `r`, `rot?`, `at?` | planar n-gon **face** in XY (not a solid) |
 | `polyline` | `pts:[[x,y,z]…]`, `close?=true`, `at?` | planar face through the points (`close:false` → open wire, sweep path) |
+| `circle` | `r`, `at?` | planar circular **face** in XY (not a solid; bores use `cylinder`) |
+| `text` | `s ≤ 256`, `size`, `at?` | planar text face in the bundled Graduate font (size = em, baseline at origin/`at`) |
 | `extrude` | `h`, `dir?` | pops a face, pushes a solid (out-of-plane only) |
 | `revolve` | `axis`, `at?`, `degrees?` | pops a face, pushes the swept solid (profile plane must contain the axis) |
 | `loft` | `sections` | pops N faces (first pushed = first section), pushes a ruled solid |
