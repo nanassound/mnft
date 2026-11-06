@@ -21,7 +21,7 @@ Or keep the host config as is and set `MNFT_ENGINE=ocex` — the reference web
 app's `runtime.exs`/`dev.exs`, the headless example and the core dev config
 all map it to `MnftOcex.Engine`. The web app does not depend on the pack, so
 without the dep above that setting fails at the first turn. Build the pinned
-OCCT toolkit once first (see "Toolkit" below / the root README).
+OCCT toolkit once first (see "Production notes" below and the root README).
 
 ## The ocex dialect
 
