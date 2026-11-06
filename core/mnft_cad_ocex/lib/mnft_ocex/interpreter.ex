@@ -32,83 +32,101 @@ defmodule MnftOcex.Interpreter do
 
   # --- primitives --------------------------------------------------------------
 
-  defp apply_op(%{"op" => "box", "size" => [x, y, z]} = op, stack, _i) do
+  defp apply_op(%{"op" => "box", "size" => [x, y, z]} = op, stack, i) do
     with {:ok, shape} <- OCEx.box(x, y, z),
          {:ok, shape} <- place(shape, op) do
       {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "box", reason)
     end
   end
 
-  defp apply_op(%{"op" => "cylinder", "r" => r, "h" => h} = op, stack, _i) do
+  defp apply_op(%{"op" => "cylinder", "r" => r, "h" => h} = op, stack, i) do
     with {:ok, shape} <- OCEx.cylinder(r, h),
          {:ok, shape} <- place(shape, op) do
       {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "cylinder", reason)
     end
   end
 
-  defp apply_op(%{"op" => "sphere", "r" => r} = op, stack, _i) do
+  defp apply_op(%{"op" => "sphere", "r" => r} = op, stack, i) do
     with {:ok, shape} <- OCEx.sphere(r),
          {:ok, shape} <- place(shape, op) do
       {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "sphere", reason)
     end
   end
 
-  defp apply_op(%{"op" => "prism", "n" => n, "r" => r, "h" => h} = op, stack, _i) do
+  defp apply_op(%{"op" => "prism", "n" => n, "r" => r, "h" => h} = op, stack, i) do
     rot = deg_to_rad(Map.get(op, "rot", 0))
 
     with {:ok, face} <- regular_ngon_face(n, r, rot),
          {:ok, shape} <- OCEx.extrude(face, {0.0, 0.0, h * 1.0}),
          {:ok, shape} <- place(shape, op) do
       {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "prism", reason)
     end
   end
 
-  defp apply_op(%{"op" => "cone", "r1" => r1, "r2" => r2, "h" => h} = op, stack, _i) do
+  defp apply_op(%{"op" => "cone", "r1" => r1, "r2" => r2, "h" => h} = op, stack, i) do
     with {:ok, shape} <- OCEx.cone(r1, r2, h),
          {:ok, shape} <- place(shape, op) do
       {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "cone", reason)
     end
   end
 
-  defp apply_op(%{"op" => "torus", "R" => major, "r" => minor} = op, stack, _i) do
+  defp apply_op(%{"op" => "torus", "R" => major, "r" => minor} = op, stack, i) do
     with {:ok, shape} <- OCEx.torus(major, minor),
          {:ok, shape} <- place(shape, op) do
       {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "torus", reason)
     end
   end
 
   # Sketch-layer seed: `polygon` pushes a planar n-gon FACE; `extrude` turns a
   # face into a solid. Named solids like `prism` are sugar over this pair.
-  defp apply_op(%{"op" => "polygon", "n" => n, "r" => r} = op, stack, _i) do
+  defp apply_op(%{"op" => "polygon", "n" => n, "r" => r} = op, stack, i) do
     rot = deg_to_rad(Map.get(op, "rot", 0))
 
     with {:ok, face} <- regular_ngon_face(n, r, rot),
          {:ok, face} <- place(face, op) do
       {:ok, [face | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "polygon", reason)
     end
   end
 
-  defp apply_op(%{"op" => "circle", "r" => r} = op, stack, _i) do
+  defp apply_op(%{"op" => "circle", "r" => r} = op, stack, i) do
     with {:ok, edge} <- OCEx.circle(r),
          {:ok, wire} <- OCEx.wire([edge]),
          {:ok, face} <- OCEx.face(wire),
          {:ok, face} <- place(face, op) do
       {:ok, [face | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "circle", reason)
     end
   end
 
   # `text` pushes a planar face compound in the bundled Graduate font,
   # baseline at the origin / `at`; `extrude` embosses or engraves it.
-  defp apply_op(%{"op" => "text", "s" => s, "size" => size} = op, stack, _i) do
+  defp apply_op(%{"op" => "text", "s" => s, "size" => size} = op, stack, i) do
     with {:ok, %{shape: shape}} <- OCEx.text(s, font_bytes(), size),
          {:ok, shape} <- place(shape, op) do
       {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "text", reason)
     end
   end
 
   # `polyline` pushes a planar FACE through the points when `close` (default
   # true); `close: false` keeps an open WIRE — a sweep path.
-  defp apply_op(%{"op" => "polyline", "pts" => pts} = op, stack, _i) do
+  defp apply_op(%{"op" => "polyline", "pts" => pts} = op, stack, i) do
     close? = Map.get(op, "close", true)
     vertices = for [x, y, z] <- pts, do: {x, y, z}
 
@@ -116,14 +134,10 @@ defmodule MnftOcex.Interpreter do
          {:ok, pushed} <- close_or_wire(wire, close?),
          {:ok, pushed} <- place(pushed, op) do
       {:ok, [pushed | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "polyline", reason)
     end
   end
-
-  defp polyline_wire(vertices, true), do: closed_wire(vertices)
-  defp polyline_wire(vertices, false), do: open_wire(vertices)
-
-  defp close_or_wire(wire, true), do: OCEx.face(wire)
-  defp close_or_wire(wire, false), do: {:ok, wire}
 
   defp apply_op(%{"op" => "extrude", "h" => h} = op, [top | rest], i) do
     [dx, dy, dz] = Map.get(op, "dir", [0, 0, 1])
@@ -217,64 +231,6 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "scale"}, [], i),
     do: {:error, "ocex: op #{i}: scale needs a shape on the stack (stack is empty)"}
 
-  # --- sketch helpers ----------------------------------------------------------
-
-  # Regular n-gon in the XY plane, circumradius r, centred on the origin,
-  # first vertex at angle `rot`. Returns a planar face.
-  defp regular_ngon_face(n, r, rot) do
-    step = 2 * :math.pi() / n
-
-    vertices =
-      for k <- 0..(n - 1) do
-        angle = rot + k * step
-        {r * :math.cos(angle), r * :math.sin(angle), 0.0}
-      end
-
-    with {:ok, wire} <- closed_wire(vertices), do: OCEx.face(wire)
-  end
-
-  defp closed_wire(vertices) do
-    chain_wire(Enum.zip(vertices, tl(vertices) ++ [hd(vertices)]))
-  end
-
-  defp open_wire(vertices), do: chain_wire(Enum.zip(vertices, tl(vertices)))
-
-  defp chain_wire(pairs) do
-    edges =
-      Enum.reduce_while(pairs, {:ok, []}, fn {a, b}, {:ok, acc} ->
-        case OCEx.edge(a, b) do
-          {:ok, edge} -> {:cont, {:ok, [edge | acc]}}
-          {:error, _msg} = error -> {:halt, error}
-        end
-      end)
-
-    with {:ok, edges} <- edges, do: OCEx.wire(Enum.reverse(edges))
-  end
-
-  # Sections arrive in pop order (stack top first); loft order is push order.
-  defp section_wires(sections, op_name, i) do
-    sections
-    |> Enum.reverse()
-    |> Enum.with_index(1)
-    |> Enum.map(fn {section, idx} -> single_wire(section, op_name, i, "section #{idx}") end)
-    |> unwrap_all()
-  end
-
-  # A loft/sweep section must be a face with exactly one boundary wire.
-  defp single_wire(shape, op_name, i, label) do
-    case OCEx.wires(shape) do
-      {:ok, [wire]} ->
-        {:ok, wire}
-
-      {:ok, wires} ->
-        {:error,
-         "ocex: op #{i}: #{op_name} #{label} must have exactly one boundary wire (got #{length(wires)})"}
-
-      {:error, reason} ->
-        {:error, "ocex: op #{i}: #{op_name} failed (#{inspect(reason)})"}
-    end
-  end
-
   # --- transforms --------------------------------------------------------------
 
   defp apply_op(%{"op" => "translate", "delta" => [dx, dy, dz]}, [top | rest], _i) do
@@ -344,30 +300,6 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "chamfer"}, [], i),
     do: {:error, "ocex: op #{i}: chamfer needs a shape on the stack (stack is empty)"}
 
-  defp selected_edges(top, selector, i) do
-    with {:ok, faces} <- matching_faces(top, selector),
-         :ok <- nonempty_faces(faces, i),
-         {:ok, candidates} <- OCEx.edges(top),
-         {:ok, face_edges} <- unwrap_all(Enum.map(faces, &OCEx.edges/1)) do
-      wanted = List.flatten(face_edges)
-
-      case Enum.filter(candidates, fn edge -> Enum.any?(wanted, &same_edge?(edge, &1)) end) do
-        [] -> {:error, "ocex: op #{i}: selector matched no edges"}
-        matched -> {:ok, matched}
-      end
-    end
-  end
-
-  defp nonempty_faces([], i), do: {:error, "ocex: op #{i}: selector matched no faces"}
-  defp nonempty_faces(_faces, _i), do: :ok
-
-  defp same_edge?(a, b) do
-    case OCEx.same?(a, b) do
-      {:ok, result} -> result
-      _ -> false
-    end
-  end
-
   # `shell` hollows the top shape with wall thickness t; `open` is a list of
   # face selectors naming the faces removed as openings (no lid on a box).
   defp apply_op(%{"op" => "shell", "t" => t} = op, [top | rest], i) do
@@ -382,67 +314,6 @@ defmodule MnftOcex.Interpreter do
 
   defp apply_op(%{"op" => "shell"}, [], i),
     do: {:error, "ocex: op #{i}: shell needs a shape on the stack (stack is empty)"}
-
-  defp shell_openings(_top, [], _i), do: {:ok, []}
-
-  defp shell_openings(top, selectors, i) do
-    selectors
-    |> Enum.map(&matching_faces(top, &1))
-    |> unwrap_all()
-    |> case do
-      {:ok, groups} ->
-        case Enum.uniq(List.flatten(groups)) do
-          [] -> {:error, "ocex: op #{i}: selector matched no faces"}
-          openings -> {:ok, openings}
-        end
-
-      error ->
-        error
-    end
-  end
-
-  # --- face selectors -----------------------------------------------------------
-
-  # Two forms (validated statically):
-  #   {"normal": n, "through": p} — planar faces whose normal is ±parallel to
-  #                                 the unit of n and whose plane contains p
-  #   {"perpendicular": axis}     — planar faces whose normal ⊥ axis
-  defp matching_faces(shape, selector) do
-    case OCEx.faces(shape) do
-      {:ok, faces} -> {:ok, Enum.filter(faces, &face_matches?(&1, selector))}
-      {:error, _reason} = error -> error
-    end
-  end
-
-  defp face_matches?(face, selector) do
-    case OCEx.face_info(face) do
-      {:ok, %{type: :plane, normal: normal, center: center}} ->
-        plane_matches?(normal, center, selector)
-
-      _ ->
-        false
-    end
-  end
-
-  defp plane_matches?(normal, center, %{"perpendicular" => axis}) do
-    abs(dot(normal, unit(axis))) <= 1.0e-9
-  end
-
-  defp plane_matches?(normal, center, %{"normal" => sel_normal, "through" => through}) do
-    n = unit(sel_normal)
-
-    abs(abs(dot(normal, n)) - 1.0) <= 1.0e-9 and
-      abs(dot(normal, center) - dot(normal, to_tuple(through))) <= 1.0e-4
-  end
-
-  defp dot({ax, ay, az}, {bx, by, bz}), do: ax * bx + ay * by + az * bz
-
-  defp unit([x, y, z]) do
-    mag = :math.sqrt(x * x + y * y + z * z)
-    {x / mag, y / mag, z / mag}
-  end
-
-  defp to_tuple([x, y, z]), do: {x, y, z}
 
   # --- patterns ----------------------------------------------------------------
 
@@ -521,9 +392,6 @@ defmodule MnftOcex.Interpreter do
     end
   end
 
-  defp add({ax, ay, az}, {bx, by, bz}), do: {ax + bx, ay + by, az + bz}
-  defp scale({x, y, z}, k), do: {x * k, y * k, z * k}
-
   # `sweep` pops the path (top) and the profile face below it; the profile
   # must sit in the path's start plane, perpendicular to its start tangent.
   defp apply_op(%{"op" => "sweep"}, [path, profile | rest], i) do
@@ -574,6 +442,175 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "union"}, stack, i),
     do: {:error, "ocex: op #{i}: union needs two shapes on the stack (got #{length(stack)})"}
 
+  defp apply_op(%{"op" => "intersect"}, [tool, blank | rest], i) do
+    with {:ok, shape} <- OCEx.common(blank, tool) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: intersect failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "intersect"}, stack, i),
+    do:
+      {:error,
+       "ocex: op #{i}: intersect needs two shapes on the stack (got #{length(stack)})"}
+
+  defp apply_op(op, _stack, i),
+    do:
+      {:error,
+       "ocex: op #{i}: malformed op #{inspect(op)} (validation should have rejected this)"}
+  defp polyline_wire(vertices, true), do: closed_wire(vertices)
+  defp polyline_wire(vertices, false), do: open_wire(vertices)
+
+  defp close_or_wire(wire, true), do: OCEx.face(wire)
+  defp close_or_wire(wire, false), do: {:ok, wire}
+
+  # --- sketch helpers ----------------------------------------------------------
+
+  # Regular n-gon in the XY plane, circumradius r, centred on the origin,
+  # first vertex at angle `rot`. Returns a planar face.
+  defp regular_ngon_face(n, r, rot) do
+    step = 2 * :math.pi() / n
+
+    vertices =
+      for k <- 0..(n - 1) do
+        angle = rot + k * step
+        {r * :math.cos(angle), r * :math.sin(angle), 0.0}
+      end
+
+    with {:ok, wire} <- closed_wire(vertices), do: OCEx.face(wire)
+  end
+
+  defp closed_wire(vertices) do
+    chain_wire(Enum.zip(vertices, tl(vertices) ++ [hd(vertices)]))
+  end
+
+  defp open_wire(vertices), do: chain_wire(Enum.zip(vertices, tl(vertices)))
+
+  defp chain_wire(pairs) do
+    edges =
+      Enum.reduce_while(pairs, {:ok, []}, fn {a, b}, {:ok, acc} ->
+        case OCEx.edge(a, b) do
+          {:ok, edge} -> {:cont, {:ok, [edge | acc]}}
+          {:error, _msg} = error -> {:halt, error}
+        end
+      end)
+
+    with {:ok, edges} <- edges, do: OCEx.wire(Enum.reverse(edges))
+  end
+
+  # Sections arrive in pop order (stack top first); loft order is push order.
+  defp section_wires(sections, op_name, i) do
+    sections
+    |> Enum.reverse()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {section, idx} -> single_wire(section, op_name, i, "section #{idx}") end)
+    |> unwrap_all()
+  end
+
+  # A loft/sweep section must be a face with exactly one boundary wire.
+  defp single_wire(shape, op_name, i, label) do
+    case OCEx.wires(shape) do
+      {:ok, [wire]} ->
+        {:ok, wire}
+
+      {:ok, wires} ->
+        {:error,
+         "ocex: op #{i}: #{op_name} #{label} must have exactly one boundary wire (got #{length(wires)})"}
+
+      {:error, reason} ->
+        {:error, "ocex: op #{i}: #{op_name} failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp selected_edges(top, selector, i) do
+    with {:ok, faces} <- matching_faces(top, selector),
+         :ok <- nonempty_faces(faces, i),
+         {:ok, candidates} <- OCEx.edges(top),
+         {:ok, face_edges} <- unwrap_all(Enum.map(faces, &OCEx.edges/1)) do
+      wanted = List.flatten(face_edges)
+
+      case Enum.filter(candidates, fn edge -> Enum.any?(wanted, &same_edge?(edge, &1)) end) do
+        [] -> {:error, "ocex: op #{i}: selector matched no edges"}
+        matched -> {:ok, matched}
+      end
+    end
+  end
+
+  defp nonempty_faces([], i), do: {:error, "ocex: op #{i}: selector matched no faces"}
+  defp nonempty_faces(_faces, _i), do: :ok
+
+  defp same_edge?(a, b) do
+    case OCEx.same?(a, b) do
+      {:ok, result} -> result
+      _ -> false
+    end
+  end
+
+  defp shell_openings(_top, [], _i), do: {:ok, []}
+
+  defp shell_openings(top, selectors, i) do
+    selectors
+    |> Enum.map(&matching_faces(top, &1))
+    |> unwrap_all()
+    |> case do
+      {:ok, groups} ->
+        case Enum.uniq(List.flatten(groups)) do
+          [] -> {:error, "ocex: op #{i}: selector matched no faces"}
+          openings -> {:ok, openings}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  # --- face selectors -----------------------------------------------------------
+
+  # Two forms (validated statically):
+  #   {"normal": n, "through": p} — planar faces whose normal is ±parallel to
+  #                                 the unit of n and whose plane contains p
+  #   {"perpendicular": axis}     — planar faces whose normal ⊥ axis
+  defp matching_faces(shape, selector) do
+    case OCEx.faces(shape) do
+      {:ok, faces} -> {:ok, Enum.filter(faces, &face_matches?(&1, selector))}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp face_matches?(face, selector) do
+    case OCEx.face_info(face) do
+      {:ok, %{type: :plane, normal: normal, center: center}} ->
+        plane_matches?(normal, center, selector)
+
+      _ ->
+        false
+    end
+  end
+
+  defp plane_matches?(normal, _center, %{"perpendicular" => axis}) do
+    abs(dot(normal, unit(axis))) <= 1.0e-9
+  end
+
+  defp plane_matches?(normal, center, %{"normal" => sel_normal, "through" => through}) do
+    n = unit(sel_normal)
+
+    abs(abs(dot(normal, n)) - 1.0) <= 1.0e-9 and
+      abs(dot(normal, center) - dot(normal, to_tuple(through))) <= 1.0e-4
+  end
+
+  defp dot({ax, ay, az}, {bx, by, bz}), do: ax * bx + ay * by + az * bz
+
+  defp unit([x, y, z]) do
+    mag = :math.sqrt(x * x + y * y + z * z)
+    {x / mag, y / mag, z / mag}
+  end
+
+  defp to_tuple([x, y, z]), do: {x, y, z}
+
+  defp add({ax, ay, az}, {bx, by, bz}), do: {ax + bx, ay + by, az + bz}
+  defp scale({x, y, z}, k), do: {x * k, y * k, z * k}
+
   defp subtract_blank(blank, tool) do
     case OCEx.shape_type(tool) do
       {:ok, :compound} ->
@@ -593,24 +630,6 @@ defmodule MnftOcex.Interpreter do
         OCEx.fuse(blank, tool)
     end
   end
-
-  defp apply_op(%{"op" => "intersect"}, [tool, blank | rest], i) do
-    with {:ok, shape} <- OCEx.common(blank, tool) do
-      {:ok, [shape | rest]}
-    else
-      {:error, reason} -> {:error, "ocex: op #{i}: intersect failed (#{inspect(reason)})"}
-    end
-  end
-
-  defp apply_op(%{"op" => "intersect"}, stack, i),
-    do:
-      {:error,
-       "ocex: op #{i}: intersect needs two shapes on the stack (got #{length(stack)})"}
-
-  defp apply_op(op, _stack, i),
-    do:
-      {:error,
-       "ocex: op #{i}: malformed op #{inspect(op)} (validation should have rejected this)"}
 
   # --- helpers -----------------------------------------------------------------
 
@@ -640,9 +659,17 @@ defmodule MnftOcex.Interpreter do
   defp place(shape, op) do
     case Map.fetch(op, "at") do
       {:ok, [x, y, z]} -> OCEx.translate(shape, {x, y, z})
+      {:ok, _other} -> {:error, "ocex: invalid \"at\" (validation should have rejected this)"}
       :error -> {:ok, shape}
     end
   end
+
+  # Raw kernel error terms are not user-readable (and not always binaries);
+  # messages built by this module (e.g. from `place/2`) pass through.
+  defp primitive_error(_i, _name, reason) when is_binary(reason), do: {:error, reason}
+
+  defp primitive_error(i, name, reason),
+    do: {:error, "ocex: op #{i}: #{name} failed (#{inspect(reason)})"}
 
   defp unwrap_all(results) do
     results

@@ -538,4 +538,46 @@ defmodule MnftOcex.DialectTest do
     assert {:error, msg} = err(json)
     assert msg =~ "at most 256"
   end
+
+  # --- validator / prompt agreement (review fixes) -------------------------------
+
+  test "extrude without dir validates (prompt: default +z); zero dir is rejected" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "polygon", "n": 6, "r": 10}, {"op": "extrude", "h": 5}]}))
+
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "polygon", "n": 6, "r": 10}, {"op": "extrude", "h": 5, "dir": [0, 1, 1]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "extrude", "h": 5, "dir": [0, 0, 0]}]}))
+    assert msg =~ "must not be the zero vector"
+  end
+
+  test "a non-vector \"at\" is rejected statically on every placeable op" do
+    ops = [
+      %{"op" => "box", "size" => [1, 1, 1]},
+      %{"op" => "cylinder", "r" => 1, "h" => 1},
+      %{"op" => "sphere", "r" => 1},
+      %{"op" => "prism", "n" => 6, "r" => 1, "h" => 1},
+      %{"op" => "polygon", "n" => 6, "r" => 1}
+    ]
+
+    for op <- ops, bad_at <- ["nope", [1, 2], [1, 2, "z"]] do
+      json = Jason.encode!(%{"ops" => [Map.put(op, "at", bad_at)]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "\"at\"", "#{op["op"]} with at=#{inspect(bad_at)}: #{msg}"
+      assert msg =~ "op 1"
+    end
+  end
+
+  test "prism rot must be a finite number" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "prism", "n": 6, "r": 10, "h": 5, "rot": 30}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "prism", "n": 6, "r": 10, "h": 5, "rot": "x"}]}))
+    assert msg =~ "\"rot\" must be a finite number"
+  end
+
+  test "text length is counted in characters, not bytes" do
+    # 200 two-byte characters: 400 bytes but within the 256-character cap.
+    json = Jason.encode!(%{"ops" => [%{"op" => "text", "s" => String.duplicate("é", 200), "size" => 10}]})
+    assert {:ok, _} = err(json)
+  end
 end

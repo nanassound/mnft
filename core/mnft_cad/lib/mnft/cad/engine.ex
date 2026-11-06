@@ -17,8 +17,12 @@ defmodule Mnft.Cad.Engine do
         stage: :static_check | :exec,
         error: String.t() | nil,
         artifacts: %{model_id: String.t(), stl: path, step: path, glb: path | nil, script: path | nil} | nil,
-        mesh: %{triangles: term, bbox_mm: [x, y, z], volume_mm3: float} | nil,
+        mesh: %{"triangles" => term, "bbox_mm" => [x, y, z], "volume_mm3" => float} | nil,
         exec_ms: integer}
+
+  Mesh maps may be atom- or string-keyed; `Mnft.Cad.Turn` canonicalises them
+  to string keys before the rest of the pipeline reads them or the model is
+  persisted.
 
   `artifacts` carry absolute file paths. `execute/2` never raises; every
   failure mode lands in `ok: false`.

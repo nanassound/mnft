@@ -44,22 +44,22 @@ defmodule Mnft.Cad.PromptOcex do
   | intersect  | —                                        | common of the top two |
   | fillet_all | r                                        | replaces the top shape, every edge rounded to r |
   | chamfer_all | d                                       | replaces the top shape, every edge bevelled to d |
-  | fillet     | r, on[selector]                          | replaces the top shape, only the edges of the SELECTED faces rounded to r |
-  | chamfer    | d, on[selector]                          | replaces the top shape, only the edges of the SELECTED faces bevelled to d |
-  | polygon    | n, r, rot?, at?                          | planar n-gon FACE in the XY plane — a face, NOT a solid |
+  | fillet     | r, on:{selector}                         | replaces the top shape, only the edges of the SELECTED faces rounded to r (`on` is ONE selector object, not a list) |
+  | chamfer    | d, on:{selector}                         | replaces the top shape, only the edges of the SELECTED faces bevelled to d (`on` is ONE selector object, not a list) |
+  | polygon    | n 3..120, r, rot?, at?                   | planar n-gon FACE in the XY plane — a face, NOT a solid |
   | polyline   | pts:[[x,y,z]…], close?=true, at?         | planar face through the points (close:false → open wire for sweep paths) |
   | circle     | r, at?                                   | planar circular FACE in XY, centred at `at` — a face, NOT a solid; bores use `cylinder` |
-  | text       | s ≤ 256 chars, size (em), at?            | planar text FACE in the bundled varsity font, baseline at origin/`at`; `extrude` to emboss |
+  | text       | s ≤ 256 chars, size (em) ≤ 1000, at?     | planar text FACE in the bundled varsity font, baseline at origin/`at`; `extrude` to emboss |
   | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
-  | revolve    | axis:[x,y,z], at?[0,0,0], degrees?360    | pops the top FACE, pushes the solid swept about the axis through `at` (degrees ≤ 360) |
+  | revolve    | axis:[x,y,z], at?[0,0,0], degrees?360    | pops the top FACE, pushes the solid swept about the axis through `at` (degrees 1..360) |
   | loft       | sections 2..50                           | pops that many faces — first pushed = FIRST section — pushes a ruled solid through them |
   | sweep      | —                                        | pops the path (top) and the profile FACE below it, pushes the swept solid |
   | helix      | r, pitch, turns ≤ 25, at?                | pushes an open helix WIRE (a sweep path), CCW about +z, starting at [r,0,0]+at |
-  | rotate     | axis:[x,y,z], degrees                    | spins the top shape about a world axis through the origin |
+  | rotate     | axis:[x,y,z], degrees (±3600)            | spins the top shape about a world axis through the origin |
   | mirror     | normal:[x,y,z], at?[0,0,0]               | replaces the top shape with itself fused with its reflection across the plane through `at` |
   | scale      | factor                                   | replaces the top shape with a uniformly scaled copy about the WORLD ORIGIN |
   | pattern_linear | count 2..200, delta:[dx,dy,dz]       | replaces the top shape with itself fused with count−1 copies stepped by delta |
-  | pattern_circular | count 2..200, axis?[0,0,1], at?[0,0,0], degrees?360 | replaces the top shape with itself fused with count−1 copies rotated about `at` |
+  | pattern_circular | count 2..200, axis?[0,0,1], at?[0,0,0], degrees?360 (1..360) | replaces the top shape with itself fused with count−1 copies rotated about `at`; copies are spread over `degrees` in `count` EVEN STEPS of degrees/count, so degrees:180, count:4 spans 135° between first and last copy (only 360 closes the ring evenly) |
   | shell      | t, open[selector…]                       | hollows the top shape with wall t; `open` (required, ≥1) lists the faces removed as openings — no closed hollow |
 
   The model must:
@@ -68,7 +68,19 @@ defmodule Mnft.Cad.PromptOcex do
   - be centred on X/Y with its base on Z=0 — place primitives with `at` or
     finish with one `translate`;
   - use strict JSON: no comments, no trailing commas, no strings for numbers;
-  - stay under 200 ops.
+  - stay under 200 ops and 20 000 bytes of JSON; the program is rejected
+    otherwise.
+
+  Limits (enforced before the engine runs):
+  - coordinates and sizes: finite, magnitude ≤ 100 000 mm; sizes/radii/
+    heights/thicknesses must be positive and at least 0.000001 mm;
+  - `polyline`: 2..512 points, no two consecutive points identical;
+  - `shell` `open`: 1..8 selectors;
+  - `rotate` degrees within ±3600; `revolve`/`pattern_circular` degrees 1..360;
+  - `text` `s` at most 256 characters, `size` at most 1000;
+  - patterns total at most 1000 instances per program; `at` on `union`/`cut`/
+    `intersect` is rejected (they take no placement);
+  - `helix` turns > 0 and ≤ 25; `loft` sections 2..50.
 
   ocex gotchas (hit in real runs — follow exactly):
   - `polygon` pushes a FACE, not a solid: booleans and `fillet_all` need

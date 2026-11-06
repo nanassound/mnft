@@ -169,7 +169,7 @@ defmodule Mnft.Cad.Turn do
 
   defp exec_attempt(result, code, opts) do
     Events.emit(result.session_id, "exec_started", %{})
-    run = engine().execute(code, result.owner_id)
+    run = execute_engine(code, result.owner_id)
     Events.emit(result.session_id, "exec_done", %{})
 
     # rebind: the engine contract's exec_ms feeds the result meta + telemetry
@@ -360,7 +360,7 @@ defmodule Mnft.Cad.Turn do
   # time actually spent still lands in the turn's accounting.
   defp noop_exec(result, code2, _t0) when is_binary(code2) do
     Events.emit(result.session_id, "exec_started", %{noop: true})
-    run = engine().execute(code2, result.owner_id)
+    run = execute_engine(code2, result.owner_id)
     Events.emit(result.session_id, "exec_done", %{noop: true})
 
     result = Map.update(result, :exec_ms, 0, &(&1 + (run.exec_ms || 0)))
@@ -409,7 +409,7 @@ defmodule Mnft.Cad.Turn do
 
   defp repair_exec(result, code, next_round, max_rounds, turn_budget_s, history, images, current, vision?, t0) do
     Events.emit(result.session_id, "exec_started", %{repair: true})
-    run = engine().execute(code, result.owner_id)
+    run = execute_engine(code, result.owner_id)
     Events.emit(result.session_id, "exec_done", %{repair: true})
 
     result = Map.update(result, :exec_ms, 0, &(&1 + (run.exec_ms || 0)))
@@ -605,6 +605,25 @@ defmodule Mnft.Cad.Turn do
   defp artifact_urls(art) do
     %{model_id: art.model_id, stl: art.stl, step: art.step, glb: art.glb, script: art[:script]}
   end
+
+  # Engines may return atom- or string-keyed mesh maps (the OpenSCAD and ocex
+  # engines return `Stl.parse/1`'s atom keys; the Python worker returns JSON
+  # strings). Everything downstream — no-op detection, the bbox line, the
+  # persisted model — reads string keys, so canonicalise once at the boundary.
+  defp execute_engine(code, owner_id) do
+    run = engine().execute(code, owner_id)
+    Map.update(run, :mesh, nil, &canonical_mesh/1)
+  end
+
+  defp canonical_mesh(mesh) when is_map(mesh) do
+    Map.new(mesh, fn
+      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
+      pair -> pair
+    end)
+  end
+
+  defp canonical_mesh(mesh) when is_list(mesh), do: mesh |> Map.new() |> canonical_mesh()
+  defp canonical_mesh(other), do: other
 
   defp normalize_mesh(nil), do: %{}
 

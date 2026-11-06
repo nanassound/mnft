@@ -44,11 +44,11 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | Polygon / RegularPolygon | profile | 🟡 polygon covers regular n-gons; arbitrary polygons → polyline (✅) | |
 | Rectangle / Circle sketch | profile | ✅ circle | box covers rects; circle face in XY (a face, not a solid) |
 | Polyline + close | profile | ✅ polyline | L/T/I brackets, keyways, gaskets |
-| Spline / Bézier | profile | ❌ | organic 2D outlines (OCEx has spline) |
+| Spline / Bézier | profile | ❌ | organic 2D outlines: no dialect op (OCEx `spline` is used only inside `helix`) |
 | Slot / Tee / Trapezoid sketches | profile | 🟡 sugar over polyline | thin wrappers; add on demand |
 | extrude | sweep | ✅ | |
 | revolve | sweep | ✅ revolve | profile plane must contain the axis (kernel accepts a perpendicular profile with zero volume) |
-| sweep along path | sweep | ✅ sweep / helix | profile at the path start, ⊥ to its tangent (helix wires carry an exact-tangent stub for the kernel's 1e-7 alignment check) |
+| sweep along path | sweep | ✅ sweep / helix | profile at the path start, ⊥ to its tangent. `helix` is a spline APPROXIMATION through `round(turns*48)+1` samples, led in by a 0.5 µm straight stub on the exact analytic tangent (the kernel's 1e-7 alignment check); tests hold it to 1% of the analytic arc length and 5% of the swept thread volume |
 | loft | sweep | ✅ loft | ruled; sections in push order |
 | offset / shell | finishing | ✅ shell | hollows the body; `open` selector (required ≥1) removes a lid/wall (kernel: no closed hollow; offset stays ❌) |
 | fillet/chamfer all edges | finishing | ✅ fillet_all / chamfer_all | |
@@ -77,7 +77,8 @@ values where OCCT geometry is not a naive analytic solid (dated comments).
 ## Remaining gaps (value ÷ effort)
 
 1. Arc / spline 2D outlines — `polyline` covers straight edges only; OCEx has
-   `arc` and `spline` bindings. Unlocks organic profiles and filleted 2D
+   an `arc` binding the dialect does not expose, and `spline` is used only
+   inside `helix`. Unlocks organic profiles and filleted 2D
    sketches. Consider a `profile` op that chains line/arc/spline segments.
 2. Slot / Tee / Trapezoid sugar — thin wrappers over `polyline`; add on
    telemetry demand, not speculatively.

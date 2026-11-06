@@ -13,7 +13,7 @@ defmodule MnftOcex.MixProject do
       deps: deps(),
       description:
         "Native OCEx engine pack for mnft_cad: executes the ocex JSON construction " <>
-          "dialect in the BEAM via OCEx (Open CASCADE Technology) NIFs. Full STEP/STL fidelity.",
+          "dialect in the BEAM via OCEx (Open CASCADE Technology) NIFs. STEP and STL export.",
       name: "mnft_cad_ocex"
     ]
   end

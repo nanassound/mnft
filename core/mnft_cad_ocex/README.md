@@ -2,7 +2,8 @@
 
 Native engine pack for [`mnft_cad`](../mnft_cad): executes the **ocex** JSON
 construction dialect in the BEAM via [OCEx](https://hex.pm/packages/ocex)
-native bindings to Open CASCADE Technology 7.9.3. Full STEP + STL fidelity,
+native bindings to Open CASCADE Technology 7.9.3. Exact B-rep STEP + STL
+export (helix sweeps are a tolerance-backed spline approximation),
 no Python, no external binary — the compiled NIF is the runtime.
 
 The core stays pure Elixir; only consumers that opt into this pack compile

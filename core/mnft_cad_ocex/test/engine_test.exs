@@ -70,4 +70,77 @@ defmodule MnftOcex.EngineTest do
     assert run.stage == :exec
     assert run.error =~ "exactly one shape"
   end
+
+  # --- prompt-shaped programs end to end (review fixes B2/M1/M2/M4) -------------
+
+  test "a prompt-shaped polygon + extrude (no dir) runs through the engine" do
+    code = ~s({"ops":[{"op":"polygon","n":6,"r":10},{"op":"extrude","h":5}]})
+    run = Engine.execute(code, "engine-test-owner")
+
+    assert run.ok, "expected ok, got: #{inspect(run.error)}"
+    # Regular hexagon: 6 triangles of area (1/2) r^2 sin(2 pi / 6), extruded 5 mm.
+    expected = 6 * 0.5 * 100 * :math.sin(2 * :math.pi() / 6) * 5
+    assert_in_delta run.mesh.volume_mm3, expected, expected * 0.01
+    assert run.artifacts.script =~ "model.ocex.json"
+    assert File.exists?(run.artifacts.script)
+  end
+
+  test "a non-vector \"at\" on a primitive fails at static_check, not exec" do
+    run = Engine.execute(~s({"ops":[{"op":"box","size":[1,1,1],"at":"bad"}]}), "engine-test-owner")
+
+    assert run.ok == false
+    assert run.stage == :static_check
+    assert run.error =~ "\"at\""
+  end
+
+  test "a prism with a non-numeric rot fails at static_check" do
+    code = ~s({"ops":[{"op":"prism","n":6,"r":10,"h":5,"rot":"x"}]})
+    run = Engine.execute(code, "engine-test-owner")
+
+    assert run.ok == false
+    assert run.stage == :static_check
+    assert run.error =~ "\"rot\""
+  end
+
+  describe "wall-clock bound" do
+    setup do
+      prior = Application.get_env(:mnft_cad, :cad)
+      on_exit(fn -> Application.put_env(:mnft_cad, :cad, prior) end)
+      Application.put_env(:mnft_cad, :cad, Keyword.put(prior, :exec_timeout_s, 1))
+      :ok
+    end
+
+    test "a caller queued behind a saturated limiter times out, and no permit leaks" do
+      parent = self()
+      capacity = Mnft.Cad.Config.get(:exec_concurrency)
+
+      holders =
+        for n <- 1..capacity do
+          spawn_link(fn ->
+            Mnft.Cad.ExecLimiter.run(fn ->
+              send(parent, {:holding, n})
+
+              receive do
+                :release -> :ok
+              end
+            end)
+          end)
+        end
+
+      for n <- 1..capacity, do: assert_receive({:holding, ^n}, 5_000)
+
+      code = ~s({"ops":[{"op":"box","size":[1,1,1]}]})
+      run = Engine.execute(code, "engine-test-owner")
+
+      assert run.ok == false
+      assert run.stage == :exec
+      assert run.error =~ "wall clock"
+      assert run.exec_ms >= 900
+
+      for pid <- holders, do: send(pid, :release)
+
+      # Every permit is back: the engine runs again at once.
+      assert Engine.execute(code, "engine-test-owner").ok
+    end
+  end
 end

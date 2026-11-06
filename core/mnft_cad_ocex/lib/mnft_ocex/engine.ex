@@ -13,6 +13,12 @@ defmodule MnftOcex.Engine do
   Caveats inherited from OCEx:
 
   - kernel calls are serialised per BEAM node and cannot be cancelled;
+  - the caller is bounded by `:exec_timeout_s` (default 60 s): on timeout it
+    gets a `:exec` error immediately. The NIF itself keeps running; a call
+    already inside the kernel is left to finish so its `ExecLimiter` permit
+    returns when it does (a kernel call that NEVER returns costs its permit
+    for good — run this engine in its own node), while a call still queued for
+    a permit is killed;
   - a native fault in OCCT kills the whole VM — in production, run this
     engine in its own BEAM node/container so a geometry crash cannot take
     the web application down;
@@ -72,13 +78,56 @@ defmodule MnftOcex.Engine do
         File.write!(script, code)
         started = System.monotonic_time(:millisecond)
 
-        result = Mnft.Cad.ExecLimiter.run(fn -> Interpreter.run(ops) end)
+        result = run_bounded(ops, (cfg[:exec_timeout_s] || 60) * 1000)
         exec_ms = System.monotonic_time(:millisecond) - started
 
         finish(result, model_dir, model_id, script, exec_ms)
 
       {:error, reason} ->
         fail(:exec, "ocex: cannot create model dir: #{inspect(reason)}")
+    end
+  end
+
+  # Runs the interpreter under the ExecLimiter in a task so the caller is
+  # bounded by `timeout_ms` (queue wait + kernel time). The task reports
+  # `:running` once it holds a permit; that tells a timeout whether the kernel
+  # is mid-call (can't be cancelled — leave it, its `after` returns the permit)
+  # or still queued (safe to kill).
+  defp run_bounded(ops, timeout_ms) do
+    parent = self()
+    ref = make_ref()
+
+    task =
+      Task.async(fn ->
+        try do
+          Mnft.Cad.ExecLimiter.run(fn ->
+            send(parent, {ref, :running})
+            Interpreter.run(ops)
+          end)
+        catch
+          kind, value -> {:error, "ocex runner failure: #{kind} #{inspect(value)}"}
+        end
+      end)
+
+    outcome = Task.yield(task, timeout_ms)
+
+    running? =
+      receive do
+        {^ref, :running} -> true
+      after
+        0 -> false
+      end
+
+    case outcome do
+      {:ok, result} ->
+        result
+
+      {:exit, reason} ->
+        {:error, "ocex: runner crashed (#{inspect(reason)})"}
+
+      nil ->
+        if running?, do: Task.ignore(task), else: Task.shutdown(task, :brutal_kill)
+        {:error, "ocex: execution exceeded the #{div(timeout_ms, 1000)}s wall clock"}
     end
   end
 
@@ -107,16 +156,22 @@ defmodule MnftOcex.Engine do
         exec_ms: exec_ms
       }
     else
-      {:error, reason} -> fail(:exec, "ocex: export failed (#{inspect(reason)})")
-      {:ok, unexpected} -> fail(:exec, "ocex: export returned #{inspect(unexpected)}")
+      {:error, reason} ->
+        fail(:exec, "ocex: export failed (#{inspect(reason)})", exec_ms)
+
+      {:ok, unexpected} ->
+        fail(:exec, "ocex: export returned #{inspect(unexpected)}", exec_ms)
     end
   end
 
-  defp finish({:error, reason}, _model_dir, _model_id, _script, _exec_ms) do
-    fail(:exec, reason)
+  defp finish({:error, reason}, _model_dir, _model_id, _script, exec_ms) do
+    fail(:exec, reason, exec_ms)
   end
 
-  defp fail(stage, error) do
-    %{ok: false, stage: stage, error: error, artifacts: nil, mesh: nil, exec_ms: 0}
+  # Non-binary reasons (raw OCEx error terms) are inspected: downstream
+  # consumers `String.slice/3` the error.
+  defp fail(stage, error, exec_ms \\ 0) do
+    error = if is_binary(error), do: error, else: inspect(error)
+    %{ok: false, stage: stage, error: error, artifacts: nil, mesh: nil, exec_ms: exec_ms}
   end
 end

@@ -93,6 +93,26 @@ defmodule Mnft.Cad.TurnTest do
     assert hd(EngineFake.calls()).owner_id == owner
   end
 
+  test "an atom-keyed engine mesh is canonicalised for the result and the persisted model", %{
+    session: session
+  } do
+    atom_mesh = %{triangles: 12, bbox_mm: [30.0, 30.0, 30.0], volume_mm3: 27_000.0}
+
+    LLMFake.set_script([llm_ok("```python\npart = Box(30, 30, 30)\n```")])
+    EngineFake.set_script([%{ok_worker() | mesh: atom_mesh}])
+
+    result = run_turn(session)
+
+    assert result.ok
+    assert result.mesh["volume_mm3"] == 27_000.0
+    assert result.mesh["bbox_mm"] == [30.0, 30.0, 30.0]
+
+    model = Cad.latest_model(session.id)
+    assert model.mesh["volume_mm3"] == 27_000.0
+    assert model.mesh["bbox_mm"] == [30.0, 30.0, 30.0]
+    assert model.mesh["triangles"] == 12
+  end
+
   test "first exec fails -> exactly one repair succeeds (repaired: true)", %{session: session} do
     LLMFake.set_script([
       llm_ok("```python\npart = Box(1, 1, 1)\n```"),

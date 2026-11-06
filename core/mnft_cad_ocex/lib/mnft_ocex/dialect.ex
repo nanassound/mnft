@@ -7,19 +7,13 @@ defmodule MnftOcex.Dialect do
   Validation happens before any native call, so malformed programs fail at
   `:static_check` without touching OCEx.
 
-  Ops (millimetre units):
+  29 ops (millimetre units); `Mnft.Cad.PromptOcex` in the core holds the
+  normative op table the model is shown, and this module enforces exactly it.
 
-      box       {"size": [x, y, z], "at": [x, y, z]?}   corner-anchored solid
-      cylinder  {"r": r, "h": h, "at": [x, y, z]?}      base-centred, extends +z
-      sphere    {"r": r, "at": [x, y, z]?}              centred at `at`
-      prism     {"n": n, "r": r, "h": h, "at": [x, y, z]?, "rot": deg?}
-                regular n-gon (3..64) extruded h along +z; `r` is the
-                circumradius, base-centred at `at`, first vertex at angle `rot`
-      translate {"delta": [dx, dy, dz]}                 moves the top shape
-      union | cut | intersect                          consumes the top two
-      fillet_all {"r": r}                               rounds every edge
-
-  Extra keys are ignored; missing or malformed required keys are rejected.
+  Rules: missing or malformed required keys are rejected. Unknown keys are
+  ignored, with one exception — a malformed `at` is rejected on every op that
+  takes it, and `at` is rejected outright on the boolean/stack ops
+  (`union`, `cut`, `intersect`).
   """
 
   @max_ops 200
@@ -120,14 +114,21 @@ defmodule MnftOcex.Dialect do
   defp check_op(_other, i),
     do: {:error, "ocex: op #{i}: every op must be an object with an \"op\" key"}
 
-  defp check_params("box", op, i),
-    do: vec3(op, "size", i, &positive_num?/1, "positive numbers of millimetres below #{@max_coord}")
-
-  defp check_params("cylinder", op, i) do
-    with :ok <- positive(op, "r", i), do: positive(op, "h", i)
+  defp check_params("box", op, i) do
+    with :ok <-
+           vec3(op, "size", i, &positive_num?/1, "positive numbers of millimetres below #{@max_coord}"),
+         do: optional_at(op, i)
   end
 
-  defp check_params("sphere", op, i), do: positive(op, "r", i)
+  defp check_params("cylinder", op, i) do
+    with :ok <- positive(op, "r", i),
+         :ok <- positive(op, "h", i),
+         do: optional_at(op, i)
+  end
+
+  defp check_params("sphere", op, i) do
+    with :ok <- positive(op, "r", i), do: optional_at(op, i)
+  end
 
   defp check_params("translate", op, i), do: vec3(op, "delta", i, &coord?/1, "finite numbers")
 
@@ -140,7 +141,8 @@ defmodule MnftOcex.Dialect do
   defp check_params("polygon", op, i) do
     with :ok <- ngon_n(op, i),
          :ok <- positive(op, "r", i),
-         do: optional_number(op, "rot", i)
+         :ok <- optional_number(op, "rot", i),
+         do: optional_at(op, i)
   end
 
   defp check_params("pattern_linear", op, i) do
@@ -178,8 +180,6 @@ defmodule MnftOcex.Dialect do
     end
   end
 
-  # `sweep` takes no params (extra keys ignored, as everywhere).
-
   defp check_params("cone", op, i) do
     with :ok <- positive(op, "r1", i),
          :ok <- nonneg(op, "r2", i),
@@ -199,8 +199,9 @@ defmodule MnftOcex.Dialect do
     end
   end
 
+  # `dir` is optional (prompt: default +z); the interpreter defaults it.
   defp check_params("extrude", op, i) do
-    with :ok <- positive(op, "h", i), do: nonzero_vec3(op, "dir", i)
+    with :ok <- positive(op, "h", i), do: optional_nonzero_vec3(op, "dir", i)
   end
 
   defp check_params("rotate", op, i) do
@@ -233,13 +234,6 @@ defmodule MnftOcex.Dialect do
     with :ok <- positive(op, "d", i), do: require_selector(op, i)
   end
 
-  defp require_selector(op, i) do
-    case Map.fetch(op, "on") do
-      {:ok, selector} -> validate_selector(selector, i)
-      :error -> {:error, "ocex: op #{i}: missing \"on\""}
-    end
-  end
-
   defp check_params("circle", op, i) do
     with :ok <- positive(op, "r", i), do: optional_at(op, i)
   end
@@ -251,14 +245,44 @@ defmodule MnftOcex.Dialect do
     end
   end
 
-  @max_text_bytes 256
+  defp check_params("shell", op, i) do
+    with :ok <- positive(op, "t", i), do: require_open(op, i)
+  end
+
+  defp check_params("prism", op, i) do
+    with :ok <- sides(op, i),
+         :ok <- positive(op, "r", i),
+         :ok <- positive(op, "h", i),
+         :ok <- optional_number(op, "rot", i) do
+      optional_at(op, i)
+    end
+  end
+
+  defp check_params(name, op, i) when name in @stack_ops do
+    case Map.fetch(op, "at") do
+      :error -> :ok
+      {:ok, _} -> {:error, "ocex: op #{i}: \"#{name}\" takes no \"at\""}
+    end
+  end
+
+  # `sweep` takes no params; the remaining ops have no extra constraints.
+  defp check_params(_name, _op, _i), do: :ok
+
+  defp require_selector(op, i) do
+    case Map.fetch(op, "on") do
+      {:ok, selector} -> validate_selector(selector, i)
+      :error -> {:error, "ocex: op #{i}: missing \"on\""}
+    end
+  end
+
+  @max_text_chars 256
 
   defp text_s(op, i) do
     case Map.fetch(op, "s") do
       {:ok, s} when is_binary(s) ->
         cond do
-          byte_size(s) > @max_text_bytes ->
-            {:error, "ocex: op #{i}: \"s\" must be at most #{@max_text_bytes} characters"}
+          String.length(s) > @max_text_chars ->
+            {:error, "ocex: op #{i}: \"s\" must be at most #{@max_text_chars} characters"}
 
           String.trim(s) == "" ->
             {:error, "ocex: op #{i}: \"s\" must be a non-empty string"}
@@ -286,26 +310,6 @@ defmodule MnftOcex.Dialect do
         {:error, "ocex: op #{i}: missing \"size\""}
     end
   end
-
-  defp check_params("shell", op, i) do
-    with :ok <- positive(op, "t", i), do: require_open(op, i)
-  end
-
-  defp check_params("prism", op, i) do
-    with :ok <- sides(op, i),
-         :ok <- positive(op, "r", i) do
-      positive(op, "h", i)
-    end
-  end
-
-  defp check_params(name, op, i) when name in @stack_ops do
-    case Map.fetch(op, "at") do
-      :error -> :ok
-      {:ok, _} -> {:error, "ocex: op #{i}: \"#{name}\" takes no \"at\""}
-    end
-  end
-
-  defp check_params(_name, _op, _i), do: :ok
 
   defp sides(op, i) do
     case Map.fetch(op, "n") do

@@ -8,16 +8,24 @@ defmodule MnftCadWeb.CadModelController do
     "model.step" => "application/step",
     "model.glb" => "model/gltf-binary",
     "model.py" => "text/x-python",
-    "model.scad" => "text/plain"
+    "model.scad" => "text/plain",
+    "model.ocex.json" => "application/json"
   }
 
   @doc """
   Download one artifact. Scoped by the cookie owner: a model id is only
   resolvable for its owner. Invariant: nothing outside
-  model.stl/step/glb/py/scad is ever served.
+  model.stl/step/glb/py/scad/ocex.json is ever served.
   """
   def download(conn, %{"model_id" => model_id, "filename" => filename})
-      when filename in ["model.stl", "model.step", "model.glb", "model.py", "model.scad"] do
+      when filename in [
+             "model.stl",
+             "model.step",
+             "model.glb",
+             "model.py",
+             "model.scad",
+             "model.ocex.json"
+           ] do
     owner_id = conn.assigns.owner_id
 
     with %Cad.Model{} = model <- Cad.get_model(owner_id, model_id),

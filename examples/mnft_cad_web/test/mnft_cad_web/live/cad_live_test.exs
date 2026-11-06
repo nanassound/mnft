@@ -130,6 +130,11 @@ defmodule MnftCadWeb.CadLiveTest do
              %{kind: :plain, text: "2 * 3 * 4 and a ** stray"}
            ]
 
+    # lone markers with no closing partner never become empty emphasis/code
+    assert CadLive.inline_tokens("a lone * and a lone ` here") == [
+             %{kind: :plain, text: "a lone * and a lone ` here"}
+           ]
+
     # multibyte neighbours split exactly; markers excluded from inner text
     assert CadLive.inline_tokens("- **Holes:** two Ø3.5 mm *clearance* holes") == [
              %{kind: :plain, text: "- "},
