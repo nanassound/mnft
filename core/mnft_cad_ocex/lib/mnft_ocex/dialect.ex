@@ -28,12 +28,12 @@ defmodule MnftOcex.Dialect do
   @min_positive 1.0e-6
 
   @stack_ops ~w(union cut intersect)
-  @shape_ops ~w(box cylinder sphere prism)
+  @shape_ops ~w(box cylinder sphere prism cone torus)
   @profile_ops ~w(polygon polyline)
   @pattern_ops ~w(pattern_linear pattern_circular)
   @max_points 512
   @max_pattern_instances 1000
-  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all extrude rotate)
+  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all extrude rotate revolve loft)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   def validate(code) when is_binary(code) do
@@ -151,6 +151,34 @@ defmodule MnftOcex.Dialect do
          :ok <- optional_nonzero_vec3(op, "axis", i),
          :ok <- optional_degrees(op, i) do
       optional_at(op, i)
+    end
+  end
+
+  defp check_params("revolve", op, i) do
+    with :ok <- nonzero_vec3(op, "axis", i),
+         :ok <- optional_degrees(op, i) do
+      optional_at(op, i)
+    end
+  end
+
+  defp check_params("loft", op, i), do: sections(op, i)
+
+  defp check_params("cone", op, i) do
+    with :ok <- positive(op, "r1", i),
+         :ok <- nonneg(op, "r2", i),
+         :ok <- positive(op, "h", i) do
+      optional_at(op, i)
+    end
+  end
+
+  defp check_params("torus", op, i) do
+    with :ok <- positive(op, "R", i),
+         :ok <- positive(op, "r", i) do
+      if op["r"] < op["R"] do
+        optional_at(op, i)
+      else
+        {:error, "ocex: op #{i}: \"r\" must be smaller than \"R\""}
+      end
     end
   end
 
@@ -351,6 +379,32 @@ defmodule MnftOcex.Dialect do
 
       :error ->
         {:error, "ocex: op #{i}: missing \"count\""}
+    end
+  end
+
+  defp sections(op, i) do
+    case Map.fetch(op, "sections") do
+      {:ok, n} when is_integer(n) and n >= 2 and n <= 50 ->
+        :ok
+
+      {:ok, _other} ->
+        {:error, "ocex: op #{i}: \"sections\" must be an integer from 2 to 50"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"sections\""}
+    end
+  end
+
+  # Zero allowed (cone r2 = apex); kernel rejects r1 == r2 at runtime.
+  defp nonneg(op, key, i) do
+    case Map.fetch(op, key) do
+      {:ok, value} ->
+        if is_number(value) and finite?(value) and value >= 0,
+          do: :ok,
+          else: {:error, "ocex: op #{i}: \"#{key}\" must be a number >= 0"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"#{key}\""}
     end
   end
 

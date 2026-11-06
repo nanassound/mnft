@@ -45,7 +45,7 @@ defmodule MnftOcex.EngineTest do
   end
 
   test "an unknown op fails at static_check without touching the kernel" do
-    run = Engine.execute(~s({"ops": [{"op": "loft", "n": 2}]}), "engine-test-owner")
+    run = Engine.execute(~s({"ops": [{"op": "gear", "n": 12}]}), "engine-test-owner")
     assert run.ok == false
     assert run.stage == :static_check
     assert run.error =~ "unknown op"

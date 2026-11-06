@@ -63,6 +63,20 @@ defmodule MnftOcex.Interpreter do
     end
   end
 
+  defp apply_op(%{"op" => "cone", "r1" => r1, "r2" => r2, "h" => h} = op, stack, _i) do
+    with {:ok, shape} <- OCEx.cone(r1, r2, h),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    end
+  end
+
+  defp apply_op(%{"op" => "torus", "R" => major, "r" => minor} = op, stack, _i) do
+    with {:ok, shape} <- OCEx.torus(major, minor),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    end
+  end
+
   # Sketch-layer seed: `polygon` pushes a planar n-gon FACE; `extrude` turns a
   # face into a solid. Named solids like `prism` are sugar over this pair.
   defp apply_op(%{"op" => "polygon", "n" => n, "r" => r} = op, stack, _i) do
@@ -109,6 +123,43 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "extrude"}, [], i),
     do: {:error, "ocex: op #{i}: extrude needs a face on the stack (stack is empty)"}
 
+  # `revolve` pops a face and sweeps it about the axis through `at`
+  # (right-hand rule). The profile plane must CONTAIN the axis: the kernel
+  # silently builds a zero-volume solid for a profile at right angles to it.
+  defp apply_op(%{"op" => "revolve", "axis" => [x, y, z]} = op, [top | rest], i) do
+    [ax, ay, az] = Map.get(op, "at", [0, 0, 0])
+    degrees = Map.get(op, "degrees", 360) * 1.0
+
+    with {:ok, shape} <- OCEx.revolve(top, {ax, ay, az}, {x, y, z}, degrees) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} ->
+        {:error,
+         "ocex: op #{i}: revolve needs a planar face on the stack (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "revolve"}, [], i),
+    do: {:error, "ocex: op #{i}: revolve needs a face on the stack (stack is empty)"}
+
+  # `loft` pops `sections` faces (first pushed = first section) and rules a
+  # capped solid through their boundary wires.
+  defp apply_op(%{"op" => "loft", "sections" => n}, stack, i) do
+    if n > length(stack) do
+      {:error, "ocex: op #{i}: loft needs #{n} faces on the stack (got #{length(stack)})"}
+    else
+      {sections, rest} = Enum.split(stack, n)
+
+      with {:ok, wires} <- section_wires(sections, "loft", i),
+           {:ok, shape} <- OCEx.loft(wires, ruled: true) do
+        {:ok, [shape | rest]}
+      else
+        {:error, reason} when is_binary(reason) -> {:error, reason}
+        {:error, reason} -> {:error, "ocex: op #{i}: loft failed (#{inspect(reason)})"}
+      end
+    end
+  end
+
   defp apply_op(%{"op" => "rotate", "axis" => [x, y, z], "degrees" => degrees}, [top | rest], i) do
     with {:ok, shape} <- OCEx.rotate(top, {0.0, 0.0, 0.0}, {x, y, z}, degrees * 1.0) do
       {:ok, [shape | rest]}
@@ -152,6 +203,30 @@ defmodule MnftOcex.Interpreter do
       end)
 
     with {:ok, edges} <- edges, do: OCEx.wire(Enum.reverse(edges))
+  end
+
+  # Sections arrive in pop order (stack top first); loft order is push order.
+  defp section_wires(sections, op_name, i) do
+    sections
+    |> Enum.reverse()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {section, idx} -> single_wire(section, op_name, i, "section #{idx}") end)
+    |> unwrap_all()
+  end
+
+  # A loft/sweep section must be a face with exactly one boundary wire.
+  defp single_wire(shape, op_name, i, label) do
+    case OCEx.wires(shape) do
+      {:ok, [wire]} ->
+        {:ok, wire}
+
+      {:ok, wires} ->
+        {:error,
+         "ocex: op #{i}: #{op_name} #{label} must have exactly one boundary wire (got #{length(wires)})"}
+
+      {:error, reason} ->
+        {:error, "ocex: op #{i}: #{op_name} failed (#{inspect(reason)})"}
+    end
   end
 
   # --- transforms --------------------------------------------------------------

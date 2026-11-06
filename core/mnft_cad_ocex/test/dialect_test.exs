@@ -67,9 +67,9 @@ defmodule MnftOcex.DialectTest do
   end
 
   test "rejects an unknown op" do
-    assert {:error, msg} = err(~s({"ops": [{"op": "torus", "r": 5}]}))
+    assert {:error, msg} = err(~s({"ops": [{"op": "gear", "n": 12}]}))
     assert msg =~ "unknown op"
-    assert msg =~ "torus"
+    assert msg =~ "gear"
   end
 
   test "rejects an op without an op key" do
@@ -304,5 +304,55 @@ defmodule MnftOcex.DialectTest do
     }
 
     assert {:ok, _} = err(Jason.encode!(ops))
+  end
+
+  # --- sweeps: revolve / loft, named solids: cone / torus ----------------------
+
+  test "revolve validates a nonzero axis and optional degrees/at" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "revolve", "axis": [0, 0, 1]}]}))
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "revolve", "axis": [1, 0, 1], "degrees": 270.5, "at": [0, 0, 5]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "revolve", "axis": [0, 0, 0]}]}))
+    assert msg =~ "zero vector"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "revolve", "axis": [0, 0, 1], "degrees": 0}]}))
+    assert msg =~ "from 1 to 360"
+  end
+
+  test "loft validates sections as an integer from 2 to 50" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "loft", "sections": 2}]}))
+
+    for sections <- [1, 2.5, 51] do
+      json = Jason.encode!(%{"ops" => [%{"op" => "loft", "sections" => sections}]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "from 2 to 50"
+    end
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "loft"}]}))
+    assert msg =~ "missing \"sections\""
+  end
+
+  test "cone validates r1, nonneg r2 and h" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "cone", "r1": 10, "r2": 0, "h": 20}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "cone", "r1": 10, "r2": -1, "h": 20}]}))
+    assert msg =~ "\"r2\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "cone", "r1": 0, "r2": 5, "h": 20}]}))
+    assert msg =~ "\"r1\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "cone", "r1": 10, "r2": 5}]}))
+    assert msg =~ "missing \"h\""
+  end
+
+  test "torus rejects r >= R" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "torus", "R": 20, "r": 4}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "torus", "R": 4, "r": 4}]}))
+    assert msg =~ "smaller than"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "torus", "R": 4, "r": 5}]}))
+    assert msg =~ "smaller than"
   end
 end

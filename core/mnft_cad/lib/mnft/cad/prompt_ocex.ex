@@ -36,6 +36,8 @@ defmodule Mnft.Cad.PromptOcex do
   | cylinder   | r, h, at:[x,y,z]?                        | solid, base-centred at `at` (default origin), extends +z |
   | sphere     | r, at:[x,y,z]?                           | solid, centred at `at` (default origin) |
   | prism      | n, r, h, at:[x,y,z]?, rot?               | solid regular n-gon (3..64) extruded h along +z; `r` is the CIRCUMRADIUS (vertex distance), base-centred at `at`, first vertex at `rot` degrees from +x. n=6 gives a hexagon |
+  | cone       | r1, r2, h, at?                           | solid cone/frustum: radius r1 at z=0 narrowing to r2 at z=h (r2=0 → apex); keep r1 ≠ r2 |
+  | torus      | R, r, at?                                | solid ring torus about the z axis, centred at `at` (major R, tube r < R) |
   | translate  | delta:[dx,dy,dz]                         | replaces the top shape with its moved copy |
   | union      | —                                        | fuse of the top two |
   | cut        | —                                        | blank minus tool |
@@ -44,6 +46,8 @@ defmodule Mnft.Cad.PromptOcex do
   | polygon    | n, r, rot?, at?                          | planar n-gon FACE in the XY plane — a face, NOT a solid |
   | polyline   | pts:[[x,y,z]…], close?=true, at?         | planar face through the points (close:false → open wire for sweep paths) |
   | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
+  | revolve    | axis:[x,y,z], at?[0,0,0], degrees?360    | pops the top FACE, pushes the solid swept about the axis through `at` (degrees ≤ 360) |
+  | loft       | sections 2..50                           | pops that many faces — first pushed = FIRST section — pushes a ruled solid through them |
   | rotate     | axis:[x,y,z], degrees                    | spins the top shape about a world axis through the origin |
   | pattern_linear | count 2..200, delta:[dx,dy,dz]       | replaces the top shape with itself fused with count−1 copies stepped by delta |
   | pattern_circular | count 2..200, axis?[0,0,1], at?[0,0,0], degrees?360 | replaces the top shape with itself fused with count−1 copies rotated about `at` |
@@ -62,6 +66,12 @@ defmodule Mnft.Cad.PromptOcex do
   - A closed `polyline` builds a planar FACE — keep all its points in one
     plane (XY is easiest). An open (`close:false`) polyline is a PATH, not a
     shape; it exists only to be swept.
+  - A `revolve` profile must lie in a plane CONTAINING the axis and must not
+    cross it: for axis z keep all `pts` at one fixed coordinate (e.g. every
+    point y=0, x>0, varying z). A profile at right angles to the axis is
+    silently built with ZERO volume — check x > 0 for axis z.
+  - `loft` pops sections in stack order: push the FIRST section first, last
+    section last, then one `loft` op with `sections` = number of faces.
   - `extrude` direction must point OUT of the face's plane (for `polygon`
     faces, keep a nonzero z in `dir`) — in-plane extrusion is rejected as
     degenerate.

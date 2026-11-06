@@ -21,9 +21,9 @@ sugar over profiles + sweeps, never new machinery.
 
 | layer | dialect ops | status |
 |---|---|---|
-| named solids | box, cylinder, sphere, prism (sugar: polygon+extrude) | ✅ |
-| profiles | polygon | ✅ seed — polyline+arc+spline+slot missing |
-| sweeps | extrude | ✅ — revolve, sweep, loft missing (OCEx has all three) |
+| named solids | box, cylinder, sphere, prism (sugar: polygon+extrude), cone, torus | ✅ |
+| profiles | polygon, polyline | ✅ seed — arc+spline+slot missing |
+| sweeps | extrude, revolve, loft | ✅ — sweep/helix land with the thread batch |
 | booleans | union, cut, intersect | ✅ |
 | transforms | translate, rotate | ✅ — mirror, scale missing (OCEx has both) |
 | finishing | fillet_all | 🟡 all-edges only — selected-edge fillet/chamfer needs a selector mini-language |
@@ -39,17 +39,17 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | Box / Cube | named solid | ✅ box | |
 | Cylinder | named solid | ✅ cylinder | |
 | Sphere | named solid | ✅ sphere | |
-| Cone | named solid | ❌ | trivial OCCT binding; add with revolve batch |
-| Torus | named solid | ❌ | same |
+| Cone | named solid | ✅ cone | frustum via r2; r2=0 gives an apex |
+| Torus | named solid | ✅ torus | about z, centred at `at` |
 | Polygon / RegularPolygon | profile | 🟡 polygon covers regular n-gons; arbitrary polygons → polyline (✅) | |
 | Rectangle / Circle sketch | profile | ❌ | box covers rects; circle-as-face missing |
 | Polyline + close | profile | ✅ polyline | L/T/I brackets, keyways, gaskets |
 | Spline / Bézier | profile | ❌ | organic 2D outlines (OCEx has spline) |
 | Slot / Tee / Trapezoid sketches | profile | 🟡 sugar over polyline | thin wrappers; add on demand |
 | extrude | sweep | ✅ | |
-| revolve | sweep | ❌ | OCEx.revolve exists (face, origin, axis, degrees) |
+| revolve | sweep | ✅ revolve | profile plane must contain the axis (kernel accepts a perpendicular profile with zero volume) |
 | sweep along path | sweep | ❌ | OCEx.sweep exists; unlocks helix→thread |
-| loft | sweep | ❌ | OCEx.loft exists |
+| loft | sweep | ✅ loft | ruled; sections in push order |
 | offset / shell | finishing | ❌ | shell = hollow enclosure; OCEx.shell exists (openings, t) |
 | fillet/chamfer all edges | finishing | ✅ fillet_all | chamfer_all missing (chamfer twin, trivial) |
 | fillet/chamfer selected edges | finishing | ❌ | needs edge selector mini-language (by face, by axis) |

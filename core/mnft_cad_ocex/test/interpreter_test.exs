@@ -248,4 +248,69 @@ defmodule MnftOcex.InterpreterTest do
     assert {:error, msg} = Interpreter.run([%{"op" => "pattern_circular", "count" => 4}])
     assert msg =~ "op 1" and msg =~ "pattern_circular" and msg =~ "stack is empty"
   end
+
+  # --- sweeps: revolve / loft, named solids: cone / torus ----------------------
+
+  # Rectangle in the XZ plane (y=0), which contains the z axis; r 20..30, h 5.
+  @revolve_profile [[20, 0, 0], [30, 0, 0], [30, 0, 5], [20, 0, 5]]
+
+  test "revolve sweeps an XZ rectangle about z into an analytic ring" do
+    ops = [
+      %{"op" => "polyline", "pts" => @revolve_profile},
+      %{"op" => "revolve", "axis" => [0, 0, 1]}
+    ]
+
+    assert_in_delta volume(ops), :math.pi() * (900 - 400) * 5, 1.0e-2
+  end
+
+  test "revolve of 180 degrees gives half the ring" do
+    ops = [
+      %{"op" => "polyline", "pts" => @revolve_profile},
+      %{"op" => "revolve", "axis" => [0, 0, 1], "degrees" => 180}
+    ]
+
+    assert_in_delta volume(ops), :math.pi() * 500 * 5 / 2, 1.0e-2
+  end
+
+  test "revolve on a solid is a tagged error" do
+    ops = [%{"op" => "box", "size" => [10, 10, 10]}, %{"op" => "revolve", "axis" => [0, 0, 1]}]
+    assert {:error, msg} = Interpreter.run(ops)
+    assert msg =~ "op 2" and msg =~ "planar face"
+  end
+
+  test "loft of congruent sections equals the prism volume" do
+    ops = [
+      %{"op" => "polygon", "n" => 6, "r" => 20},
+      %{"op" => "polygon", "n" => 6, "r" => 20, "at" => [0, 0, 10]},
+      %{"op" => "loft", "sections" => 2}
+    ]
+
+    assert_in_delta volume(ops), @hex_prism_area * 10, 1.0e-3
+  end
+
+  test "loft with fewer shapes on the stack is a tagged error" do
+    ops = [%{"op" => "polygon", "n" => 6, "r" => 10}, %{"op" => "loft", "sections" => 3}]
+    assert {:error, msg} = Interpreter.run(ops)
+    assert msg =~ "op 2" and msg =~ "needs 3"
+  end
+
+  test "cone frustum and apex cone have analytic volumes" do
+    assert_in_delta volume([%{"op" => "cone", "r1" => 10, "r2" => 5, "h" => 20}]),
+                    :math.pi() * 20 / 3 * (100 + 50 + 25),
+                    1.0e-2
+
+    assert_in_delta volume([%{"op" => "cone", "r1" => 10, "r2" => 0, "h" => 20}]),
+                    :math.pi() * 100 * 20 / 3,
+                    1.0e-2
+  end
+
+  test "torus has its analytic volume and honours at" do
+    assert_in_delta volume([%{"op" => "torus", "R" => 20, "r" => 4}]),
+                    2 * :math.pi() * :math.pi() * 20 * 16,
+                    1.0e-2
+
+    assert_in_delta volume([%{"op" => "torus", "R" => 20, "r" => 4, "at" => [50, 0, 0]}]),
+                    2 * :math.pi() * :math.pi() * 20 * 16,
+                    1.0e-2
+  end
 end

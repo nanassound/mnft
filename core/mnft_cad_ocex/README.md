@@ -35,12 +35,16 @@ validates before any native call; `MnftOcex.Interpreter` executes):
 | `box` | `size:[x,y,z]`, `at?` | corner-anchored solid |
 | `cylinder` | `r`, `h`, `at?` | base-centred, extends +z |
 | `sphere` | `r`, `at?` | centred solid |
+| `cone` | `r1`, `r2`, `h`, `at?` | cone/frustum, radius r1 at z=0 → r2 at z=h (`r2:0` = apex) |
+| `torus` | `R`, `r`, `at?` | ring torus about z, centred at `at` (`r < R`) |
 | `translate` | `delta:[dx,dy,dz]` | moves the top shape |
 | `union` / `cut` / `intersect` | — | consume the top two (top = tool) |
 | `fillet_all` | `r` | rounds every edge of the top shape |
 | `polygon` | `n`, `r`, `rot?`, `at?` | planar n-gon **face** in XY (not a solid) |
 | `polyline` | `pts:[[x,y,z]…]`, `close?=true`, `at?` | planar face through the points (`close:false` → open wire, sweep path) |
 | `extrude` | `h`, `dir?` | pops a face, pushes a solid (out-of-plane only) |
+| `revolve` | `axis`, `at?`, `degrees?` | pops a face, pushes the swept solid (profile plane must contain the axis) |
+| `loft` | `sections` | pops N faces (first pushed = first section), pushes a ruled solid |
 | `rotate` | `axis`, `degrees` | spins the top shape about a world axis |
 | `pattern_linear` | `count`, `delta:[dx,dy,dz]` | top fused with count−1 translated copies |
 | `pattern_circular` | `count`, `axis?`, `at?`, `degrees?` | top fused with count−1 rotated copies (default z axis, 360°) |
