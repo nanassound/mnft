@@ -414,6 +414,68 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "pattern_circular"}, [], i),
     do: {:error, "ocex: op #{i}: pattern_circular needs a shape on the stack (stack is empty)"}
 
+  # --- sweeps: helix / sweep ----------------------------------------------------
+
+  # `helix` pushes an open wire: CCW around +z, starting at [r, 0, 0] + at,
+  # rising `pitch` per turn, 48 samples per turn through a spline.
+  #
+  # OCEx.sweep checks alignment against the PATH'S FIRST EDGE D1 tangent with
+  # a 1e-7 tolerance; an interpolated spline's end tangent misses it. So the
+  # wire begins with a ~5e-4mm straight stub along the exact analytic tangent
+  # (spline starts at the stub end, gap ~1e-8 < OCCT vertex tolerance).
+  defp apply_op(%{"op" => "helix", "r" => r, "pitch" => pitch, "turns" => turns} = op, stack, _i) do
+    [ax, ay, az] = Map.get(op, "at", [0, 0, 0])
+    steps = max(2, Kernel.round(turns * 48))
+    sweep_angle = turns * 2 * :math.pi()
+    c = pitch / (2 * :math.pi())
+    mag = :math.sqrt(r * r + c * c)
+
+    start = {ax + r, ay, az}
+    tangent = {0.0, r / mag, c / mag}
+    eps = 5.0e-4
+    stub_end = add(start, scale(tangent, eps))
+    t0 = eps / mag
+
+    points =
+      for k <- 0..steps do
+        t = t0 + (sweep_angle - t0) * k / steps
+        {ax + r * :math.cos(t), ay + r * :math.sin(t), az + c * t}
+      end
+
+    with {:ok, stub} <- OCEx.edge(start, stub_end),
+         {:ok, curve} <- OCEx.spline(points),
+         {:ok, wire} <- OCEx.wire([stub, curve]) do
+      {:ok, [wire | stack]}
+    end
+  end
+
+  defp add({ax, ay, az}, {bx, by, bz}), do: {ax + bx, ay + by, az + bz}
+  defp scale({x, y, z}, k), do: {x * k, y * k, z * k}
+
+  # `sweep` pops the path (top) and the profile face below it; the profile
+  # must sit in the path's start plane, perpendicular to its start tangent.
+  defp apply_op(%{"op" => "sweep"}, [path, profile | rest], i) do
+    with {:ok, profile_wire} <- single_wire(profile, "sweep", i, "profile"),
+         {:ok, shape} <- OCEx.sweep(profile_wire, path, []) do
+      {:ok, [shape | rest]}
+    else
+      {:error, :misaligned_profile} ->
+        {:error,
+         "ocex: op #{i}: sweep profile must sit at the path start, perpendicular to its tangent"}
+
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+
+      {:error, reason} ->
+        {:error, "ocex: op #{i}: sweep failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "sweep"}, stack, i),
+    do:
+      {:error,
+       "ocex: op #{i}: sweep needs a profile face and a path on the stack (got #{length(stack)})"}
+
   # --- booleans ----------------------------------------------------------------
 
   # A patterned tool arrives as a compound; OCEx booleans take flat shape

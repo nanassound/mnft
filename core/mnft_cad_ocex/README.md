@@ -47,6 +47,8 @@ validates before any native call; `MnftOcex.Interpreter` executes):
 | `extrude` | `h`, `dir?` | pops a face, pushes a solid (out-of-plane only) |
 | `revolve` | `axis`, `at?`, `degrees?` | pops a face, pushes the swept solid (profile plane must contain the axis) |
 | `loft` | `sections` | pops N faces (first pushed = first section), pushes a ruled solid |
+| `sweep` | — | pops path (top) + profile face, pushes the swept solid (profile at path start, ⊥ tangent) |
+| `helix` | `r`, `pitch`, `turns ≤ 25`, `at?` | pushes an open helix **wire** (sweep path), CCW about +z from [r,0,0]+at |
 | `rotate` | `axis`, `degrees` | spins the top shape about a world axis |
 | `mirror` | `normal:[x,y,z]`, `at?` | top fused with its reflection across the plane (mirror-completes) |
 | `scale` | `factor` | uniform scale about the world origin |

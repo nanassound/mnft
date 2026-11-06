@@ -443,4 +443,31 @@ defmodule MnftOcex.DialectTest do
     assert {:error, msg} = err(json)
     assert msg =~ "at most 8 selectors"
   end
+
+  # --- sweeps: helix / sweep ----------------------------------------------------
+
+  test "helix validates r, pitch and turns" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "helix", "r": 10, "pitch": 3, "turns": 2}]}))
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "helix", "r": 10, "pitch": 3, "turns": 2.5, "at": [0, 0, 5]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "helix", "r": 0, "pitch": 3, "turns": 2}]}))
+    assert msg =~ "\"r\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "helix", "r": 10, "pitch": 0, "turns": 2}]}))
+    assert msg =~ "\"pitch\""
+
+    for turns <- [0, 26, "many"] do
+      json = Jason.encode!(%{"ops" => [%{"op" => "helix", "r" => 10, "pitch" => 3, "turns" => turns}]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "\"turns\""
+    end
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "helix", "r": 10, "pitch": 3}]}))
+    assert msg =~ "missing \"turns\""
+  end
+
+  test "sweep takes no params" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "sweep"}]}))
+  end
 end

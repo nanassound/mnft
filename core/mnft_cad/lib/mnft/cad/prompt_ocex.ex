@@ -49,6 +49,8 @@ defmodule Mnft.Cad.PromptOcex do
   | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
   | revolve    | axis:[x,y,z], at?[0,0,0], degrees?360    | pops the top FACE, pushes the solid swept about the axis through `at` (degrees ≤ 360) |
   | loft       | sections 2..50                           | pops that many faces — first pushed = FIRST section — pushes a ruled solid through them |
+  | sweep      | —                                        | pops the path (top) and the profile FACE below it, pushes the swept solid |
+  | helix      | r, pitch, turns ≤ 25, at?                | pushes an open helix WIRE (a sweep path), CCW about +z, starting at [r,0,0]+at |
   | rotate     | axis:[x,y,z], degrees                    | spins the top shape about a world axis through the origin |
   | mirror     | normal:[x,y,z], at?[0,0,0]               | replaces the top shape with itself fused with its reflection across the plane through `at` |
   | scale      | factor                                   | replaces the top shape with a uniformly scaled copy about the WORLD ORIGIN |
@@ -76,6 +78,10 @@ defmodule Mnft.Cad.PromptOcex do
     silently built with ZERO volume — check x > 0 for axis z.
   - `loft` pops sections in stack order: push the FIRST section first, last
     section last, then one `loft` op with `sections` = number of faces.
+  - A `sweep` profile must sit at the PATH'S START, its plane perpendicular
+    to the path's start tangent. For an +x path: sketch the profile in XY at
+    the origin, then `rotate` axis [0,1,0] degrees 90 (its normal +z turns
+    into +x). A misplaced profile is a tagged `misaligned_profile` error.
   - `mirror` FUSES the reflection into the shape (mirror-completes): give it
     half of a symmetric part and one op returns the whole part.
   - `scale` is about the WORLD ORIGIN and moves positions too — scale before
@@ -117,6 +123,9 @@ defmodule Mnft.Cad.PromptOcex do
   - A hex (honeycomb) bore: `prism` with n:6, `r` = half the across-flats
     distance divided by cos(30°) — i.e. circumradius = acrossFlats / 2 / 0.8660.
     Push it with `at` below the blank base and `cut` it like a cylinder bore.
+  - A thread: push the small triangle `polyline` (closed) at the helix start
+    [r,0,0], perpendicular to the helix's start tangent, THEN the `helix`
+    (path on top), then `sweep`; `cut` the swept thread from a `cylinder` rod.
   - Keep bores' tools taller than the blank (start below z=0) so cuts are
     guaranteed through-holes.
   """

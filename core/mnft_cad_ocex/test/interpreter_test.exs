@@ -392,4 +392,64 @@ defmodule MnftOcex.InterpreterTest do
     assert {:error, msg} = Interpreter.run(ops)
     assert msg =~ "op 2" and msg =~ "selector matched no faces"
   end
+
+  # --- sweeps: helix / sweep ----------------------------------------------------
+
+  @hex3_area 0.5 * 6 * 9 * :math.sin(:math.pi() / 3)
+
+  test "a rotated face sweeps a straight path into an analytic prism" do
+    ops = [
+      %{"op" => "polygon", "n" => 6, "r" => 3},
+      %{"op" => "rotate", "axis" => [0, 1, 0], "degrees" => 90},
+      %{"op" => "polyline", "pts" => [[0, 0, 0], [20, 0, 0]], "close" => false},
+      %{"op" => "sweep"}
+    ]
+
+    assert_in_delta volume(ops), @hex3_area * 20, 1.0e-2
+  end
+
+  test "helix pushes a wire with its analytic length" do
+    assert {:ok, wire} =
+             Interpreter.run([%{"op" => "helix", "r" => 10, "pitch" => 3, "turns" => 2}])
+
+    assert {:ok, len} = OCEx.length(wire)
+    expect = 2 * :math.sqrt(:math.pow(2 * :math.pi() * 10, 2) + 9)
+    assert_in_delta len, expect, expect * 0.01
+  end
+
+  test "a thread-shaped sweep along a helix builds a solid (golden)" do
+    # Golden measured 20 Jan 2026 on OCCT 7.9.3 with the corrected-frame
+    # PipeShell; the profile is a triangle perpendicular to the helix start
+    # tangent (0, r, pitch/2pi) normalized. Re-measure if the kernel changes.
+    t2y = 0.04769215134145742
+    t2z = -0.998862081921435
+
+    ops = [
+      %{"op" => "polyline", "pts" => [[10, 0, 0], [11.5, 0, 0], [10, t2y, t2z]]},
+      %{"op" => "helix", "r" => 10, "pitch" => 3, "turns" => 2},
+      %{"op" => "sweep"}
+    ]
+
+    assert {:ok, shape} = Interpreter.run(ops)
+    assert {:ok, :solid} = OCEx.shape_type(shape)
+    assert_in_delta volume(ops), 99.7108080875978, 99.7108080875978 * 0.05
+  end
+
+  test "a misplaced sweep profile is a tagged error" do
+    ops = [
+      %{"op" => "polygon", "n" => 6, "r" => 3},
+      %{"op" => "rotate", "axis" => [1, 0, 0], "degrees" => 90},
+      %{"op" => "polyline", "pts" => [[0, 0, 0], [20, 0, 0]], "close" => false},
+      %{"op" => "sweep"}
+    ]
+
+    assert {:error, msg} = Interpreter.run(ops)
+    assert msg =~ "op 4" and msg =~ "perpendicular to its tangent"
+  end
+
+  test "sweep with a lone shape on the stack is a tagged error" do
+    ops = [%{"op" => "box", "size" => [10, 10, 10]}, %{"op" => "sweep"}]
+    assert {:error, msg} = Interpreter.run(ops)
+    assert msg =~ "op 2" and msg =~ "profile face and a path"
+  end
 end

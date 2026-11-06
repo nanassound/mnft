@@ -23,7 +23,7 @@ sugar over profiles + sweeps, never new machinery.
 |---|---|---|
 | named solids | box, cylinder, sphere, prism (sugar: polygon+extrude), cone, torus | ✅ |
 | profiles | polygon, polyline | ✅ seed — arc+spline+slot missing |
-| sweeps | extrude, revolve, loft | ✅ — sweep/helix land with the thread batch |
+| sweeps | extrude, revolve, loft, sweep, helix | ✅ |
 | booleans | union, cut, intersect | ✅ |
 | transforms | translate, rotate, mirror, scale | ✅ mirror fuses the reflection in; scale is origin-anchored |
 | finishing | fillet_all, chamfer_all, shell | 🟡 selected-edge fillet/chamfer still missing (`on` selector ops) |
@@ -48,7 +48,7 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | Slot / Tee / Trapezoid sketches | profile | 🟡 sugar over polyline | thin wrappers; add on demand |
 | extrude | sweep | ✅ | |
 | revolve | sweep | ✅ revolve | profile plane must contain the axis (kernel accepts a perpendicular profile with zero volume) |
-| sweep along path | sweep | ❌ | OCEx.sweep exists; unlocks helix→thread |
+| sweep along path | sweep | ✅ sweep / helix | profile at the path start, ⊥ to its tangent (helix wires carry an exact-tangent stub for the kernel's 1e-7 alignment check) |
 | loft | sweep | ✅ loft | ruled; sections in push order |
 | offset / shell | finishing | ✅ shell | hollows the body; `open` selector (required ≥1) removes a lid/wall (kernel: no closed hollow; offset stays ❌) |
 | fillet/chamfer all edges | finishing | ✅ fillet_all / chamfer_all | |
@@ -57,7 +57,7 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | linear/circular pattern | pattern | ✅ pattern_linear / pattern_circular | fuse copies through the original; a patterned bore cuts all instances |
 | scale | transform | ✅ scale | uniform, about the world origin |
 | text | domain | ❌ | OCEx has font-backed faces (FreeType/HarfBuzz) |
-| thread | domain | 🟡 | expressible after sweep: triangle profile + helix wire |
+| thread | domain | 🟡 machinery complete | triangle profile + helix + sweep verified (golden); teeth need tuning per thread form |
 | gear | domain | ❌ | compound op, later |
 | boolean fuse/cut/common | boolean | ✅ | |
 | sections/sections of solid | inspection | ⛔ | belongs to inspection/harness layer, not the modelling dialect |

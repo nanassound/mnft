@@ -34,7 +34,7 @@ defmodule MnftOcex.Dialect do
   @max_points 512
   @max_pattern_instances 1000
   @max_selectors 8
-  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all chamfer_all extrude rotate revolve loft mirror scale shell)
+  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all chamfer_all extrude rotate revolve loft mirror scale shell sweep helix)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   def validate(code) when is_binary(code) do
@@ -169,6 +169,16 @@ defmodule MnftOcex.Dialect do
   end
 
   defp check_params("scale", op, i), do: positive(op, "factor", i)
+
+  defp check_params("helix", op, i) do
+    with :ok <- positive(op, "r", i),
+         :ok <- positive(op, "pitch", i),
+         :ok <- turns(op, i) do
+      optional_at(op, i)
+    end
+  end
+
+  # `sweep` takes no params (extra keys ignored, as everywhere).
 
   defp check_params("cone", op, i) do
     with :ok <- positive(op, "r1", i),
@@ -418,6 +428,20 @@ defmodule MnftOcex.Dialect do
 
       :error ->
         {:error, "ocex: op #{i}: missing \"#{key}\""}
+    end
+  end
+
+  defp turns(op, i) do
+    case Map.fetch(op, "turns") do
+      {:ok, t} ->
+        if is_number(t) and finite?(t) and t > 0 and t <= 25 do
+          :ok
+        else
+          {:error, "ocex: op #{i}: \"turns\" must be a number greater than 0 and at most 25"}
+        end
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"turns\""}
     end
   end
 
