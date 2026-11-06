@@ -44,6 +44,8 @@ defmodule Mnft.Cad.PromptOcex do
   | intersect  | —                                        | common of the top two |
   | fillet_all | r                                        | replaces the top shape, every edge rounded to r |
   | chamfer_all | d                                       | replaces the top shape, every edge bevelled to d |
+  | fillet     | r, on[selector]                          | replaces the top shape, only the edges of the SELECTED faces rounded to r |
+  | chamfer    | d, on[selector]                          | replaces the top shape, only the edges of the SELECTED faces bevelled to d |
   | polygon    | n, r, rot?, at?                          | planar n-gon FACE in the XY plane — a face, NOT a solid |
   | polyline   | pts:[[x,y,z]…], close?=true, at?         | planar face through the points (close:false → open wire for sweep paths) |
   | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
@@ -86,10 +88,12 @@ defmodule Mnft.Cad.PromptOcex do
     half of a symmetric part and one op returns the whole part.
   - `scale` is about the WORLD ORIGIN and moves positions too — scale before
     final placement (an `at` of [50,0,0] becomes [100,0,0] under factor 2).
-  - Face selectors pick faces by their PLANE, used in `shell` "open":
-    `{"normal": [0,0,1], "through": [0,0,30]}` = the planar face whose normal
-    is ±z lying in the plane z=30 (the lid of a 30-tall box);
-    `{"perpendicular": [0,0,1]}` = every VERTICAL face (walls).
+  - Face selectors pick faces by their PLANE, used in `shell` "open" and
+    `fillet`/`chamfer` "on": `{"normal": [0,0,1], "through": [0,0,30]}` = the
+    planar face whose normal is ±z lying in the plane z=30 (the lid of a
+    30-tall box); `{"perpendicular": [0,0,1]}` = every VERTICAL face (walls).
+    Edges shared by two selected faces are finished ONCE; `fillet_all`/
+    `chamfer_all` remain the tools for literally every edge.
   - `extrude` direction must point OUT of the face's plane (for `polygon`
     faces, keep a nonzero z in `dir`) — in-plane extrusion is rejected as
     degenerate.

@@ -470,4 +470,35 @@ defmodule MnftOcex.DialectTest do
   test "sweep takes no params" do
     assert {:ok, _} = err(~s({"ops": [{"op": "sweep"}]}))
   end
+
+  # --- selected-edge finishing: fillet / chamfer --------------------------------
+
+  test "fillet and chamfer require on and a positive size" do
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "box", "size": [10, 10, 10]}, {"op": "fillet", "r": 2, "on": {"normal": [0, 0, 1], "through": [0, 0, 10]}}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "fillet", "r": 2}]}))
+    assert msg =~ "missing \"on\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "chamfer", "d": 1}]}))
+    assert msg =~ "missing \"on\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "fillet", "r": 0, "on": {"perpendicular": [0, 0, 1]}}]}))
+    assert msg =~ "\"r\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "chamfer", "d": -1, "on": {"perpendicular": [0, 0, 1]}}]}))
+    assert msg =~ "\"d\""
+  end
+
+  test "fillet on validates the selector form" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "fillet", "r": 2, "on": {"normal": [0, 0, 1]}}]}))
+
+    assert msg =~ "selector must be an object"
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "fillet", "r": 2, "on": {"perpendicular": [0, 0, 0]}}]}))
+
+    assert msg =~ "zero vector"
+  end
 end

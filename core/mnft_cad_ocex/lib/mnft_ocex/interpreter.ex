@@ -296,6 +296,60 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "chamfer_all"}, [], i),
     do: {:error, "ocex: op #{i}: chamfer_all needs a shape on the stack (stack is empty)"}
 
+  # Selected-edge finishing: `on` picks faces; candidate edges come from the
+  # top body (the kernel demands edges owned by this exact shape) and match by
+  # native topology identity against the selected faces' edges. Edges shared
+  # between two selected faces are finished once.
+  defp apply_op(%{"op" => "fillet", "r" => r, "on" => selector}, [top | rest], i) do
+    with {:ok, edges} <- selected_edges(top, selector, i),
+         {:ok, shape} <- OCEx.fillet(top, edges, r) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, reason} -> {:error, "ocex: op #{i}: fillet failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "fillet"}, [], i),
+    do: {:error, "ocex: op #{i}: fillet needs a shape on the stack (stack is empty)"}
+
+  defp apply_op(%{"op" => "chamfer", "d" => d, "on" => selector}, [top | rest], i) do
+    with {:ok, edges} <- selected_edges(top, selector, i),
+         {:ok, shape} <- OCEx.chamfer(top, edges, d) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, reason} -> {:error, "ocex: op #{i}: chamfer failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "chamfer"}, [], i),
+    do: {:error, "ocex: op #{i}: chamfer needs a shape on the stack (stack is empty)"}
+
+  defp selected_edges(top, selector, i) do
+    with {:ok, faces} <- matching_faces(top, selector),
+         :ok <- nonempty_faces(faces, i),
+         {:ok, candidates} <- OCEx.edges(top),
+         {:ok, face_edges} <- unwrap_all(Enum.map(faces, &OCEx.edges/1)) do
+      wanted = List.flatten(face_edges)
+
+      case Enum.filter(candidates, fn edge -> Enum.any?(wanted, &same_edge?(edge, &1)) end) do
+        [] -> {:error, "ocex: op #{i}: selector matched no edges"}
+        matched -> {:ok, matched}
+      end
+    end
+  end
+
+  defp nonempty_faces([], i), do: {:error, "ocex: op #{i}: selector matched no faces"}
+  defp nonempty_faces(_faces, _i), do: :ok
+
+  defp same_edge?(a, b) do
+    case OCEx.same?(a, b) do
+      {:ok, result} -> result
+      _ -> false
+    end
+  end
+
   # `shell` hollows the top shape with wall thickness t; `open` is a list of
   # face selectors naming the faces removed as openings (no lid on a box).
   defp apply_op(%{"op" => "shell", "t" => t} = op, [top | rest], i) do

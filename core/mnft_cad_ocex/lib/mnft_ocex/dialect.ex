@@ -34,7 +34,7 @@ defmodule MnftOcex.Dialect do
   @max_points 512
   @max_pattern_instances 1000
   @max_selectors 8
-  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all chamfer_all extrude rotate revolve loft mirror scale shell sweep helix)
+  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all chamfer_all fillet chamfer extrude rotate revolve loft mirror scale shell sweep helix)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   def validate(code) when is_binary(code) do
@@ -224,6 +224,21 @@ defmodule MnftOcex.Dialect do
   defp check_params("fillet_all", op, i), do: positive(op, "r", i)
 
   defp check_params("chamfer_all", op, i), do: positive(op, "d", i)
+
+  defp check_params("fillet", op, i) do
+    with :ok <- positive(op, "r", i), do: require_selector(op, i)
+  end
+
+  defp check_params("chamfer", op, i) do
+    with :ok <- positive(op, "d", i), do: require_selector(op, i)
+  end
+
+  defp require_selector(op, i) do
+    case Map.fetch(op, "on") do
+      {:ok, selector} -> validate_selector(selector, i)
+      :error -> {:error, "ocex: op #{i}: missing \"on\""}
+    end
+  end
 
   defp check_params("shell", op, i) do
     with :ok <- positive(op, "t", i), do: require_open(op, i)

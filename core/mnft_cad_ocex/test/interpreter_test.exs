@@ -452,4 +452,46 @@ defmodule MnftOcex.InterpreterTest do
     assert {:error, msg} = Interpreter.run(ops)
     assert msg =~ "op 2" and msg =~ "profile face and a path"
   end
+
+  # --- selected-edge finishing: fillet / chamfer --------------------------------
+
+  test "fillet on the top face of a plate rounds its edges (golden)" do
+    # Golden measured 20 Jan 2026 on OCCT 7.9.3; re-measure if kernel changes.
+    ops = [
+      %{"op" => "box", "size" => [60, 40, 5]},
+      %{"op" => "fillet", "r" => 2, "on" => %{"normal" => [0, 0, 1], "through" => [0, 0, 5]}}
+    ]
+
+    assert_in_delta volume(ops), 11_831.386381249074, 1.0e-3
+  end
+
+  test "chamfer on the top face of a plate bevels its edges (golden)" do
+    # Golden measured 20 Jan 2026 on OCCT 7.9.3; re-measure if kernel changes.
+    ops = [
+      %{"op" => "box", "size" => [60, 40, 5]},
+      %{"op" => "chamfer", "d" => 1, "on" => %{"normal" => [0, 0, 1], "through" => [0, 0, 5]}}
+    ]
+
+    assert_in_delta volume(ops), 11_901.333333333332, 1.0e-3
+  end
+
+  test "a perpendicular selector rounds all four wall tops (golden)" do
+    # Golden measured 20 Jan 2026 on OCCT 7.9.3; re-measure if kernel changes.
+    ops = [
+      %{"op" => "box", "size" => [60, 40, 5]},
+      %{"op" => "fillet", "r" => 2, "on" => %{"perpendicular" => [0, 0, 1]}}
+    ]
+
+    assert_in_delta volume(ops), 11_650.182788773678, 1.0e-3
+  end
+
+  test "a fillet selector matching no faces is a tagged error" do
+    ops = [
+      %{"op" => "box", "size" => [60, 40, 5]},
+      %{"op" => "fillet", "r" => 2, "on" => %{"normal" => [0, 0, 1], "through" => [0, 0, 999]}}
+    ]
+
+    assert {:error, msg} = Interpreter.run(ops)
+    assert msg =~ "op 2" and msg =~ "selector matched no faces"
+  end
 end

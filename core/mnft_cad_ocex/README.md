@@ -41,6 +41,8 @@ validates before any native call; `MnftOcex.Interpreter` executes):
 | `union` / `cut` / `intersect` | — | consume the top two (top = tool) |
 | `fillet_all` | `r` | rounds every edge of the top shape |
 | `chamfer_all` | `d` | bevels every edge of the top shape |
+| `fillet` | `r`, `on[selector]` | rounds only the edges of the selected faces |
+| `chamfer` | `d`, `on[selector]` | bevels only the edges of the selected faces |
 | `shell` | `t`, `open[selector…]` | hollows the top shape; `open` (required ≥1) selectors name the removed faces |
 | `polygon` | `n`, `r`, `rot?`, `at?` | planar n-gon **face** in XY (not a solid) |
 | `polyline` | `pts:[[x,y,z]…]`, `close?=true`, `at?` | planar face through the points (`close:false` → open wire, sweep path) |
