@@ -41,11 +41,11 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | Sphere | named solid | ✅ sphere | |
 | Cone | named solid | ❌ | trivial OCCT binding; add with revolve batch |
 | Torus | named solid | ❌ | same |
-| Polygon / RegularPolygon | profile | 🟡 polygon covers regular n-gons; arbitrary polygons need polyline |
+| Polygon / RegularPolygon | profile | 🟡 polygon covers regular n-gons; arbitrary polygons → polyline (✅) | |
 | Rectangle / Circle sketch | profile | ❌ | box covers rects; circle-as-face missing |
-| Polyline + close | profile | ❌ | THE profile gap: L/T/I brackets, keyways, gaskets |
+| Polyline + close | profile | ✅ polyline | L/T/I brackets, keyways, gaskets |
 | Spline / Bézier | profile | ❌ | organic 2D outlines (OCEx has spline) |
-| Slot / Tee / Trapezoid sketches | profile | ❌ | sugar over polyline once present |
+| Slot / Tee / Trapezoid sketches | profile | 🟡 sugar over polyline | thin wrappers; add on demand |
 | extrude | sweep | ✅ | |
 | revolve | sweep | ❌ | OCEx.revolve exists (face, origin, axis, degrees) |
 | sweep along path | sweep | ❌ | OCEx.sweep exists; unlocks helix→thread |

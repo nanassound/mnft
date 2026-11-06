@@ -39,6 +39,7 @@ validates before any native call; `MnftOcex.Interpreter` executes):
 | `union` / `cut` / `intersect` | — | consume the top two (top = tool) |
 | `fillet_all` | `r` | rounds every edge of the top shape |
 | `polygon` | `n`, `r`, `rot?`, `at?` | planar n-gon **face** in XY (not a solid) |
+| `polyline` | `pts:[[x,y,z]…]`, `close?=true`, `at?` | planar face through the points (`close:false` → open wire, sweep path) |
 | `extrude` | `h`, `dir?` | pops a face, pushes a solid (out-of-plane only) |
 | `rotate` | `axis`, `degrees` | spins the top shape about a world axis |
 

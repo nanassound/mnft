@@ -29,7 +29,8 @@ defmodule MnftOcex.Dialect do
 
   @stack_ops ~w(union cut intersect)
   @shape_ops ~w(box cylinder sphere prism)
-  @profile_ops ~w(polygon)
+  @profile_ops ~w(polygon polyline)
+  @max_points 512
   @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ ~w(translate fillet_all extrude rotate)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
@@ -108,6 +109,13 @@ defmodule MnftOcex.Dialect do
   defp check_params("sphere", op, i), do: positive(op, "r", i)
 
   defp check_params("translate", op, i), do: vec3(op, "delta", i, &coord?/1, "finite numbers")
+
+  defp check_params("polyline", op, i) do
+    with :ok <- points(op, "pts", i),
+         :ok <- optional_bool(op, "close", i),
+         do: optional_at(op, i)
+  end
+
   defp check_params("polygon", op, i) do
     with :ok <- ngon_n(op, i),
          :ok <- positive(op, "r", i),
@@ -243,6 +251,69 @@ defmodule MnftOcex.Dialect do
 
       error ->
         error
+    end
+  end
+
+  # Validates `op[key]` as a list of 2..@max_points [x, y, z] points with no
+  # consecutive duplicates.
+  defp points(op, key, i) do
+    case Map.fetch(op, key) do
+      {:ok, pts} when is_list(pts) ->
+        cond do
+          length(pts) < 2 ->
+            {:error, "ocex: op #{i}: \"#{key}\" must contain at least 2 points"}
+
+          length(pts) > @max_points ->
+            {:error, "ocex: op #{i}: \"#{key}\" must contain at most #{@max_points} points"}
+
+          true ->
+            walk_points(pts, nil, key, i)
+        end
+
+      {:ok, _other} ->
+        {:error, "ocex: op #{i}: \"#{key}\" must be an array of [x, y, z] points"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"#{key}\""}
+    end
+  end
+
+  defp walk_points([], _prev, _key, _i), do: :ok
+
+  defp walk_points([pt | rest], prev, key, i) do
+    cond do
+      not point3?(pt) ->
+        {:error, "ocex: op #{i}: \"#{key}\" entries must be [x, y, z] arrays of finite numbers"}
+
+      pt == prev ->
+        {:error, "ocex: op #{i}: \"#{key}\" must not contain consecutive duplicate points"}
+
+      true ->
+        walk_points(rest, pt, key, i)
+    end
+  end
+
+  defp point3?([x, y, z]), do: coord?(x) and coord?(y) and coord?(z)
+  defp point3?(_other), do: false
+
+  defp optional_bool(op, key, i) do
+    case Map.fetch(op, key) do
+      {:ok, value} when is_boolean(value) ->
+        :ok
+
+      {:ok, _other} ->
+        {:error, "ocex: op #{i}: \"#{key}\" must be a boolean"}
+
+      :error ->
+        :ok
+    end
+  end
+
+  # Validates the optional "at" placement as a finite vec3; `:ok` when absent.
+  defp optional_at(op, i) do
+    case Map.fetch(op, "at") do
+      :error -> :ok
+      {:ok, _} -> vec3(op, "at", i, &coord?/1, "finite numbers")
     end
   end
 

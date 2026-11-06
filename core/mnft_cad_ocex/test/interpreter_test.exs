@@ -177,4 +177,32 @@ defmodule MnftOcex.InterpreterTest do
     ops = [%{"op" => "sphere", "r" => 10}]
     assert_in_delta volume(ops), 4 / 3 * :math.pi() * 1_000, 1.0e-4
   end
+
+  # --- profiles: polyline -------------------------------------------------------
+
+  @l_profile [[0, 0, 0], [40, 0, 0], [40, 10, 0], [10, 10, 0], [10, 40, 0], [0, 40, 0]]
+
+  test "a closed polyline L-profile extrudes to its analytic volume" do
+    ops = [%{"op" => "polyline", "pts" => @l_profile}, %{"op" => "extrude", "h" => 8}]
+
+    # L area = 40*10 bar + 10*40 bar − 10*10 corner overlap = 700
+    assert_in_delta volume(ops), 700 * 8, 1.0e-3
+  end
+
+  test "an open polyline pushes a wire, which a boolean rejects as a tool" do
+    ops = [
+      %{"op" => "polyline", "pts" => [[0, 0, 0], [20, 0, 0], [20, 10, 0]], "close" => false}
+    ]
+
+    assert {:ok, _wire} = Interpreter.run(ops)
+
+    bad = [
+      %{"op" => "box", "size" => [10, 10, 10]},
+      %{"op" => "polyline", "pts" => [[0, 0, 0], [20, 0, 0]], "close" => false},
+      %{"op" => "cut"}
+    ]
+
+    assert {:error, msg} = Interpreter.run(bad)
+    assert msg =~ "op 3" and msg =~ "cut failed"
+  end
 end

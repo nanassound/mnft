@@ -74,6 +74,25 @@ defmodule MnftOcex.Interpreter do
     end
   end
 
+  # `polyline` pushes a planar FACE through the points when `close` (default
+  # true); `close: false` keeps an open WIRE — a sweep path.
+  defp apply_op(%{"op" => "polyline", "pts" => pts} = op, stack, _i) do
+    close? = Map.get(op, "close", true)
+    vertices = for [x, y, z] <- pts, do: {x, y, z}
+
+    with {:ok, wire} <- polyline_wire(vertices, close?),
+         {:ok, pushed} <- close_or_wire(wire, close?),
+         {:ok, pushed} <- place(pushed, op) do
+      {:ok, [pushed | stack]}
+    end
+  end
+
+  defp polyline_wire(vertices, true), do: closed_wire(vertices)
+  defp polyline_wire(vertices, false), do: open_wire(vertices)
+
+  defp close_or_wire(wire, true), do: OCEx.face(wire)
+  defp close_or_wire(wire, false), do: {:ok, wire}
+
   defp apply_op(%{"op" => "extrude", "h" => h} = op, [top | rest], i) do
     [dx, dy, dz] = Map.get(op, "dir", [0, 0, 1])
     len = :math.sqrt(dx * dx + dy * dy + dz * dz)
@@ -118,8 +137,12 @@ defmodule MnftOcex.Interpreter do
   end
 
   defp closed_wire(vertices) do
-    pairs = Enum.zip(vertices, tl(vertices) ++ [hd(vertices)])
+    chain_wire(Enum.zip(vertices, tl(vertices) ++ [hd(vertices)]))
+  end
 
+  defp open_wire(vertices), do: chain_wire(Enum.zip(vertices, tl(vertices)))
+
+  defp chain_wire(pairs) do
     edges =
       Enum.reduce_while(pairs, {:ok, []}, fn {a, b}, {:ok, acc} ->
         case OCEx.edge(a, b) do

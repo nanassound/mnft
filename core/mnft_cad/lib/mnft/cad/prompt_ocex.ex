@@ -42,6 +42,7 @@ defmodule Mnft.Cad.PromptOcex do
   | intersect  | —                                        | common of the top two |
   | fillet_all | r                                        | replaces the top shape, every edge rounded to r |
   | polygon    | n, r, rot?, at?                          | planar n-gon FACE in the XY plane — a face, NOT a solid |
+  | polyline   | pts:[[x,y,z]…], close?=true, at?         | planar face through the points (close:false → open wire for sweep paths) |
   | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
   | rotate     | axis:[x,y,z], degrees                    | spins the top shape about a world axis through the origin |
 
@@ -56,6 +57,9 @@ defmodule Mnft.Cad.PromptOcex do
   ocex gotchas (hit in real runs — follow exactly):
   - `polygon` pushes a FACE, not a solid: booleans and `fillet_all` need
     solids, so `extrude` the face first. `prism` is sugar for polygon+extrude.
+  - A closed `polyline` builds a planar FACE — keep all its points in one
+    plane (XY is easiest). An open (`close:false`) polyline is a PATH, not a
+    shape; it exists only to be swept.
   - `extrude` direction must point OUT of the face's plane (for `polygon`
     faces, keep a nonzero z in `dir`) — in-plane extrusion is rejected as
     degenerate.
@@ -79,8 +83,10 @@ defmodule Mnft.Cad.PromptOcex do
   - A plate with bolt bores: box, then per bore push cylinder with `at`
     below the plate base, then `cut`.
   - A standoff/spacer: cylinder body, fillet_all for break edges.
-  - An L-bracket: two boxes fused with `union`, then one `translate` on the
-    result to final placement, then fillet_all only if every edge should round.
+  - An L-bracket: one `polyline` with the L-profile outline, e.g.
+    pts [[0,0,0],[40,0,0],[40,10,0],[10,10,0],[10,40,0],[0,40,0]], then
+    `extrude`, then `translate` to final placement; `fillet_all` only if
+    every edge should round.
   - A hex (honeycomb) bore: `prism` with n:6, `r` = half the across-flats
     distance divided by cos(30°) — i.e. circumradius = acrossFlats / 2 / 0.8660.
     Push it with `at` below the blank base and `cut` it like a cylinder bore.

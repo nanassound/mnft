@@ -175,4 +175,47 @@ defmodule MnftOcex.DialectTest do
 
     assert msg =~ "\"degrees\" must be a finite number"
   end
+
+  # --- profiles: polyline -------------------------------------------------------
+
+  test "accepts a two-point closed polyline" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0], [10, 0, 0]]}]}))
+  end
+
+  test "rejects a polyline with a single point" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0]]}]}))
+    assert msg =~ "at least 2 points"
+  end
+
+  test "rejects a polyline with more than 512 points" do
+    pts = for n <- 0..512, do: [n, 0, 0]
+    assert {:error, msg} = err(Jason.encode!(%{"ops" => [%{"op" => "polyline", "pts" => pts}]}))
+    assert msg =~ "at most 512 points"
+  end
+
+  test "rejects a polyline with a non-vec3 point" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "polyline", "pts": [[0, 0], [10, 0, 0]]}]}))
+    assert msg =~ "[x, y, z]"
+  end
+
+  test "rejects consecutive duplicate polyline points" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0], [0, 0, 0], [10, 0, 0]]}]}))
+
+    assert msg =~ "consecutive duplicate"
+  end
+
+  test "rejects a polyline with a non-boolean close" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0], [10, 0, 0]], "close": "yes"}]}))
+
+    assert msg =~ "must be a boolean"
+  end
+
+  test "rejects a polyline with a malformed at" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0], [10, 0, 0]], "at": [0, 0]}]}))
+
+    assert msg =~ "\"at\""
+  end
 end
