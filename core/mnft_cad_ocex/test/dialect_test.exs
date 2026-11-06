@@ -382,4 +382,65 @@ defmodule MnftOcex.DialectTest do
     assert {:error, msg} = err(~s({"ops": [{"op": "scale"}]}))
     assert msg =~ "missing \"factor\""
   end
+
+  # --- finishing: chamfer_all / shell, face selectors --------------------------
+
+  test "chamfer_all validates a positive d" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "chamfer_all", "d": 1}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "chamfer_all", "d": 0}]}))
+    assert msg =~ "\"d\""
+  end
+
+  test "shell validates t and requires open selectors" do
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"normal": [0, 0, 1], "through": [0, 0, 1]}]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "shell", "t": 0}]}))
+    assert msg =~ "\"t\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2}]}))
+    assert msg =~ "missing \"open\""
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": []}]}))
+
+    assert msg =~ "at least one selector"
+  end
+
+  test "selector must use exactly one form" do
+    both = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"normal": [0, 0, 1], "through": [0, 0, 1], "perpendicular": [1, 0, 0]}]}]})
+
+    assert {:error, msg} = err(both)
+    assert msg =~ "not both"
+
+    neither = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"normal": [0, 0, 1]}]}]})
+
+    assert {:error, msg} = err(neither)
+    assert msg =~ "selector must be an object"
+  end
+
+  test "selector vectors must be valid" do
+    zero_axis = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"perpendicular": [0, 0, 0]}]}]})
+
+    assert {:error, msg} = err(zero_axis)
+    assert msg =~ "zero vector"
+
+    zero_normal = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"normal": [0, 0, 0], "through": [0, 0, 1]}]}]})
+
+    assert {:error, msg} = err(zero_normal)
+    assert msg =~ "zero vector"
+
+    not_vec3 = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"perpendicular": [1, 0]}]}]})
+
+    assert {:error, msg} = err(not_vec3)
+    assert msg =~ "[x, y, z]"
+  end
+
+  test "open accepts at most 8 selectors" do
+    selectors = List.duplicate(%{"perpendicular" => [1, 0, 0]}, 9)
+    json = Jason.encode!(%{"ops" => [%{"op" => "box", "size" => [1, 1, 1]}, %{"op" => "shell", "t" => 2, "open" => selectors}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "at most 8 selectors"
+  end
 end

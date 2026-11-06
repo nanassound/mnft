@@ -354,4 +354,42 @@ defmodule MnftOcex.InterpreterTest do
     assert {:error, msg} = Interpreter.run([%{"op" => "scale", "factor" => 2}])
     assert msg =~ "op 1" and msg =~ "scale" and msg =~ "stack is empty"
   end
+
+  # --- finishing: chamfer_all / shell, face selectors --------------------------
+
+  test "shell with a lid opening hollows the box (golden)" do
+    # Golden measured 20 Jan 2026 on OCCT 7.9.3: OCCT's thick-solid offsets the
+    # remaining faces, so corner geometry differs from a naive box cavity —
+    # kernel-measured value, do not replace with an analytic formula.
+    open_top = [
+      %{"op" => "box", "size" => [30, 30, 30]},
+      %{"op" => "shell", "t" => 2, "open" => [%{"normal" => [0, 0, 1], "through" => [0, 0, 30]}]}
+    ]
+
+    assert_in_delta volume(open_top), 9_770.73739765655, 1.0e-3
+
+    open_bottom = [
+      %{"op" => "box", "size" => [30, 30, 30]},
+      %{"op" => "shell", "t" => 2, "open" => [%{"normal" => [0, 0, 1], "through" => [0, 0, 0]}]}
+    ]
+
+    assert_in_delta volume(open_bottom), 9_770.73739765655, 1.0e-3
+  end
+
+  test "chamfer_all bevels every edge of a plate (golden)" do
+    # Golden measured 20 Jan 2026 on OCCT 7.9.3 via OCEx.chamfer (d applies to
+    # both adjacent faces); plates change shape -> re-measure, don't guess.
+    ops = [%{"op" => "box", "size" => [60, 40, 5]}, %{"op" => "chamfer_all", "d" => 1}]
+    assert_in_delta volume(ops), 11_795.333333333327, 1.0e-3
+  end
+
+  test "a shell selector matching no faces is a tagged error" do
+    ops = [
+      %{"op" => "box", "size" => [30, 30, 30]},
+      %{"op" => "shell", "t" => 2, "open" => [%{"normal" => [0, 0, 1], "through" => [0, 0, 999]}]}
+    ]
+
+    assert {:error, msg} = Interpreter.run(ops)
+    assert msg =~ "op 2" and msg =~ "selector matched no faces"
+  end
 end

@@ -43,6 +43,7 @@ defmodule Mnft.Cad.PromptOcex do
   | cut        | —                                        | blank minus tool |
   | intersect  | —                                        | common of the top two |
   | fillet_all | r                                        | replaces the top shape, every edge rounded to r |
+  | chamfer_all | d                                       | replaces the top shape, every edge bevelled to d |
   | polygon    | n, r, rot?, at?                          | planar n-gon FACE in the XY plane — a face, NOT a solid |
   | polyline   | pts:[[x,y,z]…], close?=true, at?         | planar face through the points (close:false → open wire for sweep paths) |
   | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
@@ -53,6 +54,7 @@ defmodule Mnft.Cad.PromptOcex do
   | scale      | factor                                   | replaces the top shape with a uniformly scaled copy about the WORLD ORIGIN |
   | pattern_linear | count 2..200, delta:[dx,dy,dz]       | replaces the top shape with itself fused with count−1 copies stepped by delta |
   | pattern_circular | count 2..200, axis?[0,0,1], at?[0,0,0], degrees?360 | replaces the top shape with itself fused with count−1 copies rotated about `at` |
+  | shell      | t, open[selector…]                       | hollows the top shape with wall t; `open` (required, ≥1) lists the faces removed as openings — no closed hollow |
 
   The model must:
   - be deterministic (same input, same model);
@@ -78,6 +80,10 @@ defmodule Mnft.Cad.PromptOcex do
     half of a symmetric part and one op returns the whole part.
   - `scale` is about the WORLD ORIGIN and moves positions too — scale before
     final placement (an `at` of [50,0,0] becomes [100,0,0] under factor 2).
+  - Face selectors pick faces by their PLANE, used in `shell` "open":
+    `{"normal": [0,0,1], "through": [0,0,30]}` = the planar face whose normal
+    is ±z lying in the plane z=30 (the lid of a 30-tall box);
+    `{"perpendicular": [0,0,1]}` = every VERTICAL face (walls).
   - `extrude` direction must point OUT of the face's plane (for `polygon`
     faces, keep a nonzero z in `dir`) — in-plane extrusion is rejected as
     degenerate.

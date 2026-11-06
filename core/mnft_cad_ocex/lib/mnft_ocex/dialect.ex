@@ -33,7 +33,8 @@ defmodule MnftOcex.Dialect do
   @pattern_ops ~w(pattern_linear pattern_circular)
   @max_points 512
   @max_pattern_instances 1000
-  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all extrude rotate revolve loft mirror scale)
+  @max_selectors 8
+  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all chamfer_all extrude rotate revolve loft mirror scale shell)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   def validate(code) when is_binary(code) do
@@ -211,6 +212,12 @@ defmodule MnftOcex.Dialect do
   end
 
   defp check_params("fillet_all", op, i), do: positive(op, "r", i)
+
+  defp check_params("chamfer_all", op, i), do: positive(op, "d", i)
+
+  defp check_params("shell", op, i) do
+    with :ok <- positive(op, "t", i), do: require_open(op, i)
+  end
 
   defp check_params("prism", op, i) do
     with :ok <- sides(op, i),
@@ -441,6 +448,69 @@ defmodule MnftOcex.Dialect do
       :error -> :ok
       {:ok, _} -> vec3(op, "at", i, &coord?/1, "finite numbers")
     end
+  end
+
+  # The kernel's shell demands at least one opening (no closed hollow).
+  defp require_open(op, i) do
+    case Map.fetch(op, "open") do
+      {:ok, selectors} when is_list(selectors) ->
+        cond do
+          length(selectors) < 1 ->
+            {:error, "ocex: op #{i}: \"open\" must contain at least one selector"}
+
+          length(selectors) > @max_selectors ->
+            {:error, "ocex: op #{i}: \"open\" must contain at most #{@max_selectors} selectors"}
+
+          true ->
+            selectors
+            |> Enum.reduce_while(:ok, fn selector, :ok ->
+              case validate_selector(selector, i) do
+                :ok -> {:cont, :ok}
+                {:error, _msg} = error -> {:halt, error}
+              end
+            end)
+        end
+
+      {:ok, _other} ->
+        {:error, "ocex: op #{i}: \"open\" must be an array of face selectors"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"open\""}
+    end
+  end
+
+  # A face selector uses EXACTLY one form:
+  #   {"normal": [nx,ny,nz], "through": [px,py,pz]} — planar faces parallel to
+  #                                                 the normal, plane through p
+  #   {"perpendicular": [ax,ay,az]}                — planar faces whose normal
+  #                                                 is perpendicular to the axis
+  defp validate_selector(selector, i) when is_map(selector) do
+    perm? = Map.has_key?(selector, "perpendicular")
+    norm? = Map.has_key?(selector, "normal")
+    through? = Map.has_key?(selector, "through")
+
+    cond do
+      perm? and (norm? or through?) ->
+        {:error,
+         "ocex: op #{i}: selector must use either \"perpendicular\" or \"normal\"+\"through\", not both"}
+
+      perm? ->
+        nonzero_vec3(selector, "perpendicular", i)
+
+      norm? and through? ->
+        with :ok <- nonzero_vec3(selector, "normal", i) do
+          vec3(selector, "through", i, &coord?/1, "finite numbers")
+        end
+
+      true ->
+        {:error,
+         "ocex: op #{i}: selector must be an object with either \"perpendicular\" or \"normal\" and \"through\""}
+    end
+  end
+
+  defp validate_selector(_other, i) do
+    {:error,
+     "ocex: op #{i}: selector must be an object with either \"perpendicular\" or \"normal\" and \"through\""}
   end
 
   defp coord?(value) when is_number(value), do: finite?(value) and abs(value) <= @max_coord

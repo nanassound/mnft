@@ -284,6 +284,94 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "fillet_all"}, [], i),
     do: {:error, "ocex: op #{i}: fillet_all needs a shape on the stack (stack is empty)"}
 
+  defp apply_op(%{"op" => "chamfer_all", "d" => d}, [top | rest], i) do
+    with {:ok, edges} <- OCEx.edges(top),
+         {:ok, shape} <- OCEx.chamfer(top, edges, d) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: chamfer_all failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "chamfer_all"}, [], i),
+    do: {:error, "ocex: op #{i}: chamfer_all needs a shape on the stack (stack is empty)"}
+
+  # `shell` hollows the top shape with wall thickness t; `open` is a list of
+  # face selectors naming the faces removed as openings (no lid on a box).
+  defp apply_op(%{"op" => "shell", "t" => t} = op, [top | rest], i) do
+    with {:ok, openings} <- shell_openings(top, Map.get(op, "open", []), i),
+         {:ok, shape} <- OCEx.shell(top, openings, t, join: :arc) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, reason} -> {:error, "ocex: op #{i}: shell failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "shell"}, [], i),
+    do: {:error, "ocex: op #{i}: shell needs a shape on the stack (stack is empty)"}
+
+  defp shell_openings(_top, [], _i), do: {:ok, []}
+
+  defp shell_openings(top, selectors, i) do
+    selectors
+    |> Enum.map(&matching_faces(top, &1))
+    |> unwrap_all()
+    |> case do
+      {:ok, groups} ->
+        case Enum.uniq(List.flatten(groups)) do
+          [] -> {:error, "ocex: op #{i}: selector matched no faces"}
+          openings -> {:ok, openings}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  # --- face selectors -----------------------------------------------------------
+
+  # Two forms (validated statically):
+  #   {"normal": n, "through": p} — planar faces whose normal is ±parallel to
+  #                                 the unit of n and whose plane contains p
+  #   {"perpendicular": axis}     — planar faces whose normal ⊥ axis
+  defp matching_faces(shape, selector) do
+    case OCEx.faces(shape) do
+      {:ok, faces} -> {:ok, Enum.filter(faces, &face_matches?(&1, selector))}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp face_matches?(face, selector) do
+    case OCEx.face_info(face) do
+      {:ok, %{type: :plane, normal: normal, center: center}} ->
+        plane_matches?(normal, center, selector)
+
+      _ ->
+        false
+    end
+  end
+
+  defp plane_matches?(normal, center, %{"perpendicular" => axis}) do
+    abs(dot(normal, unit(axis))) <= 1.0e-9
+  end
+
+  defp plane_matches?(normal, center, %{"normal" => sel_normal, "through" => through}) do
+    n = unit(sel_normal)
+
+    abs(abs(dot(normal, n)) - 1.0) <= 1.0e-9 and
+      abs(dot(normal, center) - dot(normal, to_tuple(through))) <= 1.0e-4
+  end
+
+  defp dot({ax, ay, az}, {bx, by, bz}), do: ax * bx + ay * by + az * bz
+
+  defp unit([x, y, z]) do
+    mag = :math.sqrt(x * x + y * y + z * z)
+    {x / mag, y / mag, z / mag}
+  end
+
+  defp to_tuple([x, y, z]), do: {x, y, z}
+
   # --- patterns ----------------------------------------------------------------
 
   # Patterns FUSE the copies through the original, growing the top shape —

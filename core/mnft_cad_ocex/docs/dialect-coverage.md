@@ -26,7 +26,7 @@ sugar over profiles + sweeps, never new machinery.
 | sweeps | extrude, revolve, loft | ✅ — sweep/helix land with the thread batch |
 | booleans | union, cut, intersect | ✅ |
 | transforms | translate, rotate, mirror, scale | ✅ mirror fuses the reflection in; scale is origin-anchored |
-| finishing | fillet_all | 🟡 all-edges only — selected-edge fillet/chamfer needs a selector mini-language |
+| finishing | fillet_all, chamfer_all, shell | 🟡 selected-edge fillet/chamfer still missing (`on` selector ops) |
 | patterns | pattern_linear, pattern_circular | ✅ fuse copies through the original (Σcount ≤ 1000) |
 | domain | — | ❌ thread (decomp: triangle profile + helix sweep), gear, text (OCEx has font faces) |
 
@@ -50,8 +50,8 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | revolve | sweep | ✅ revolve | profile plane must contain the axis (kernel accepts a perpendicular profile with zero volume) |
 | sweep along path | sweep | ❌ | OCEx.sweep exists; unlocks helix→thread |
 | loft | sweep | ✅ loft | ruled; sections in push order |
-| offset / shell | finishing | ❌ | shell = hollow enclosure; OCEx.shell exists (openings, t) |
-| fillet/chamfer all edges | finishing | ✅ fillet_all | chamfer_all missing (chamfer twin, trivial) |
+| offset / shell | finishing | ✅ shell | hollows the body; `open` selector (required ≥1) removes a lid/wall (kernel: no closed hollow; offset stays ❌) |
+| fillet/chamfer all edges | finishing | ✅ fillet_all / chamfer_all | |
 | fillet/chamfer selected edges | finishing | ❌ | needs edge selector mini-language (by face, by axis) |
 | mirror | transform | ✅ mirror | fuses the reflection into the shape (mirror-completes) |
 | linear/circular pattern | pattern | ✅ pattern_linear / pattern_circular | fuse copies through the original; a patterned bore cuts all instances |
