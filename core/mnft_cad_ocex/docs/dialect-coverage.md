@@ -27,7 +27,7 @@ sugar over profiles + sweeps, never new machinery.
 | booleans | union, cut, intersect | ✅ |
 | transforms | translate, rotate | ✅ — mirror, scale missing (OCEx has both) |
 | finishing | fillet_all | 🟡 all-edges only — selected-edge fillet/chamfer needs a selector mini-language |
-| patterns | — | ❌ linear/circular patterns, mirror-array (biggest multiplier: bolt circles) |
+| patterns | pattern_linear, pattern_circular | ✅ fuse copies through the original (Σcount ≤ 1000) |
 | domain | — | ❌ thread (decomp: triangle profile + helix sweep), gear, text (OCEx has font faces) |
 
 ## Corpus audit v1 (build123d ~ Operations/Objects, CadQuery, OpenSCAD)
@@ -54,7 +54,7 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | fillet/chamfer all edges | finishing | ✅ fillet_all | chamfer_all missing (chamfer twin, trivial) |
 | fillet/chamfer selected edges | finishing | ❌ | needs edge selector mini-language (by face, by axis) |
 | mirror | transform | ❌ | OCEx.mirror exists (origin, normal) |
-| linear/circular pattern | pattern | ❌ | highest-leverage gap: bolt circles, vent arrays |
+| linear/circular pattern | pattern | ✅ pattern_linear / pattern_circular | fuse copies through the original; a patterned bore cuts all instances |
 | scale | transform | ❌ | OCEx.scale exists |
 | text | domain | ❌ | OCEx has font-backed faces (FreeType/HarfBuzz) |
 | thread | domain | 🟡 | expressible after sweep: triangle profile + helix wire |

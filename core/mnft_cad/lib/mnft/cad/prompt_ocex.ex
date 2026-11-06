@@ -45,6 +45,8 @@ defmodule Mnft.Cad.PromptOcex do
   | polyline   | pts:[[x,y,z]…], close?=true, at?         | planar face through the points (close:false → open wire for sweep paths) |
   | extrude    | h, dir?[x,y,z]                           | pops the top FACE, pushes a solid (dir default +z) |
   | rotate     | axis:[x,y,z], degrees                    | spins the top shape about a world axis through the origin |
+  | pattern_linear | count 2..200, delta:[dx,dy,dz]       | replaces the top shape with itself fused with count−1 copies stepped by delta |
+  | pattern_circular | count 2..200, axis?[0,0,1], at?[0,0,0], degrees?360 | replaces the top shape with itself fused with count−1 copies rotated about `at` |
 
   The model must:
   - be deterministic (same input, same model);
@@ -70,8 +72,10 @@ defmodule Mnft.Cad.PromptOcex do
     keeps the wrong material.
   - `fillet_all` rounds EVERY edge including hole rims; use only when that
     is intended, and keep r well below the smallest feature.
-  - There are no variables, no loops, no conditionals — if the geometry needs
-    a pattern, write every instance explicitly.
+  - There are no variables, no loops, no conditionals. For repeated features
+    use `pattern_*`: it FUSES the copies through the original, so a patterned
+    bore tool cuts ALL its instances with ONE `cut` — build the plate, push
+    one bore cylinder, pattern it, cut once.
   - Negative sizes, zero radius, or more than 200 ops are rejected before the
     engine runs and cost a wasted round trip.
   """
@@ -80,8 +84,9 @@ defmodule Mnft.Cad.PromptOcex do
 
   Skills block (ocex):
 
-  - A plate with bolt bores: box, then per bore push cylinder with `at`
-    below the plate base, then `cut`.
+  - A plate with bolt bores: box, then ONE bore cylinder with `at` below the
+    plate base at the first hole position, `pattern_circular` about the plate
+    centre (count = number of holes), then a single `cut`.
   - A standoff/spacer: cylinder body, fillet_all for break edges.
   - An L-bracket: one `polyline` with the L-profile outline, e.g.
     pts [[0,0,0],[40,0,0],[40,10,0],[10,10,0],[10,40,0],[0,40,0]], then

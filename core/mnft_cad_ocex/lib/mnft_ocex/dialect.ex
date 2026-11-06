@@ -30,8 +30,10 @@ defmodule MnftOcex.Dialect do
   @stack_ops ~w(union cut intersect)
   @shape_ops ~w(box cylinder sphere prism)
   @profile_ops ~w(polygon polyline)
+  @pattern_ops ~w(pattern_linear pattern_circular)
   @max_points 512
-  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ ~w(translate fillet_all extrude rotate)
+  @max_pattern_instances 1000
+  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all extrude rotate)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   def validate(code) when is_binary(code) do
@@ -40,7 +42,8 @@ defmodule MnftOcex.Dialect do
     else
       with {:ok, %{"ops" => ops}} <- decode(code),
            {:ok, ops} <- check_list(ops),
-           :ok <- check_each(ops) do
+           :ok <- check_each(ops),
+           :ok <- pattern_budget(ops) do
         {:ok, ops}
       end
     end
@@ -85,6 +88,23 @@ defmodule MnftOcex.Dialect do
     end)
   end
 
+  # Program-level cap: each pattern op builds `count` copies of its input, so
+  # a chain of large patterns could explode the kernel — cap the sum.
+  defp pattern_budget(ops) do
+    total =
+      Enum.reduce(ops, 0, fn
+        %{"op" => name, "count" => count}, acc when name in @pattern_ops and is_integer(count) ->
+          acc + count
+
+        _op, acc ->
+          acc
+      end)
+
+    if total > @max_pattern_instances,
+      do: {:error, "ocex: patterns would build more than #{@max_pattern_instances} instances"},
+      else: :ok
+  end
+
   # --- per-op ------------------------------------------------------------------
 
   defp check_op(%{"op" => name} = op, i) when is_binary(name) do
@@ -120,6 +140,18 @@ defmodule MnftOcex.Dialect do
     with :ok <- ngon_n(op, i),
          :ok <- positive(op, "r", i),
          do: optional_number(op, "rot", i)
+  end
+
+  defp check_params("pattern_linear", op, i) do
+    with :ok <- pattern_count(op, i), do: nonzero_vec3(op, "delta", i)
+  end
+
+  defp check_params("pattern_circular", op, i) do
+    with :ok <- pattern_count(op, i),
+         :ok <- optional_nonzero_vec3(op, "axis", i),
+         :ok <- optional_degrees(op, i) do
+      optional_at(op, i)
+    end
   end
 
   defp check_params("extrude", op, i) do
@@ -303,6 +335,40 @@ defmodule MnftOcex.Dialect do
 
       {:ok, _other} ->
         {:error, "ocex: op #{i}: \"#{key}\" must be a boolean"}
+
+      :error ->
+        :ok
+    end
+  end
+
+  defp pattern_count(op, i) do
+    case Map.fetch(op, "count") do
+      {:ok, n} when is_integer(n) and n >= 2 and n <= 200 ->
+        :ok
+
+      {:ok, _other} ->
+        {:error, "ocex: op #{i}: \"count\" must be an integer from 2 to 200"}
+
+      :error ->
+        {:error, "ocex: op #{i}: missing \"count\""}
+    end
+  end
+
+  defp optional_nonzero_vec3(op, key, i) do
+    case Map.fetch(op, key) do
+      :error -> :ok
+      {:ok, _} -> nonzero_vec3(op, key, i)
+    end
+  end
+
+  defp optional_degrees(op, i) do
+    case Map.fetch(op, "degrees") do
+      {:ok, degrees} ->
+        if is_number(degrees) and finite?(degrees) and degrees >= 1 and degrees <= 360 do
+          :ok
+        else
+          {:error, "ocex: op #{i}: \"degrees\" must be a number from 1 to 360"}
+        end
 
       :error ->
         :ok

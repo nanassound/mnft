@@ -42,6 +42,8 @@ validates before any native call; `MnftOcex.Interpreter` executes):
 | `polyline` | `pts:[[x,y,z]…]`, `close?=true`, `at?` | planar face through the points (`close:false` → open wire, sweep path) |
 | `extrude` | `h`, `dir?` | pops a face, pushes a solid (out-of-plane only) |
 | `rotate` | `axis`, `degrees` | spins the top shape about a world axis |
+| `pattern_linear` | `count`, `delta:[dx,dy,dz]` | top fused with count−1 translated copies |
+| `pattern_circular` | `count`, `axis?`, `at?`, `degrees?` | top fused with count−1 rotated copies (default z axis, 360°) |
 
 Rules: millimetres, ≤200 ops, all dimensions positive and finite, the final
 stack must hold exactly one shape. Booleans pop blank-then-tool — push the

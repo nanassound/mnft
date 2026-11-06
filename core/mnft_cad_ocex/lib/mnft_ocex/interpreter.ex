@@ -181,10 +181,54 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "fillet_all"}, [], i),
     do: {:error, "ocex: op #{i}: fillet_all needs a shape on the stack (stack is empty)"}
 
+  # --- patterns ----------------------------------------------------------------
+
+  # Patterns FUSE the copies through the original, growing the top shape —
+  # disjoint copies stay a multi-solid compound (volume/STL/STEP all handle it).
+  defp apply_op(%{"op" => "pattern_linear", "count" => count, "delta" => [dx, dy, dz]}, [top | rest], i) do
+    copies =
+      for k <- 1..(count - 1) do
+        OCEx.translate(top, {dx * k, dy * k, dz * k})
+      end
+
+    with {:ok, copies} <- unwrap_all(copies),
+         {:ok, shape} <- OCEx.fuse_many(top, copies) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: pattern_linear failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "pattern_linear"}, [], i),
+    do: {:error, "ocex: op #{i}: pattern_linear needs a shape on the stack (stack is empty)"}
+
+  defp apply_op(%{"op" => "pattern_circular", "count" => count} = op, [top | rest], i) do
+    [ax, ay, az] = Map.get(op, "axis", [0, 0, 1])
+    [cx, cy, cz] = Map.get(op, "at", [0, 0, 0])
+    step = Map.get(op, "degrees", 360) / count
+
+    copies =
+      for k <- 1..(count - 1) do
+        OCEx.rotate(top, {cx, cy, cz}, {ax, ay, az}, step * k)
+      end
+
+    with {:ok, copies} <- unwrap_all(copies),
+         {:ok, shape} <- OCEx.fuse_many(top, copies) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: pattern_circular failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "pattern_circular"}, [], i),
+    do: {:error, "ocex: op #{i}: pattern_circular needs a shape on the stack (stack is empty)"}
+
   # --- booleans ----------------------------------------------------------------
 
+  # A patterned tool arrives as a compound; OCEx booleans take flat shape
+  # lists, so expand compounds into their solids (single solids pass through).
   defp apply_op(%{"op" => "cut"}, [tool, blank | rest], i) do
-    with {:ok, shape} <- OCEx.cut(blank, tool) do
+    with {:ok, shape} <- subtract_blank(blank, tool) do
       {:ok, [shape | rest]}
     else
       {:error, reason} -> {:error, "ocex: op #{i}: cut failed (#{inspect(reason)})"}
@@ -195,7 +239,7 @@ defmodule MnftOcex.Interpreter do
     do: {:error, "ocex: op #{i}: cut needs a blank and a tool on the stack (got #{length(stack)})"}
 
   defp apply_op(%{"op" => "union"}, [tool, blank | rest], i) do
-    with {:ok, shape} <- OCEx.fuse(blank, tool) do
+    with {:ok, shape} <- fuse_blank(blank, tool) do
       {:ok, [shape | rest]}
     else
       {:error, reason} -> {:error, "ocex: op #{i}: union failed (#{inspect(reason)})"}
@@ -204,6 +248,26 @@ defmodule MnftOcex.Interpreter do
 
   defp apply_op(%{"op" => "union"}, stack, i),
     do: {:error, "ocex: op #{i}: union needs two shapes on the stack (got #{length(stack)})"}
+
+  defp subtract_blank(blank, tool) do
+    case OCEx.shape_type(tool) do
+      {:ok, :compound} ->
+        with {:ok, solids} <- OCEx.solids(tool), do: OCEx.cut_many(blank, solids)
+
+      _ ->
+        OCEx.cut(blank, tool)
+    end
+  end
+
+  defp fuse_blank(blank, tool) do
+    case OCEx.shape_type(tool) do
+      {:ok, :compound} ->
+        with {:ok, solids} <- OCEx.solids(tool), do: OCEx.fuse_many(blank, solids)
+
+      _ ->
+        OCEx.fuse(blank, tool)
+    end
+  end
 
   defp apply_op(%{"op" => "intersect"}, [tool, blank | rest], i) do
     with {:ok, shape} <- OCEx.common(blank, tool) do
@@ -229,6 +293,18 @@ defmodule MnftOcex.Interpreter do
     case Map.fetch(op, "at") do
       {:ok, [x, y, z]} -> OCEx.translate(shape, {x, y, z})
       :error -> {:ok, shape}
+    end
+  end
+
+  defp unwrap_all(results) do
+    results
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, value}, {:ok, acc} -> {:cont, {:ok, [value | acc]}}
+      {:error, _reason} = error, _acc -> {:halt, error}
+    end)
+    |> case do
+      {:ok, list} -> {:ok, Enum.reverse(list)}
+      error -> error
     end
   end
 

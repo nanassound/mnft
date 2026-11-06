@@ -218,4 +218,91 @@ defmodule MnftOcex.DialectTest do
 
     assert msg =~ "\"at\""
   end
+
+  # --- patterns ----------------------------------------------------------------
+
+  test "accepts pattern_linear with count and delta" do
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "pattern_linear", "count": 3, "delta": [10, 0, 0]}]}))
+  end
+
+  test "rejects a pattern count below 2 or above 200" do
+    for count <- [1, 201] do
+      json =
+        Jason.encode!(%{
+          "ops" => [%{"op" => "pattern_linear", "count" => count, "delta" => [1, 0, 0]}]
+        })
+
+      assert {:error, msg} = err(json)
+      assert msg =~ "from 2 to 200"
+    end
+  end
+
+  test "rejects a non-integer pattern count and a missing count" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "pattern_linear", "count": 2.5, "delta": [1, 0, 0]}]}))
+
+    assert msg =~ "from 2 to 200"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "pattern_linear", "delta": [1, 0, 0]}]}))
+    assert msg =~ "missing \"count\""
+  end
+
+  test "rejects a zero pattern delta" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "pattern_linear", "count": 3, "delta": [0, 0, 0]}]}))
+
+    assert msg =~ "must not be the zero vector"
+  end
+
+  test "accepts pattern_circular with defaults and rejects a zero axis" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "pattern_circular", "count": 4}]}))
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "pattern_circular", "count": 4, "axis": [0, 0, 0]}]}))
+
+    assert msg =~ "must not be the zero vector"
+  end
+
+  test "pattern_circular validates degrees within 1..360" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "pattern_circular", "count": 4, "degrees": 180}]}))
+
+    for degrees <- [0, 720] do
+      json = Jason.encode!(%{"ops" => [%{"op" => "pattern_circular", "count" => 4, "degrees" => degrees}]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "from 1 to 360"
+    end
+  end
+
+  test "patterns totalling more than 1000 instances are rejected program-wide" do
+    json = """
+    {"ops": [
+      {"op": "box", "size": [10, 10, 10]},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200}
+    ]}
+    """
+
+    assert {:error, msg} = err(json)
+    assert msg =~ "more than 1000 instances"
+  end
+
+  test "patterns totalling exactly 1000 instances are accepted" do
+    ops = %{
+      "ops" => [
+        %{"op" => "box", "size" => [10, 10, 10]},
+        %{"op" => "pattern_circular", "count" => 200},
+        %{"op" => "pattern_circular", "count" => 200},
+        %{"op" => "pattern_circular", "count" => 200},
+        %{"op" => "pattern_circular", "count" => 200},
+        %{"op" => "pattern_circular", "count" => 200}
+      ]
+    }
+
+    assert {:ok, _} = err(Jason.encode!(ops))
+  end
 end

@@ -205,4 +205,47 @@ defmodule MnftOcex.InterpreterTest do
     assert {:error, msg} = Interpreter.run(bad)
     assert msg =~ "op 3" and msg =~ "cut failed"
   end
+
+  # --- patterns ----------------------------------------------------------------
+
+  test "pattern_linear fuses disjoint copies into a compound with summed volume" do
+    ops = [
+      %{"op" => "box", "size" => [20, 10, 10]},
+      %{"op" => "pattern_linear", "count" => 3, "delta" => [30, 0, 0]}
+    ]
+
+    assert_in_delta volume(ops), 3 * 2_000, 1.0e-3
+  end
+
+  test "pattern_circular lays out six cylinders on a bolt circle" do
+    ops = [
+      %{"op" => "cylinder", "r" => 2, "h" => 10, "at" => [40, 40, -5]},
+      %{"op" => "pattern_circular", "count" => 6, "at" => [0, 40, -5]}
+    ]
+
+    assert_in_delta volume(ops), 6 * :math.pi() * 4 * 10, 1.0e-2
+  end
+
+  test "a patterned bore tool cuts all instances at once (compound-aware cut)" do
+    ops = [
+      %{"op" => "box", "size" => [100, 100, 10]},
+      %{"op" => "cylinder", "r" => 3, "h" => 20, "at" => [50, 20, -5]},
+      %{"op" => "pattern_circular", "count" => 4, "at" => [50, 50, 0]},
+      %{"op" => "cut"}
+    ]
+
+    assert_in_delta volume(ops), 100_000 - 4 * :math.pi() * 9 * 10, 1.0e-1
+  end
+
+  test "pattern_linear on an empty stack is a tagged error" do
+    assert {:error, msg} =
+             Interpreter.run([%{"op" => "pattern_linear", "count" => 3, "delta" => [10, 0, 0]}])
+
+    assert msg =~ "op 1" and msg =~ "pattern_linear" and msg =~ "stack is empty"
+  end
+
+  test "pattern_circular on an empty stack is a tagged error" do
+    assert {:error, msg} = Interpreter.run([%{"op" => "pattern_circular", "count" => 4}])
+    assert msg =~ "op 1" and msg =~ "pattern_circular" and msg =~ "stack is empty"
+  end
 end
