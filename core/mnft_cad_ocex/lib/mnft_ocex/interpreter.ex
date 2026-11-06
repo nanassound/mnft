@@ -1,0 +1,687 @@
+defmodule MnftOcex.Interpreter do
+  @moduledoc """
+  Executes a validated `ocex` op list against OCEx as a shape stack.
+
+  Every op returns `{:ok, stack}` or `{:error, message}`; the message carries
+  the op index so the repair loop can point the model at the failing step.
+  OCEx itself never raises through this module — every call is a tagged
+  tuple, and any unexpected exception belongs to the engine's containment.
+  """
+
+  @spec run([map()]) :: {:ok, term()} | {:error, String.t()}
+  def run(ops) when is_list(ops) do
+    ops
+    |> Enum.with_index(1)
+    |> Enum.reduce_while({:ok, []}, fn {op, i}, {:ok, stack} ->
+      case apply_op(op, stack, i) do
+        {:ok, stack} -> {:cont, {:ok, stack}}
+        {:error, _msg} = error -> {:halt, error}
+      end
+    end)
+    |> finish()
+  end
+
+  defp finish({:ok, [shape]}), do: {:ok, shape}
+
+  defp finish({:ok, stack}),
+    do:
+      {:error,
+       "ocex: program must end with exactly one shape on the stack (got #{length(stack)})"}
+
+  defp finish({:error, _msg} = error), do: error
+
+  # --- primitives --------------------------------------------------------------
+
+  defp apply_op(%{"op" => "box", "size" => [x, y, z]} = op, stack, i) do
+    with {:ok, shape} <- OCEx.box(x, y, z),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "box", reason)
+    end
+  end
+
+  defp apply_op(%{"op" => "cylinder", "r" => r, "h" => h} = op, stack, i) do
+    with {:ok, shape} <- OCEx.cylinder(r, h),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "cylinder", reason)
+    end
+  end
+
+  defp apply_op(%{"op" => "sphere", "r" => r} = op, stack, i) do
+    with {:ok, shape} <- OCEx.sphere(r),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "sphere", reason)
+    end
+  end
+
+  defp apply_op(%{"op" => "prism", "n" => n, "r" => r, "h" => h} = op, stack, i) do
+    rot = deg_to_rad(Map.get(op, "rot", 0))
+
+    with {:ok, face} <- regular_ngon_face(n, r, rot),
+         {:ok, shape} <- OCEx.extrude(face, {0.0, 0.0, h * 1.0}),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "prism", reason)
+    end
+  end
+
+  defp apply_op(%{"op" => "cone", "r1" => r1, "r2" => r2, "h" => h} = op, stack, i) do
+    with {:ok, shape} <- OCEx.cone(r1, r2, h),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "cone", reason)
+    end
+  end
+
+  defp apply_op(%{"op" => "torus", "R" => major, "r" => minor} = op, stack, i) do
+    with {:ok, shape} <- OCEx.torus(major, minor),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "torus", reason)
+    end
+  end
+
+  # Sketch-layer seed: `polygon` pushes a planar n-gon FACE; `extrude` turns a
+  # face into a solid. Named solids like `prism` are sugar over this pair.
+  defp apply_op(%{"op" => "polygon", "n" => n, "r" => r} = op, stack, i) do
+    rot = deg_to_rad(Map.get(op, "rot", 0))
+
+    with {:ok, face} <- regular_ngon_face(n, r, rot),
+         {:ok, face} <- place(face, op) do
+      {:ok, [face | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "polygon", reason)
+    end
+  end
+
+  defp apply_op(%{"op" => "circle", "r" => r} = op, stack, i) do
+    with {:ok, edge} <- OCEx.circle(r),
+         {:ok, wire} <- OCEx.wire([edge]),
+         {:ok, face} <- OCEx.face(wire),
+         {:ok, face} <- place(face, op) do
+      {:ok, [face | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "circle", reason)
+    end
+  end
+
+  # `text` pushes a planar face compound in the bundled Graduate font,
+  # baseline at the origin / `at`; `extrude` embosses or engraves it.
+  defp apply_op(%{"op" => "text", "s" => s, "size" => size} = op, stack, i) do
+    with {:ok, %{shape: shape}} <- OCEx.text(s, font_bytes(), size),
+         {:ok, shape} <- place(shape, op) do
+      {:ok, [shape | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "text", reason)
+    end
+  end
+
+  # `polyline` pushes a planar FACE through the points when `close` (default
+  # true); `close: false` keeps an open WIRE — a sweep path.
+  defp apply_op(%{"op" => "polyline", "pts" => pts} = op, stack, i) do
+    close? = Map.get(op, "close", true)
+    vertices = for [x, y, z] <- pts, do: {x, y, z}
+
+    with {:ok, wire} <- polyline_wire(vertices, close?),
+         {:ok, pushed} <- close_or_wire(wire, close?),
+         {:ok, pushed} <- place(pushed, op) do
+      {:ok, [pushed | stack]}
+    else
+      {:error, reason} -> primitive_error(i, "polyline", reason)
+    end
+  end
+
+  defp apply_op(%{"op" => "extrude", "h" => h} = op, [top | rest], i) do
+    [dx, dy, dz] = Map.get(op, "dir", [0, 0, 1])
+    len = :math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    with {:ok, solid} <- OCEx.extrude(top, {dx / len * h, dy / len * h, dz / len * h}) do
+      {:ok, [solid | rest]}
+    else
+      {:error, reason} ->
+        {:error,
+         "ocex: op #{i}: extrude needs a planar face on the stack (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "extrude"}, [], i),
+    do: {:error, "ocex: op #{i}: extrude needs a face on the stack (stack is empty)"}
+
+  # `revolve` pops a face and sweeps it about the axis through `at`
+  # (right-hand rule). The profile plane must CONTAIN the axis: the kernel
+  # silently builds a zero-volume solid for a profile at right angles to it.
+  defp apply_op(%{"op" => "revolve", "axis" => [x, y, z]} = op, [top | rest], i) do
+    [ax, ay, az] = Map.get(op, "at", [0, 0, 0])
+    degrees = Map.get(op, "degrees", 360) * 1.0
+
+    with {:ok, shape} <- OCEx.revolve(top, {ax, ay, az}, {x, y, z}, degrees) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} ->
+        {:error,
+         "ocex: op #{i}: revolve needs a planar face on the stack (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "revolve"}, [], i),
+    do: {:error, "ocex: op #{i}: revolve needs a face on the stack (stack is empty)"}
+
+  # `loft` pops `sections` faces (first pushed = first section) and rules a
+  # capped solid through their boundary wires.
+  defp apply_op(%{"op" => "loft", "sections" => n}, stack, i) do
+    if n > length(stack) do
+      {:error, "ocex: op #{i}: loft needs #{n} faces on the stack (got #{length(stack)})"}
+    else
+      {sections, rest} = Enum.split(stack, n)
+
+      with {:ok, wires} <- section_wires(sections, "loft", i),
+           {:ok, shape} <- OCEx.loft(wires, ruled: true) do
+        {:ok, [shape | rest]}
+      else
+        {:error, reason} when is_binary(reason) -> {:error, reason}
+        {:error, reason} -> {:error, "ocex: op #{i}: loft failed (#{inspect(reason)})"}
+      end
+    end
+  end
+
+  defp apply_op(%{"op" => "rotate", "axis" => [x, y, z], "degrees" => degrees}, [top | rest], i) do
+    with {:ok, shape} <- OCEx.rotate(top, {0.0, 0.0, 0.0}, {x, y, z}, degrees * 1.0) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: rotate failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "rotate"}, [], i),
+    do: {:error, "ocex: op #{i}: rotate needs a shape on the stack (stack is empty)"}
+
+  # `mirror` FUSES the reflection into the shape (mirror-completes): give it
+  # half of a symmetric part and one op returns the whole.
+  defp apply_op(%{"op" => "mirror", "normal" => [nx, ny, nz]} = op, [top | rest], i) do
+    [ax, ay, az] = Map.get(op, "at", [0, 0, 0])
+
+    with {:ok, refl} <- OCEx.mirror(top, {ax, ay, az}, {nx, ny, nz}),
+         {:ok, shape} <- OCEx.fuse_many(top, [refl]) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: mirror failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "mirror"}, [], i),
+    do: {:error, "ocex: op #{i}: mirror needs a shape on the stack (stack is empty)"}
+
+  # `scale` is about the WORLD ORIGIN and moves positions too.
+  defp apply_op(%{"op" => "scale", "factor" => factor}, [top | rest], i) do
+    with {:ok, shape} <- OCEx.scale(top, factor) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: scale failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "scale"}, [], i),
+    do: {:error, "ocex: op #{i}: scale needs a shape on the stack (stack is empty)"}
+
+  # --- transforms --------------------------------------------------------------
+
+  defp apply_op(%{"op" => "translate", "delta" => [dx, dy, dz]}, [top | rest], _i) do
+    with {:ok, shape} <- OCEx.translate(top, {dx, dy, dz}) do
+      {:ok, [shape | rest]}
+    end
+  end
+
+  defp apply_op(%{"op" => "translate"}, [], i),
+    do: {:error, "ocex: op #{i}: translate needs a shape on the stack (stack is empty)"}
+
+  defp apply_op(%{"op" => "translate", "delta" => other}, _stack, i),
+    do: {:error, "ocex: op #{i}: translate delta must be [dx, dy, dz], got #{inspect(other)}"}
+
+  defp apply_op(%{"op" => "fillet_all", "r" => r}, [top | rest], i) do
+    with {:ok, edges} <- OCEx.edges(top),
+         {:ok, shape} <- OCEx.fillet(top, edges, r) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} ->
+        {:error, "ocex: op #{i}: fillet_all failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "fillet_all"}, [], i),
+    do: {:error, "ocex: op #{i}: fillet_all needs a shape on the stack (stack is empty)"}
+
+  defp apply_op(%{"op" => "chamfer_all", "d" => d}, [top | rest], i) do
+    with {:ok, edges} <- OCEx.edges(top),
+         {:ok, shape} <- OCEx.chamfer(top, edges, d) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: chamfer_all failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "chamfer_all"}, [], i),
+    do: {:error, "ocex: op #{i}: chamfer_all needs a shape on the stack (stack is empty)"}
+
+  # Selected-edge finishing: `on` picks faces; candidate edges come from the
+  # top body (the kernel demands edges owned by this exact shape) and match by
+  # native topology identity against the selected faces' edges. Edges shared
+  # between two selected faces are finished once.
+  defp apply_op(%{"op" => "fillet", "r" => r, "on" => selector}, [top | rest], i) do
+    with {:ok, edges} <- selected_edges(top, selector, i),
+         {:ok, shape} <- OCEx.fillet(top, edges, r) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, reason} -> {:error, "ocex: op #{i}: fillet failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "fillet"}, [], i),
+    do: {:error, "ocex: op #{i}: fillet needs a shape on the stack (stack is empty)"}
+
+  defp apply_op(%{"op" => "chamfer", "d" => d, "on" => selector}, [top | rest], i) do
+    with {:ok, edges} <- selected_edges(top, selector, i),
+         {:ok, shape} <- OCEx.chamfer(top, edges, d) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, reason} -> {:error, "ocex: op #{i}: chamfer failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "chamfer"}, [], i),
+    do: {:error, "ocex: op #{i}: chamfer needs a shape on the stack (stack is empty)"}
+
+  # `shell` hollows the top shape with wall thickness t; `open` is a list of
+  # face selectors naming the faces removed as openings (no lid on a box).
+  defp apply_op(%{"op" => "shell", "t" => t} = op, [top | rest], i) do
+    with {:ok, openings} <- shell_openings(top, Map.get(op, "open", []), i),
+         {:ok, shape} <- OCEx.shell(top, openings, t, join: :arc) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, reason} -> {:error, "ocex: op #{i}: shell failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "shell"}, [], i),
+    do: {:error, "ocex: op #{i}: shell needs a shape on the stack (stack is empty)"}
+
+  # --- patterns ----------------------------------------------------------------
+
+  # Patterns FUSE the copies through the original, growing the top shape —
+  # disjoint copies stay a multi-solid compound (volume/STL/STEP all handle it).
+  defp apply_op(%{"op" => "pattern_linear", "count" => count, "delta" => [dx, dy, dz]}, [top | rest], i) do
+    copies =
+      for k <- 1..(count - 1) do
+        OCEx.translate(top, {dx * k, dy * k, dz * k})
+      end
+
+    with {:ok, copies} <- unwrap_all(copies),
+         {:ok, shape} <- OCEx.fuse_many(top, copies) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: pattern_linear failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "pattern_linear"}, [], i),
+    do: {:error, "ocex: op #{i}: pattern_linear needs a shape on the stack (stack is empty)"}
+
+  defp apply_op(%{"op" => "pattern_circular", "count" => count} = op, [top | rest], i) do
+    [ax, ay, az] = Map.get(op, "axis", [0, 0, 1])
+    [cx, cy, cz] = Map.get(op, "at", [0, 0, 0])
+    step = Map.get(op, "degrees", 360) / count
+
+    copies =
+      for k <- 1..(count - 1) do
+        OCEx.rotate(top, {cx, cy, cz}, {ax, ay, az}, step * k)
+      end
+
+    with {:ok, copies} <- unwrap_all(copies),
+         {:ok, shape} <- OCEx.fuse_many(top, copies) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: pattern_circular failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "pattern_circular"}, [], i),
+    do: {:error, "ocex: op #{i}: pattern_circular needs a shape on the stack (stack is empty)"}
+
+  # --- sweeps: helix / sweep ----------------------------------------------------
+
+  # `helix` pushes an open wire: CCW around +z, starting at [r, 0, 0] + at,
+  # rising `pitch` per turn, 48 samples per turn through a spline.
+  #
+  # OCEx.sweep checks alignment against the PATH'S FIRST EDGE D1 tangent with
+  # a 1e-7 tolerance; an interpolated spline's end tangent misses it. So the
+  # wire begins with a ~5e-4mm straight stub along the exact analytic tangent
+  # (spline starts at the stub end, gap ~1e-8 < OCCT vertex tolerance).
+  defp apply_op(%{"op" => "helix", "r" => r, "pitch" => pitch, "turns" => turns} = op, stack, _i) do
+    [ax, ay, az] = Map.get(op, "at", [0, 0, 0])
+    steps = max(2, Kernel.round(turns * 48))
+    sweep_angle = turns * 2 * :math.pi()
+    c = pitch / (2 * :math.pi())
+    mag = :math.sqrt(r * r + c * c)
+
+    start = {ax + r, ay, az}
+    tangent = {0.0, r / mag, c / mag}
+    eps = 5.0e-4
+    stub_end = add(start, scale(tangent, eps))
+    t0 = eps / mag
+
+    points =
+      for k <- 0..steps do
+        t = t0 + (sweep_angle - t0) * k / steps
+        {ax + r * :math.cos(t), ay + r * :math.sin(t), az + c * t}
+      end
+
+    with {:ok, stub} <- OCEx.edge(start, stub_end),
+         {:ok, curve} <- OCEx.spline(points),
+         {:ok, wire} <- OCEx.wire([stub, curve]) do
+      {:ok, [wire | stack]}
+    end
+  end
+
+  # `sweep` pops the path (top) and the profile face below it; the profile
+  # must sit in the path's start plane, perpendicular to its start tangent.
+  defp apply_op(%{"op" => "sweep"}, [path, profile | rest], i) do
+    with {:ok, profile_wire} <- single_wire(profile, "sweep", i, "profile"),
+         {:ok, shape} <- OCEx.sweep(profile_wire, path, []) do
+      {:ok, [shape | rest]}
+    else
+      {:error, :misaligned_profile} ->
+        {:error,
+         "ocex: op #{i}: sweep profile must sit at the path start, perpendicular to its tangent"}
+
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+
+      {:error, reason} ->
+        {:error, "ocex: op #{i}: sweep failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "sweep"}, stack, i),
+    do:
+      {:error,
+       "ocex: op #{i}: sweep needs a profile face and a path on the stack (got #{length(stack)})"}
+
+  # --- booleans ----------------------------------------------------------------
+
+  # A patterned tool arrives as a compound; OCEx booleans take flat shape
+  # lists, so expand compounds into their solids (single solids pass through).
+  defp apply_op(%{"op" => "cut"}, [tool, blank | rest], i) do
+    with {:ok, shape} <- subtract_blank(blank, tool) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: cut failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "cut"}, stack, i),
+    do: {:error, "ocex: op #{i}: cut needs a blank and a tool on the stack (got #{length(stack)})"}
+
+  defp apply_op(%{"op" => "union"}, [tool, blank | rest], i) do
+    with {:ok, shape} <- fuse_blank(blank, tool) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: union failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "union"}, stack, i),
+    do: {:error, "ocex: op #{i}: union needs two shapes on the stack (got #{length(stack)})"}
+
+  defp apply_op(%{"op" => "intersect"}, [tool, blank | rest], i) do
+    with {:ok, shape} <- OCEx.common(blank, tool) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: intersect failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "intersect"}, stack, i),
+    do:
+      {:error,
+       "ocex: op #{i}: intersect needs two shapes on the stack (got #{length(stack)})"}
+
+  defp apply_op(op, _stack, i),
+    do:
+      {:error,
+       "ocex: op #{i}: malformed op #{inspect(op)} (validation should have rejected this)"}
+  defp polyline_wire(vertices, true), do: closed_wire(vertices)
+  defp polyline_wire(vertices, false), do: open_wire(vertices)
+
+  defp close_or_wire(wire, true), do: OCEx.face(wire)
+  defp close_or_wire(wire, false), do: {:ok, wire}
+
+  # --- sketch helpers ----------------------------------------------------------
+
+  # Regular n-gon in the XY plane, circumradius r, centred on the origin,
+  # first vertex at angle `rot`. Returns a planar face.
+  defp regular_ngon_face(n, r, rot) do
+    step = 2 * :math.pi() / n
+
+    vertices =
+      for k <- 0..(n - 1) do
+        angle = rot + k * step
+        {r * :math.cos(angle), r * :math.sin(angle), 0.0}
+      end
+
+    with {:ok, wire} <- closed_wire(vertices), do: OCEx.face(wire)
+  end
+
+  defp closed_wire(vertices) do
+    chain_wire(Enum.zip(vertices, tl(vertices) ++ [hd(vertices)]))
+  end
+
+  defp open_wire(vertices), do: chain_wire(Enum.zip(vertices, tl(vertices)))
+
+  defp chain_wire(pairs) do
+    edges =
+      Enum.reduce_while(pairs, {:ok, []}, fn {a, b}, {:ok, acc} ->
+        case OCEx.edge(a, b) do
+          {:ok, edge} -> {:cont, {:ok, [edge | acc]}}
+          {:error, _msg} = error -> {:halt, error}
+        end
+      end)
+
+    with {:ok, edges} <- edges, do: OCEx.wire(Enum.reverse(edges))
+  end
+
+  # Sections arrive in pop order (stack top first); loft order is push order.
+  defp section_wires(sections, op_name, i) do
+    sections
+    |> Enum.reverse()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {section, idx} -> single_wire(section, op_name, i, "section #{idx}") end)
+    |> unwrap_all()
+  end
+
+  # A loft/sweep section must be a face with exactly one boundary wire.
+  defp single_wire(shape, op_name, i, label) do
+    case OCEx.wires(shape) do
+      {:ok, [wire]} ->
+        {:ok, wire}
+
+      {:ok, wires} ->
+        {:error,
+         "ocex: op #{i}: #{op_name} #{label} must have exactly one boundary wire (got #{length(wires)})"}
+
+      {:error, reason} ->
+        {:error, "ocex: op #{i}: #{op_name} failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp selected_edges(top, selector, i) do
+    with {:ok, faces} <- matching_faces(top, selector),
+         :ok <- nonempty_faces(faces, i),
+         {:ok, candidates} <- OCEx.edges(top),
+         {:ok, face_edges} <- unwrap_all(Enum.map(faces, &OCEx.edges/1)) do
+      wanted = List.flatten(face_edges)
+
+      case Enum.filter(candidates, fn edge -> Enum.any?(wanted, &same_edge?(edge, &1)) end) do
+        [] -> {:error, "ocex: op #{i}: selector matched no edges"}
+        matched -> {:ok, matched}
+      end
+    end
+  end
+
+  defp nonempty_faces([], i), do: {:error, "ocex: op #{i}: selector matched no faces"}
+  defp nonempty_faces(_faces, _i), do: :ok
+
+  defp same_edge?(a, b) do
+    case OCEx.same?(a, b) do
+      {:ok, result} -> result
+      _ -> false
+    end
+  end
+
+  defp shell_openings(_top, [], _i), do: {:ok, []}
+
+  defp shell_openings(top, selectors, i) do
+    selectors
+    |> Enum.map(&matching_faces(top, &1))
+    |> unwrap_all()
+    |> case do
+      {:ok, groups} ->
+        case Enum.uniq(List.flatten(groups)) do
+          [] -> {:error, "ocex: op #{i}: selector matched no faces"}
+          openings -> {:ok, openings}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  # --- face selectors -----------------------------------------------------------
+
+  # Two forms (validated statically):
+  #   {"normal": n, "through": p} — planar faces whose normal is ±parallel to
+  #                                 the unit of n and whose plane contains p
+  #   {"perpendicular": axis}     — planar faces whose normal ⊥ axis
+  defp matching_faces(shape, selector) do
+    case OCEx.faces(shape) do
+      {:ok, faces} -> {:ok, Enum.filter(faces, &face_matches?(&1, selector))}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp face_matches?(face, selector) do
+    case OCEx.face_info(face) do
+      {:ok, %{type: :plane, normal: normal, center: center}} ->
+        plane_matches?(normal, center, selector)
+
+      _ ->
+        false
+    end
+  end
+
+  defp plane_matches?(normal, _center, %{"perpendicular" => axis}) do
+    abs(dot(normal, unit(axis))) <= 1.0e-9
+  end
+
+  defp plane_matches?(normal, center, %{"normal" => sel_normal, "through" => through}) do
+    n = unit(sel_normal)
+
+    abs(abs(dot(normal, n)) - 1.0) <= 1.0e-9 and
+      abs(dot(normal, center) - dot(normal, to_tuple(through))) <= 1.0e-4
+  end
+
+  defp dot({ax, ay, az}, {bx, by, bz}), do: ax * bx + ay * by + az * bz
+
+  defp unit([x, y, z]) do
+    mag = :math.sqrt(x * x + y * y + z * z)
+    {x / mag, y / mag, z / mag}
+  end
+
+  defp to_tuple([x, y, z]), do: {x, y, z}
+
+  defp add({ax, ay, az}, {bx, by, bz}), do: {ax + bx, ay + by, az + bz}
+  defp scale({x, y, z}, k), do: {x * k, y * k, z * k}
+
+  defp subtract_blank(blank, tool) do
+    case OCEx.shape_type(tool) do
+      {:ok, :compound} ->
+        with {:ok, solids} <- OCEx.solids(tool), do: OCEx.cut_many(blank, solids)
+
+      _ ->
+        OCEx.cut(blank, tool)
+    end
+  end
+
+  defp fuse_blank(blank, tool) do
+    case OCEx.shape_type(tool) do
+      {:ok, :compound} ->
+        with {:ok, solids} <- OCEx.solids(tool), do: OCEx.fuse_many(blank, solids)
+
+      _ ->
+        OCEx.fuse(blank, tool)
+    end
+  end
+
+  # --- helpers -----------------------------------------------------------------
+
+  @font_path "fonts/Graduate-Regular.ttf"
+
+  # The Graduate varsity font ships with this pack (license alongside it in
+  # priv/fonts); loaded once per node and memoized in persistent_term.
+  defp font_bytes do
+    case :persistent_term.get({__MODULE__, :font_bytes}, :missing) do
+      {:ok, bytes} -> bytes
+      :missing -> load_font()
+    end
+  end
+
+  defp load_font do
+    path =
+      case :code.priv_dir(:mnft_cad_ocex) do
+        {:error, _bad_name} -> Path.join([File.cwd!(), "priv", @font_path])
+        dir -> Path.join(to_string(dir), @font_path)
+      end
+
+    bytes = File.read!(path)
+    :persistent_term.put({__MODULE__, :font_bytes}, {:ok, bytes})
+    bytes
+  end
+
+  defp place(shape, op) do
+    case Map.fetch(op, "at") do
+      {:ok, [x, y, z]} -> OCEx.translate(shape, {x, y, z})
+      {:ok, _other} -> {:error, "ocex: invalid \"at\" (validation should have rejected this)"}
+      :error -> {:ok, shape}
+    end
+  end
+
+  # Raw kernel error terms are not user-readable (and not always binaries);
+  # messages built by this module (e.g. from `place/2`) pass through.
+  defp primitive_error(_i, _name, reason) when is_binary(reason), do: {:error, reason}
+
+  defp primitive_error(i, name, reason),
+    do: {:error, "ocex: op #{i}: #{name} failed (#{inspect(reason)})"}
+
+  defp unwrap_all(results) do
+    results
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, value}, {:ok, acc} -> {:cont, {:ok, [value | acc]}}
+      {:error, _reason} = error, _acc -> {:halt, error}
+    end)
+    |> case do
+      {:ok, list} -> {:ok, Enum.reverse(list)}
+      error -> error
+    end
+  end
+
+  defp deg_to_rad(degrees) when is_number(degrees), do: degrees * :math.pi() / 180
+end

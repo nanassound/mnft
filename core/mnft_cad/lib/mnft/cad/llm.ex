@@ -18,7 +18,7 @@ defmodule Mnft.Cad.LLM do
 
   import ReqLLM.Context
   alias ReqLLM.Message.ContentPart
-  alias Mnft.Cad.{CodeGen, Config, Prompt, PromptOpenscad, PromptReplicad, PromptSmlibpy}
+  alias Mnft.Cad.{CodeGen, Config, Prompt, PromptOcex, PromptOpenscad, PromptReplicad, PromptSmlibpy}
 
   @type history :: [%{required(:role) => :user | :assistant, required(:content) => String.t()}]
   @type image :: %{
@@ -154,6 +154,7 @@ defmodule Mnft.Cad.LLM do
       :smlibpy -> PromptSmlibpy.system() <> PromptSmlibpy.skills_block()
       :openscad -> PromptOpenscad.system() <> PromptOpenscad.skills_block()
       :replicad -> PromptReplicad.system() <> PromptReplicad.skills_block()
+      :ocex -> PromptOcex.system() <> PromptOcex.skills_block()
       _ -> Prompt.system() <> Prompt.skills_block()
     end
   end

@@ -81,5 +81,34 @@ defmodule MnftCadWeb.CadModelControllerTest do
     assert hd(Plug.Conn.get_resp_header(conn, "content-type")) =~ "text/x-python"
   end
 
+  test "owner can download an ocex program as JSON", %{conn: conn, session: session} do
+    program = ~s({"ops":[{"op":"box","size":[1,1,1]}]})
+
+    ocex_model = %{
+      id: "0cec0cec0cec0cec",
+      mesh: %{"triangles" => 12, "bbox_mm" => [1.0, 1.0, 1.0], "volume_mm3" => 1.0},
+      has_glb: false,
+      script_file: "model.ocex.json"
+    }
+
+    {:ok, %{model: _}} =
+      Cad.record_turn(
+        session,
+        %{content: "a cube", meta: %{}},
+        %{content: "done", code: program, meta: %{}},
+        ocex_model
+      )
+
+    path = Path.join([Mnft.Cad.Config.get(:models_dir), @owner, "0cec0cec0cec0cec"])
+    File.mkdir_p!(path)
+    File.write!(Path.join(path, "model.ocex.json"), program)
+
+    conn = Plug.Conn.put_session(conn, :owner_id, @owner)
+    conn = get(conn, ~p"/m/0cec0cec0cec0cec/model.ocex.json")
+    assert conn.status == 200
+    assert conn.resp_body == program
+    assert hd(Plug.Conn.get_resp_header(conn, "content-type")) =~ "application/json"
+  end
+
   defp map_response(conn), do: conn.status
 end

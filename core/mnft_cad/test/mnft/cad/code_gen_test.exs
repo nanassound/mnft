@@ -289,6 +289,77 @@ defmodule Mnft.Cad.CodeGenTest do
     end
   end
 
+  describe "ocex dialect" do
+    @program ~s({"ops":[{"op":"box","size":[10,10,5]}]})
+
+    test "extract_code returns the json-tagged program over a bare fence, last block wins" do
+      text =
+        "Draft:\n```json\n{\"ops\":[]}\n```\nbare:\n```\nnot this\n```\nFinal:\n```json\n#{@program}\n```"
+
+      assert CodeGen.extract_code(text) == @program
+    end
+
+    test "extract_code reads an ocex-tagged fence" do
+      assert CodeGen.extract_code("```ocex\n#{@program}\n```") == @program
+    end
+
+    test "extract_code is not fooled by an unclosed json fence" do
+      assert CodeGen.extract_code("```json\n{\"ops\": [") == nil
+    end
+
+    test "partial_code strips the json/ocex tag from a truncated reply" do
+      assert CodeGen.partial_code("```json\n{\"ops\":[{\"op\":\"box\"") == "{\"ops\":[{\"op\":\"box\""
+      assert CodeGen.partial_code("```ocex\n{\"ops\":[") == "{\"ops\":["
+    end
+
+    test "build_repair_message(:ocex, ...) is JSON-shaped, not Python-shaped" do
+      msg = CodeGen.build_repair_message(:ocex, @program, "ocex: op 1: boom")
+
+      assert msg =~ "```json"
+      assert msg =~ "`ops` array"
+      assert msg =~ @program
+      assert msg =~ "ocex: op 1: boom"
+      refute msg =~ ~r/python|`part`/i
+    end
+
+    test "build_truncated_repair_message(:ocex, ...) asks for one complete json block" do
+      msg = CodeGen.build_truncated_repair_message(:ocex, "{\"ops\":[{\"op\":\"bo")
+
+      assert msg =~ "```json"
+      assert msg =~ "`ops` array"
+      assert msg =~ "{\"ops\":[{\"op\":\"bo"
+      refute msg =~ ~r/python|`part`|60 lines/i
+    end
+
+    test "build_truncated_repair_message(:ocex, nil) still asks for json" do
+      msg = CodeGen.build_truncated_repair_message(:ocex, nil)
+
+      assert msg =~ "```json"
+      refute msg =~ "What you managed to output"
+    end
+
+    test "build_noop_message(:ocex, ...) asks for a complete ops program" do
+      msg =
+        CodeGen.build_noop_message(:ocex, "make it taller", "bbox 10 x 10 x 5 mm, 12 triangles")
+
+      assert msg =~ "```json"
+      assert msg =~ "`ops` array"
+      assert msg =~ "make it taller"
+      assert msg =~ "bbox 10 x 10 x 5 mm"
+      refute msg =~ ~r/python|`part`/i
+    end
+  end
+
+  describe "bare-fence fallback for other tags" do
+    test "a fence with an unlisted tag is still extracted when nothing else exists" do
+      assert CodeGen.extract_code("```text\ncube(1);\n```") == "cube(1);"
+    end
+
+    test "a listed tag still beats an unlisted one" do
+      assert CodeGen.extract_code("```text\nno\n```\n```python\nyes = 1\n```") == "yes = 1"
+    end
+  end
+
   describe "redaction + summaries" do
     test "redact_data_urls strips image bytes" do
       dirty = ~s(HTTP 400: {"error":{"message":"bad part near data:image/png;base64,AAAA=="})

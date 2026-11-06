@@ -10,14 +10,14 @@ defmodule Mnft.Cad.CodeGen do
 
   # scad/openscad tags: the OpenSCAD dialect demands python-tagged fences,
   # but models sometimes emit the natural tag anyway — read it rather than
-  # discard a complete script.
-  @tagged_block_re ~r/```(?:python|py|scad|openscad)[ \t]*\r?\n(.*?)```/s
+  # discard a complete script. json/ocex: the ocex dialect's program fence.
+  @tagged_block_re ~r/```(?:python|py|scad|openscad|json|ocex)[ \t]*\r?\n(.*?)```/s
   @js_block_re ~r/```(?:js|javascript)[ \t]*\r?\n(.*?)```/s
-  @any_block_re ~r/```[ \t]*\r?\n(.*?)```/s
+  @any_block_re ~r/```[a-z0-9_-]*[ \t]*\r?\n(.*?)```/is
   @data_url_re ~r/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]+/
 
   @doc """
-  Tagged blocks win (`python`/`py`/`scad`/`openscad` first, then
+  Tagged blocks win (`python`/`py`/`scad`/`openscad`/`json`/`ocex` first, then
   `js`/`javascript` for the browser replicad dialect); the bare-fence
   pattern is only consulted when no tagged block exists at all.
   """
@@ -77,6 +77,9 @@ defmodule Mnft.Cad.CodeGen do
 
   def partial_code(_), do: nil
 
+  # json must precede js: "json" starts with "js".
+  defp strip_lang_tag("json" <> rest), do: drop_first_nl(rest)
+  defp strip_lang_tag("ocex" <> rest), do: drop_first_nl(rest)
   defp strip_lang_tag("python" <> rest), do: drop_first_nl(rest)
   defp strip_lang_tag("py" <> rest), do: drop_first_nl(rest)
   defp strip_lang_tag("javascript" <> rest), do: drop_first_nl(rest)
@@ -236,6 +239,29 @@ defmodule Mnft.Cad.CodeGen do
     |> String.trim_trailing()
   end
 
+  def build_repair_message(:ocex, code, error) do
+    tail = error |> repair_error() |> String.slice(-2000, 2000)
+
+    """
+    Your ocex program failed.
+
+    Error:
+    #{tail}
+
+    Code you generated:
+    ```json
+    #{code}
+    ```
+
+    Fix the problem and reply with 1-3 plain sentences plus exactly one
+    corrected, complete ```json block containing a single JSON object with an
+    `ops` array and nothing else inside the block. Follow the op table in
+    your instructions (op names, required keys, ranges); the Error above names
+    the failing op index.
+    """
+    |> String.trim_trailing()
+  end
+
   def build_repair_message(dialect, code, error) when dialect in [:build123d, nil] do
     build_repair_message(code, error)
   end
@@ -295,6 +321,31 @@ defmodule Mnft.Cad.CodeGen do
     |> String.trim_trailing()
   end
 
+  def build_truncated_repair_message(:ocex, partial) do
+    partial_block =
+      if partial do
+        """
+        What you managed to output:
+        ```json
+        #{partial}
+        ```
+
+
+        """
+      else
+        ""
+      end
+
+    """
+    Your previous answer was cut off before the ```json code block finished (token limit).
+
+    #{partial_block}Return the complete program this time, in exactly one ```json block
+    containing a single JSON object with an `ops` array. Keep it short: prefer fewer,
+    simpler ops over a long program when in doubt.
+    """
+    |> String.trim_trailing()
+  end
+
   def build_truncated_repair_message(dialect, partial) when dialect in [:build123d, nil] do
     build_truncated_repair_message(partial)
   end
@@ -330,6 +381,21 @@ defmodule Mnft.Cad.CodeGen do
     1-3 sentences plus exactly one complete ```js block that binds the final
     shape to `part`. Only if you are certain the user asked to keep the model
     exactly as-is, say so plainly and repeat the code unchanged.
+    """
+    |> String.trim_trailing()
+  end
+
+  def build_noop_message(:ocex, user_message, stats_line) do
+    """
+    Your new program produced a model identical to the previous one (#{stats_line}) —
+    the geometry did not change at all, but the user's request was:
+
+    "#{String.trim(user_message)}"
+
+    Re-read the request, decide which concrete feature it changes, and reply with
+    1-3 sentences plus exactly one complete ```json block containing a single JSON
+    object with an `ops` array. Only if you are certain the user asked to keep the
+    model exactly as-is, say so plainly and repeat the program unchanged.
     """
     |> String.trim_trailing()
   end

@@ -1,0 +1,583 @@
+defmodule MnftOcex.DialectTest do
+  use ExUnit.Case, async: true
+
+  alias MnftOcex.Dialect
+
+  defp err(json), do: Dialect.validate(json)
+
+  test "accepts a well-formed program" do
+    json =
+      Jason.encode!(%{
+        "ops" => [
+          %{"op" => "box", "size" => [60, 40, 5]},
+          %{"op" => "cylinder", "r" => 4, "h" => 20, "at" => [30, 20, -5]},
+          %{"op" => "cut"}
+        ]
+      })
+
+    assert {:ok, ops} = Dialect.validate(json)
+    assert length(ops) == 3
+  end
+
+  test "rejects non-JSON input" do
+    assert {:error, msg} = err("this is not json")
+    assert msg =~ "invalid JSON"
+  end
+
+  test "accepts a prism with sides, radius and height" do
+    json =
+      Jason.encode!(%{
+        "ops" => [%{"op" => "prism", "n" => 6, "r" => 10, "h" => 5, "at" => [30, 20, 0]}]
+      })
+
+    assert {:ok, [_op]} = Dialect.validate(json)
+  end
+
+  test "rejects a prism with fewer than 3 sides" do
+    json = Jason.encode!(%{"ops" => [%{"op" => "prism", "n" => 2, "r" => 10, "h" => 5}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "\"n\" must be between 3 and 64"
+  end
+
+  test "rejects a prism with a non-integer n" do
+    json = Jason.encode!(%{"ops" => [%{"op" => "prism", "n" => 6.5, "r" => 10, "h" => 5}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "\"n\" must be an integer"
+  end
+
+  test "rejects a prism without n" do
+    json = Jason.encode!(%{"ops" => [%{"op" => "prism", "r" => 10, "h" => 5}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "missing \"n\""
+  end
+
+  test "rejects a program without an ops array" do
+    assert {:error, msg} = err(~s({"model": "plate"}))
+    assert msg =~ "\"ops\""
+  end
+
+  test "rejects an empty ops array" do
+    assert {:error, msg} = err(~s({"ops": []}))
+    assert msg =~ "empty"
+  end
+
+  test "rejects an ops value that is not an array" do
+    assert {:error, msg} = err(~s({"ops": "box"}))
+    assert msg =~ "must be a non-empty array"
+  end
+
+  test "rejects an unknown op" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "gear", "n": 12}]}))
+    assert msg =~ "unknown op"
+    assert msg =~ "gear"
+  end
+
+  test "rejects an op without an op key" do
+    assert {:error, msg} = err(~s({"ops": [{"size": [1, 2, 3]}]}))
+    assert msg =~ "every op must be an object"
+  end
+
+  test "rejects box without size" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "box"}]}))
+    assert msg =~ "missing \"size\""
+  end
+
+  test "rejects box with a two-entry size" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "box", "size": [1, 2]}]}))
+    assert msg =~ "[x, y, z]"
+  end
+
+  test "rejects box with a non-numeric size" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "box", "size": [1, "2", 3]}]}))
+    assert msg =~ "[x, y, z]"
+  end
+
+  test "rejects zero and negative dimensions" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "box", "size": [0, 40, 5]}]}))
+    assert msg =~ "positive"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "cylinder", "r": -3, "h": 20}]}))
+    assert msg =~ "positive"
+  end
+
+  test "rejects cylinder missing h" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "cylinder", "r": 3}]}))
+    assert msg =~ "missing \"h\""
+  end
+
+  test "rejects translate with a two-entry delta" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "box", "size": [1, 2, 3]}, {"op": "translate", "delta": [1, 2]}]}))
+    assert msg =~ "delta"
+  end
+
+  test "rejects a boolean op that takes at" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "cut", "at": [1, 2, 3]}]}))
+    assert msg =~ "takes no \"at\""
+  end
+
+  test "rejects fillet_all with a non-positive radius" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "box", "size": [1, 2, 3]}, {"op": "fillet_all", "r": 0}]}))
+    assert msg =~ "positive"
+  end
+
+  test "rejects more than 200 ops" do
+    box = ~s({"op": "box", "size": [1, 1, 1]})
+    ops = List.duplicate(box, 201) |> Enum.join(", ")
+    assert {:error, msg} = err(~s({"ops": [#{ops}]}))
+    assert msg =~ "more than 200"
+  end
+
+  test "rejects oversized programs by bytes" do
+    assert {:error, msg} = err(String.duplicate("a", 21_000))
+    assert msg =~ "exceeds"
+  end
+
+  # --- sketch layer: polygon / extrude / rotate --------------------------------
+
+  test "polygon validates n as an integer >= 3" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "n": 2, "r": 20}]}))
+    assert msg =~ "integer from 3 to 120"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "n": 2.5, "r": 20}]}))
+    assert msg =~ "integer from 3 to 120"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "r": 20}]}))
+    assert msg =~ "missing \"n\""
+  end
+
+  test "polygon validates r and optional rot" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "n": 6}]}))
+    assert msg =~ "missing \"r\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "polygon", "n": 6, "r": 20, "rot": "x"}]}))
+    assert msg =~ "\"rot\" must be a finite number"
+  end
+
+  test "extrude validates h and a nonzero dir" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "extrude"}]}))
+    assert msg =~ "missing \"h\""
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "extrude", "h": 10, "dir": [0, 0, 0]}]}))
+
+    assert msg =~ "must not be the zero vector"
+  end
+
+  test "rotate validates a nonzero axis and finite degrees" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "rotate", "axis": [0, 0, 0], "degrees": 90}]}))
+    assert msg =~ "must not be the zero vector"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "rotate", "axis": [0, 0, 1]}]}))
+    assert msg =~ "missing \"degrees\""
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "rotate", "axis": [0, 0, 1], "degrees": "ninety"}]}))
+
+    assert msg =~ "\"degrees\" must be a finite number"
+  end
+
+  # --- profiles: polyline -------------------------------------------------------
+
+  test "accepts a two-point closed polyline" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0], [10, 0, 0]]}]}))
+  end
+
+  test "rejects a polyline with a single point" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0]]}]}))
+    assert msg =~ "at least 2 points"
+  end
+
+  test "rejects a polyline with more than 512 points" do
+    pts = for n <- 0..512, do: [n, 0, 0]
+    assert {:error, msg} = err(Jason.encode!(%{"ops" => [%{"op" => "polyline", "pts" => pts}]}))
+    assert msg =~ "at most 512 points"
+  end
+
+  test "rejects a polyline with a non-vec3 point" do
+    assert {:error, msg} = err(~s({"ops": [{"op": "polyline", "pts": [[0, 0], [10, 0, 0]]}]}))
+    assert msg =~ "[x, y, z]"
+  end
+
+  test "rejects consecutive duplicate polyline points" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0], [0, 0, 0], [10, 0, 0]]}]}))
+
+    assert msg =~ "consecutive duplicate"
+  end
+
+  test "rejects a polyline with a non-boolean close" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0], [10, 0, 0]], "close": "yes"}]}))
+
+    assert msg =~ "must be a boolean"
+  end
+
+  test "rejects a polyline with a malformed at" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "polyline", "pts": [[0, 0, 0], [10, 0, 0]], "at": [0, 0]}]}))
+
+    assert msg =~ "\"at\""
+  end
+
+  # --- patterns ----------------------------------------------------------------
+
+  test "accepts pattern_linear with count and delta" do
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "pattern_linear", "count": 3, "delta": [10, 0, 0]}]}))
+  end
+
+  test "rejects a pattern count below 2 or above 200" do
+    for count <- [1, 201] do
+      json =
+        Jason.encode!(%{
+          "ops" => [%{"op" => "pattern_linear", "count" => count, "delta" => [1, 0, 0]}]
+        })
+
+      assert {:error, msg} = err(json)
+      assert msg =~ "from 2 to 200"
+    end
+  end
+
+  test "rejects a non-integer pattern count and a missing count" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "pattern_linear", "count": 2.5, "delta": [1, 0, 0]}]}))
+
+    assert msg =~ "from 2 to 200"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "pattern_linear", "delta": [1, 0, 0]}]}))
+    assert msg =~ "missing \"count\""
+  end
+
+  test "rejects a zero pattern delta" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "pattern_linear", "count": 3, "delta": [0, 0, 0]}]}))
+
+    assert msg =~ "must not be the zero vector"
+  end
+
+  test "accepts pattern_circular with defaults and rejects a zero axis" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "pattern_circular", "count": 4}]}))
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "pattern_circular", "count": 4, "axis": [0, 0, 0]}]}))
+
+    assert msg =~ "must not be the zero vector"
+  end
+
+  test "pattern_circular validates degrees within 1..360" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "pattern_circular", "count": 4, "degrees": 180}]}))
+
+    for degrees <- [0, 720] do
+      json = Jason.encode!(%{"ops" => [%{"op" => "pattern_circular", "count" => 4, "degrees" => degrees}]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "from 1 to 360"
+    end
+  end
+
+  test "patterns totalling more than 1000 instances are rejected program-wide" do
+    json = """
+    {"ops": [
+      {"op": "box", "size": [10, 10, 10]},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200},
+      {"op": "pattern_circular", "count": 200}
+    ]}
+    """
+
+    assert {:error, msg} = err(json)
+    assert msg =~ "more than 1000 instances"
+  end
+
+  test "patterns totalling exactly 1000 instances are accepted" do
+    ops = %{
+      "ops" => [
+        %{"op" => "box", "size" => [10, 10, 10]},
+        %{"op" => "pattern_circular", "count" => 200},
+        %{"op" => "pattern_circular", "count" => 200},
+        %{"op" => "pattern_circular", "count" => 200},
+        %{"op" => "pattern_circular", "count" => 200},
+        %{"op" => "pattern_circular", "count" => 200}
+      ]
+    }
+
+    assert {:ok, _} = err(Jason.encode!(ops))
+  end
+
+  # --- sweeps: revolve / loft, named solids: cone / torus ----------------------
+
+  test "revolve validates a nonzero axis and optional degrees/at" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "revolve", "axis": [0, 0, 1]}]}))
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "revolve", "axis": [1, 0, 1], "degrees": 270.5, "at": [0, 0, 5]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "revolve", "axis": [0, 0, 0]}]}))
+    assert msg =~ "zero vector"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "revolve", "axis": [0, 0, 1], "degrees": 0}]}))
+    assert msg =~ "from 1 to 360"
+  end
+
+  test "loft validates sections as an integer from 2 to 50" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "loft", "sections": 2}]}))
+
+    for sections <- [1, 2.5, 51] do
+      json = Jason.encode!(%{"ops" => [%{"op" => "loft", "sections" => sections}]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "from 2 to 50"
+    end
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "loft"}]}))
+    assert msg =~ "missing \"sections\""
+  end
+
+  test "cone validates r1, nonneg r2 and h" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "cone", "r1": 10, "r2": 0, "h": 20}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "cone", "r1": 10, "r2": -1, "h": 20}]}))
+    assert msg =~ "\"r2\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "cone", "r1": 0, "r2": 5, "h": 20}]}))
+    assert msg =~ "\"r1\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "cone", "r1": 10, "r2": 5}]}))
+    assert msg =~ "missing \"h\""
+  end
+
+  test "torus rejects r >= R" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "torus", "R": 20, "r": 4}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "torus", "R": 4, "r": 4}]}))
+    assert msg =~ "smaller than"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "torus", "R": 4, "r": 5}]}))
+    assert msg =~ "smaller than"
+  end
+
+  # --- transforms: mirror / scale ----------------------------------------------
+
+  test "mirror validates a nonzero normal and optional at" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "mirror", "normal": [0, 0, 1]}]}))
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "mirror", "normal": [1, 1, 1], "at": [5, 0, 0]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "mirror", "normal": [0, 0, 0]}]}))
+    assert msg =~ "zero vector"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "mirror"}]}))
+    assert msg =~ "missing \"normal\""
+  end
+
+  test "scale validates a positive factor" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "scale", "factor": 2}]}))
+
+    for factor <- [0, -1, "big"] do
+      json = Jason.encode!(%{"ops" => [%{"op" => "scale", "factor" => factor}]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "\"factor\""
+    end
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "scale"}]}))
+    assert msg =~ "missing \"factor\""
+  end
+
+  # --- finishing: chamfer_all / shell, face selectors --------------------------
+
+  test "chamfer_all validates a positive d" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "chamfer_all", "d": 1}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "chamfer_all", "d": 0}]}))
+    assert msg =~ "\"d\""
+  end
+
+  test "shell validates t and requires open selectors" do
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"normal": [0, 0, 1], "through": [0, 0, 1]}]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "shell", "t": 0}]}))
+    assert msg =~ "\"t\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2}]}))
+    assert msg =~ "missing \"open\""
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": []}]}))
+
+    assert msg =~ "at least one selector"
+  end
+
+  test "selector must use exactly one form" do
+    both = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"normal": [0, 0, 1], "through": [0, 0, 1], "perpendicular": [1, 0, 0]}]}]})
+
+    assert {:error, msg} = err(both)
+    assert msg =~ "not both"
+
+    neither = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"normal": [0, 0, 1]}]}]})
+
+    assert {:error, msg} = err(neither)
+    assert msg =~ "selector must be an object"
+  end
+
+  test "selector vectors must be valid" do
+    zero_axis = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"perpendicular": [0, 0, 0]}]}]})
+
+    assert {:error, msg} = err(zero_axis)
+    assert msg =~ "zero vector"
+
+    zero_normal = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"normal": [0, 0, 0], "through": [0, 0, 1]}]}]})
+
+    assert {:error, msg} = err(zero_normal)
+    assert msg =~ "zero vector"
+
+    not_vec3 = ~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "shell", "t": 2, "open": [{"perpendicular": [1, 0]}]}]})
+
+    assert {:error, msg} = err(not_vec3)
+    assert msg =~ "[x, y, z]"
+  end
+
+  test "open accepts at most 8 selectors" do
+    selectors = List.duplicate(%{"perpendicular" => [1, 0, 0]}, 9)
+    json = Jason.encode!(%{"ops" => [%{"op" => "box", "size" => [1, 1, 1]}, %{"op" => "shell", "t" => 2, "open" => selectors}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "at most 8 selectors"
+  end
+
+  # --- sweeps: helix / sweep ----------------------------------------------------
+
+  test "helix validates r, pitch and turns" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "helix", "r": 10, "pitch": 3, "turns": 2}]}))
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "helix", "r": 10, "pitch": 3, "turns": 2.5, "at": [0, 0, 5]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "helix", "r": 0, "pitch": 3, "turns": 2}]}))
+    assert msg =~ "\"r\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "helix", "r": 10, "pitch": 0, "turns": 2}]}))
+    assert msg =~ "\"pitch\""
+
+    for turns <- [0, 26, "many"] do
+      json = Jason.encode!(%{"ops" => [%{"op" => "helix", "r" => 10, "pitch" => 3, "turns" => turns}]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "\"turns\""
+    end
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "helix", "r": 10, "pitch": 3}]}))
+    assert msg =~ "missing \"turns\""
+  end
+
+  test "sweep takes no params" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "sweep"}]}))
+  end
+
+  # --- selected-edge finishing: fillet / chamfer --------------------------------
+
+  test "fillet and chamfer require on and a positive size" do
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "box", "size": [10, 10, 10]}, {"op": "fillet", "r": 2, "on": {"normal": [0, 0, 1], "through": [0, 0, 10]}}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "fillet", "r": 2}]}))
+    assert msg =~ "missing \"on\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "chamfer", "d": 1}]}))
+    assert msg =~ "missing \"on\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "fillet", "r": 0, "on": {"perpendicular": [0, 0, 1]}}]}))
+    assert msg =~ "\"r\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "chamfer", "d": -1, "on": {"perpendicular": [0, 0, 1]}}]}))
+    assert msg =~ "\"d\""
+  end
+
+  test "fillet on validates the selector form" do
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "fillet", "r": 2, "on": {"normal": [0, 0, 1]}}]}))
+
+    assert msg =~ "selector must be an object"
+
+    assert {:error, msg} =
+             err(~s({"ops": [{"op": "fillet", "r": 2, "on": {"perpendicular": [0, 0, 0]}}]}))
+
+    assert msg =~ "zero vector"
+  end
+
+  # --- domain faces: circle / text ----------------------------------------------
+
+  test "circle validates r and optional at" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "circle", "r": 3}]}))
+    assert {:ok, _} = err(~s({"ops": [{"op": "circle", "r": 3, "at": [50, 50, 0]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "circle", "r": 0}]}))
+    assert msg =~ "\"r\""
+  end
+
+  test "text validates s and size" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "text", "s": "TEAM", "size": 10}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "   ", "size": 10}]}))
+    assert msg =~ "must be a non-empty string"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "", "size": 10}]}))
+    assert msg =~ "must be a non-empty string"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "size": 10}]}))
+    assert msg =~ "missing \"s\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "TEAM"}]}))
+    assert msg =~ "missing \"size\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "TEAM", "size": 0}]}))
+    assert msg =~ "\"size\""
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "text", "s": "TEAM", "size": 1001}]}))
+    assert msg =~ "up to 1000"
+
+    long = String.duplicate("a", 257)
+    json = Jason.encode!(%{"ops" => [%{"op" => "text", "s" => long, "size" => 10}]})
+    assert {:error, msg} = err(json)
+    assert msg =~ "at most 256"
+  end
+
+  # --- validator / prompt agreement (review fixes) -------------------------------
+
+  test "extrude without dir validates (prompt: default +z); zero dir is rejected" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "polygon", "n": 6, "r": 10}, {"op": "extrude", "h": 5}]}))
+
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "polygon", "n": 6, "r": 10}, {"op": "extrude", "h": 5, "dir": [0, 1, 1]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "extrude", "h": 5, "dir": [0, 0, 0]}]}))
+    assert msg =~ "must not be the zero vector"
+  end
+
+  test "a non-vector \"at\" is rejected statically on every placeable op" do
+    ops = [
+      %{"op" => "box", "size" => [1, 1, 1]},
+      %{"op" => "cylinder", "r" => 1, "h" => 1},
+      %{"op" => "sphere", "r" => 1},
+      %{"op" => "prism", "n" => 6, "r" => 1, "h" => 1},
+      %{"op" => "polygon", "n" => 6, "r" => 1}
+    ]
+
+    for op <- ops, bad_at <- ["nope", [1, 2], [1, 2, "z"]] do
+      json = Jason.encode!(%{"ops" => [Map.put(op, "at", bad_at)]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "\"at\"", "#{op["op"]} with at=#{inspect(bad_at)}: #{msg}"
+      assert msg =~ "op 1"
+    end
+  end
+
+  test "prism rot must be a finite number" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "prism", "n": 6, "r": 10, "h": 5, "rot": 30}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "prism", "n": 6, "r": 10, "h": 5, "rot": "x"}]}))
+    assert msg =~ "\"rot\" must be a finite number"
+  end
+
+  test "text length is counted in characters, not bytes" do
+    # 200 two-byte characters: 400 bytes but within the 256-character cap.
+    json = Jason.encode!(%{"ops" => [%{"op" => "text", "s" => String.duplicate("é", 200), "size" => 10}]})
+    assert {:ok, _} = err(json)
+  end
+end

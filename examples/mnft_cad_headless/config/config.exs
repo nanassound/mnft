@@ -87,6 +87,7 @@ engine =
   else
     case getenv.("MNFT_ENGINE", "build123d") do
       "openscad" -> Mnft.Cad.Engines.OpenScad
+      "ocex" -> :"Elixir.MnftOcex.Engine"
       _ -> Mnft.Cad.Engines.Build123d
     end
   end

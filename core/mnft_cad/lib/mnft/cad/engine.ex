@@ -4,7 +4,10 @@ defmodule Mnft.Cad.Engine do
 
   Implementations: `Mnft.Cad.Engines.Build123d` (Python worker over a Port;
   STEP/STL/GLB, full fidelity) and `Mnft.Cad.Engines.OpenScad` (the openscad
-  binary over a Port; mesh-only — no STEP). Selection is `:engine` under
+  binary over a Port; mesh-only — no STEP). `MnftBrowser.Engines.Replicad`
+  (page-side worker) and `MnftOcex.Engine` (the `mnft_cad_ocex` engine pack:
+  the `ocex` JSON construction dialect executed in-process via OCEx NIFs,
+  opt-in native dependency) live outside this core. Selection is `:engine` under
   `:mnft_cad, :cad` config; tests use `Mnft.Cad.EngineFake`.
 
   The returned map is the engine contract; the turn pipeline only knows this
@@ -14,8 +17,12 @@ defmodule Mnft.Cad.Engine do
         stage: :static_check | :exec,
         error: String.t() | nil,
         artifacts: %{model_id: String.t(), stl: path, step: path, glb: path | nil, script: path | nil} | nil,
-        mesh: %{triangles: term, bbox_mm: [x, y, z], volume_mm3: float} | nil,
+        mesh: %{"triangles" => term, "bbox_mm" => [x, y, z], "volume_mm3" => float} | nil,
         exec_ms: integer}
+
+  Mesh maps may be atom- or string-keyed; `Mnft.Cad.Turn` canonicalises them
+  to string keys before the rest of the pipeline reads them or the model is
+  persisted.
 
   `artifacts` carry absolute file paths. `execute/2` never raises; every
   failure mode lands in `ok: false`.

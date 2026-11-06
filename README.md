@@ -111,6 +111,7 @@ Pick with `MNFT_ENGINE` in `examples/mnft_cad_web/.env`. Defaults to `build123d`
 | `build123d` (default) | OpenCascade via cad_worker | STEP + STL + GLB | included in the venv bootstrap above |
 | `openscad` | OpenSCAD binary | STL + GLB only (3D-printing path) | install the binary, nothing else |
 | `smlibpy` (alpha) | SMLib NURBS kernel ([AWV Informatik AG](https://github.com/awv-informatik/smlibpy), MIT) | STEP + STL + GLB | one small extra into the venv |
+| `ocex` (opt-in pack) | OpenCascade in-process via [OCEx](https://hex.pm/packages/ocex) NIFs | STEP + STL + GLB | add the `mnft_cad_ocex` dep + build OCCT once (below) |
 
 **OpenSCAD** — the engine shells out to the `openscad` CLI (`OPENSCAD_BIN`
 overrides the path; the default is `openscad` on `PATH`).
@@ -143,6 +144,31 @@ cd core/cad_worker && uv pip install -e ".[smlibpy]"
 
 smlibpy is alpha here: less production time than build123d, treat it as a
 second option, not a replacement.
+
+**ocex** — native, no Python worker. The LLM writes a JSON op program
+(`{"ops": [...]}`) that runs in the BEAM via OCEx. It is an opt-in pack, so
+the reference web app does not depend on it; a host adds it:
+
+```bash
+# 1. build the pinned OCCT 7.9.3 toolkit once (needs cmake, pkg-config, freetype, harfbuzz)
+cd core/mnft_cad_ocex && mix deps.get
+OCEX_BUILD_JOBS=4 sh deps/ocex/scripts/install-occt.sh "$HOME/.local/occt-7.9.3"
+export OpenCASCADE_DIR="$HOME/.local/occt-7.9.3/lib/cmake/opencascade"
+```
+
+```elixir
+# 2. host mix.exs
+{:mnft_cad_ocex, path: "core/mnft_cad_ocex"}
+```
+
+```bash
+# 3. select it
+MNFT_ENGINE=ocex
+```
+
+Without the dep, `MNFT_ENGINE=ocex` fails at the first turn. A native fault
+in OCCT kills the whole VM, so run the engine in its own node/container in
+production. Details and the op table: [`core/mnft_cad_ocex/README.md`](core/mnft_cad_ocex/README.md).
 
 ## Examples
 

@@ -44,6 +44,12 @@ defmodule Mnft.Cad.Engines.EngineConfigTest do
       assert engine_in(unquote(app), "smlibpy") =~ "Mnft.Cad.Engines.Smlibpy"
     end
 
+    # The pack is an optional dep: the config only names the module, so the
+    # mapping is checkable here even though neither app depends on the pack.
+    test "#{app}/config/dev.exs maps MNFT_ENGINE=ocex to MnftOcex.Engine" do
+      assert engine_in(unquote(app), "ocex") =~ "MnftOcex.Engine"
+    end
+
     test "#{app}/config/dev.exs maps MNFT_ENGINE=openscad and build123d" do
       assert engine_in(unquote(app), "openscad") =~ "Mnft.Cad.Engines.OpenScad"
       assert engine_in(unquote(app), "build123d") =~ "Mnft.Cad.Engines.Build123d"
@@ -73,8 +79,9 @@ defmodule Mnft.Cad.Engines.EngineConfigTest do
       engine
     end
 
-    test "smlibpy / openscad / build123d / unset / unknown", %{expr: expr} do
+    test "smlibpy / ocex / openscad / build123d / unset / unknown", %{expr: expr} do
       assert eval_engine(expr, "smlibpy") == Mnft.Cad.Engines.Smlibpy
+      assert eval_engine(expr, "ocex") == MnftOcex.Engine
       assert eval_engine(expr, "openscad") == Mnft.Cad.Engines.OpenScad
       assert eval_engine(expr, "build123d") == Mnft.Cad.Engines.Build123d
       assert eval_engine(expr, nil) == Mnft.Cad.Engines.Build123d

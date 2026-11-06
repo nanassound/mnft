@@ -22,6 +22,7 @@ config :mnft_cad, :cad,
       case System.get_env("MNFT_ENGINE", "build123d") do
         "openscad" -> Mnft.Cad.Engines.OpenScad
         "smlibpy" -> Mnft.Cad.Engines.Smlibpy
+        "ocex" -> :"Elixir.MnftOcex.Engine"
         _ -> Mnft.Cad.Engines.Build123d
       end
     ),
