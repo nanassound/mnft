@@ -49,6 +49,8 @@ defmodule Mnft.Cad.PromptOcex do
   | revolve    | axis:[x,y,z], at?[0,0,0], degrees?360    | pops the top FACE, pushes the solid swept about the axis through `at` (degrees ≤ 360) |
   | loft       | sections 2..50                           | pops that many faces — first pushed = FIRST section — pushes a ruled solid through them |
   | rotate     | axis:[x,y,z], degrees                    | spins the top shape about a world axis through the origin |
+  | mirror     | normal:[x,y,z], at?[0,0,0]               | replaces the top shape with itself fused with its reflection across the plane through `at` |
+  | scale      | factor                                   | replaces the top shape with a uniformly scaled copy about the WORLD ORIGIN |
   | pattern_linear | count 2..200, delta:[dx,dy,dz]       | replaces the top shape with itself fused with count−1 copies stepped by delta |
   | pattern_circular | count 2..200, axis?[0,0,1], at?[0,0,0], degrees?360 | replaces the top shape with itself fused with count−1 copies rotated about `at` |
 
@@ -72,6 +74,10 @@ defmodule Mnft.Cad.PromptOcex do
     silently built with ZERO volume — check x > 0 for axis z.
   - `loft` pops sections in stack order: push the FIRST section first, last
     section last, then one `loft` op with `sections` = number of faces.
+  - `mirror` FUSES the reflection into the shape (mirror-completes): give it
+    half of a symmetric part and one op returns the whole part.
+  - `scale` is about the WORLD ORIGIN and moves positions too — scale before
+    final placement (an `at` of [50,0,0] becomes [100,0,0] under factor 2).
   - `extrude` direction must point OUT of the face's plane (for `polygon`
     faces, keep a nonzero z in `dir`) — in-plane extrusion is rejected as
     degenerate.

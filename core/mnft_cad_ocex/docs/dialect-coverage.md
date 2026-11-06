@@ -25,7 +25,7 @@ sugar over profiles + sweeps, never new machinery.
 | profiles | polygon, polyline | ✅ seed — arc+spline+slot missing |
 | sweeps | extrude, revolve, loft | ✅ — sweep/helix land with the thread batch |
 | booleans | union, cut, intersect | ✅ |
-| transforms | translate, rotate | ✅ — mirror, scale missing (OCEx has both) |
+| transforms | translate, rotate, mirror, scale | ✅ mirror fuses the reflection in; scale is origin-anchored |
 | finishing | fillet_all | 🟡 all-edges only — selected-edge fillet/chamfer needs a selector mini-language |
 | patterns | pattern_linear, pattern_circular | ✅ fuse copies through the original (Σcount ≤ 1000) |
 | domain | — | ❌ thread (decomp: triangle profile + helix sweep), gear, text (OCEx has font faces) |
@@ -53,9 +53,9 @@ Legend: ✅ expressible today · 🟡 expressible via workaround · ❌ gap (no 
 | offset / shell | finishing | ❌ | shell = hollow enclosure; OCEx.shell exists (openings, t) |
 | fillet/chamfer all edges | finishing | ✅ fillet_all | chamfer_all missing (chamfer twin, trivial) |
 | fillet/chamfer selected edges | finishing | ❌ | needs edge selector mini-language (by face, by axis) |
-| mirror | transform | ❌ | OCEx.mirror exists (origin, normal) |
+| mirror | transform | ✅ mirror | fuses the reflection into the shape (mirror-completes) |
 | linear/circular pattern | pattern | ✅ pattern_linear / pattern_circular | fuse copies through the original; a patterned bore cuts all instances |
-| scale | transform | ❌ | OCEx.scale exists |
+| scale | transform | ✅ scale | uniform, about the world origin |
 | text | domain | ❌ | OCEx has font-backed faces (FreeType/HarfBuzz) |
 | thread | domain | 🟡 | expressible after sweep: triangle profile + helix wire |
 | gear | domain | ❌ | compound op, later |

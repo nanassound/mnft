@@ -33,7 +33,7 @@ defmodule MnftOcex.Dialect do
   @pattern_ops ~w(pattern_linear pattern_circular)
   @max_points 512
   @max_pattern_instances 1000
-  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all extrude rotate revolve loft)
+  @known_ops @shape_ops ++ @stack_ops ++ @profile_ops ++ @pattern_ops ++ ~w(translate fillet_all extrude rotate revolve loft mirror scale)
 
   @spec validate(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   def validate(code) when is_binary(code) do
@@ -162,6 +162,12 @@ defmodule MnftOcex.Dialect do
   end
 
   defp check_params("loft", op, i), do: sections(op, i)
+
+  defp check_params("mirror", op, i) do
+    with :ok <- nonzero_vec3(op, "normal", i), do: optional_at(op, i)
+  end
+
+  defp check_params("scale", op, i), do: positive(op, "factor", i)
 
   defp check_params("cone", op, i) do
     with :ok <- positive(op, "r1", i),

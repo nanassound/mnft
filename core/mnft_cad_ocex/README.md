@@ -46,6 +46,8 @@ validates before any native call; `MnftOcex.Interpreter` executes):
 | `revolve` | `axis`, `at?`, `degrees?` | pops a face, pushes the swept solid (profile plane must contain the axis) |
 | `loft` | `sections` | pops N faces (first pushed = first section), pushes a ruled solid |
 | `rotate` | `axis`, `degrees` | spins the top shape about a world axis |
+| `mirror` | `normal:[x,y,z]`, `at?` | top fused with its reflection across the plane (mirror-completes) |
+| `scale` | `factor` | uniform scale about the world origin |
 | `pattern_linear` | `count`, `delta:[dx,dy,dz]` | top fused with count−1 translated copies |
 | `pattern_circular` | `count`, `axis?`, `at?`, `degrees?` | top fused with count−1 rotated copies (default z axis, 360°) |
 

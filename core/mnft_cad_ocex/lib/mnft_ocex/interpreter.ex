@@ -171,6 +171,34 @@ defmodule MnftOcex.Interpreter do
   defp apply_op(%{"op" => "rotate"}, [], i),
     do: {:error, "ocex: op #{i}: rotate needs a shape on the stack (stack is empty)"}
 
+  # `mirror` FUSES the reflection into the shape (mirror-completes): give it
+  # half of a symmetric part and one op returns the whole.
+  defp apply_op(%{"op" => "mirror", "normal" => [nx, ny, nz]} = op, [top | rest], i) do
+    [ax, ay, az] = Map.get(op, "at", [0, 0, 0])
+
+    with {:ok, refl} <- OCEx.mirror(top, {ax, ay, az}, {nx, ny, nz}),
+         {:ok, shape} <- OCEx.fuse_many(top, [refl]) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: mirror failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "mirror"}, [], i),
+    do: {:error, "ocex: op #{i}: mirror needs a shape on the stack (stack is empty)"}
+
+  # `scale` is about the WORLD ORIGIN and moves positions too.
+  defp apply_op(%{"op" => "scale", "factor" => factor}, [top | rest], i) do
+    with {:ok, shape} <- OCEx.scale(top, factor) do
+      {:ok, [shape | rest]}
+    else
+      {:error, reason} -> {:error, "ocex: op #{i}: scale failed (#{inspect(reason)})"}
+    end
+  end
+
+  defp apply_op(%{"op" => "scale"}, [], i),
+    do: {:error, "ocex: op #{i}: scale needs a shape on the stack (stack is empty)"}
+
   # --- sketch helpers ----------------------------------------------------------
 
   # Regular n-gon in the XY plane, circumradius r, centred on the origin,

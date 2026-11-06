@@ -355,4 +355,31 @@ defmodule MnftOcex.DialectTest do
     assert {:error, msg} = err(~s({"ops": [{"op": "torus", "R": 4, "r": 5}]}))
     assert msg =~ "smaller than"
   end
+
+  # --- transforms: mirror / scale ----------------------------------------------
+
+  test "mirror validates a nonzero normal and optional at" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "box", "size": [1, 1, 1]}, {"op": "mirror", "normal": [0, 0, 1]}]}))
+    assert {:ok, _} =
+             err(~s({"ops": [{"op": "mirror", "normal": [1, 1, 1], "at": [5, 0, 0]}]}))
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "mirror", "normal": [0, 0, 0]}]}))
+    assert msg =~ "zero vector"
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "mirror"}]}))
+    assert msg =~ "missing \"normal\""
+  end
+
+  test "scale validates a positive factor" do
+    assert {:ok, _} = err(~s({"ops": [{"op": "scale", "factor": 2}]}))
+
+    for factor <- [0, -1, "big"] do
+      json = Jason.encode!(%{"ops" => [%{"op" => "scale", "factor" => factor}]})
+      assert {:error, msg} = err(json)
+      assert msg =~ "\"factor\""
+    end
+
+    assert {:error, msg} = err(~s({"ops": [{"op": "scale"}]}))
+    assert msg =~ "missing \"factor\""
+  end
 end

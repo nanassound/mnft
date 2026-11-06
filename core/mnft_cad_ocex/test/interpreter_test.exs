@@ -313,4 +313,45 @@ defmodule MnftOcex.InterpreterTest do
                     2 * :math.pi() * :math.pi() * 20 * 16,
                     1.0e-2
   end
+
+  # --- transforms: mirror / scale ----------------------------------------------
+
+  test "mirror of a disjoint half doubles the volume" do
+    ops = [
+      %{"op" => "box", "size" => [10, 10, 10], "at" => [15, 0, 0]},
+      %{"op" => "mirror", "normal" => [1, 0, 0]}
+    ]
+
+    assert_in_delta volume(ops), 2_000, 1.0e-3
+  end
+
+  test "mirror about a cutting plane through the part completes the symmetric half" do
+    half = [
+      %{"op" => "box", "size" => [10, 40, 5], "at" => [10, 0, 0]},
+      %{"op" => "mirror", "normal" => [1, 0, 0], "at" => [20, 0, 0]}
+    ]
+
+    assert_in_delta volume(half), 2 * 10 * 40 * 5, 1.0e-3
+  end
+
+  test "scale multiplies volume and grows the bbox about the origin" do
+    ops = [%{"op" => "box", "size" => [10, 10, 10]}, %{"op" => "scale", "factor" => 2}]
+
+    assert {:ok, shape} = Interpreter.run(ops)
+    assert_in_delta volume(ops), 8_000, 1.0e-3
+
+    assert {:ok, {{x0, y0, z0}, {x1, y1, z1}}} = OCEx.bounds(shape)
+    assert_in_delta x1, 20.0, 1.0e-6
+    assert_in_delta y1, 20.0, 1.0e-6
+    assert_in_delta z1, 20.0, 1.0e-6
+    assert_in_delta x0, 0.0, 1.0e-6
+  end
+
+  test "mirror and scale on an empty stack are tagged errors" do
+    assert {:error, msg} = Interpreter.run([%{"op" => "mirror", "normal" => [0, 0, 1]}])
+    assert msg =~ "op 1" and msg =~ "mirror" and msg =~ "stack is empty"
+
+    assert {:error, msg} = Interpreter.run([%{"op" => "scale", "factor" => 2}])
+    assert msg =~ "op 1" and msg =~ "scale" and msg =~ "stack is empty"
+  end
 end
