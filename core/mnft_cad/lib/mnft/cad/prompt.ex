@@ -78,14 +78,29 @@ defmodule Mnft.Cad.Prompt do
     bare shank: the shank is the MINOR diameter (M3 = 2.4-2.5 mm), the ridge brings
     it out to the MAJOR diameter (M3 = 3.0 mm across the threads). Pitch: 0.5 mm for
     M3, 0.7 for M4, 0.8 for M5. Keep threaded length <= 20 mm (longer sweeps can
-    exceed the execution budget). Verified M3 pattern:
+    exceed the execution budget). Thread sweep rules (verified 2026-11-08 on the
+    pinned build123d by volume + axis-cross-section inspection, after live traffic
+    produced broken threads from the previous pattern):
+    * build the tooth polygon in a Plane with an EXPLICIT x_dir = the outward
+      radial direction at the helix start point. The auto-derived frame tilts the
+      tooth sideways/into the shank, producing loose overlapping rings.
+    * the tooth's axial base must be 0.8 x pitch (e.g. 0.4 mm at pitch 0.5). A
+      base >= pitch makes the swept ribbon self-intersect, and `shank + ridge`
+      then SILENTLY returns an empty part (volume 0, no traceback).
+    * NEVER pass `is_frenet=True` — on a helix the Frenet normal points inward,
+      which buries the tooth inside the shank.
+    * never call fillet/chamfer on the finished threaded part (see below).
+
+    Verified M3 pattern (fuses to 1 solid, ~0.7 s, teeth confirmed in section):
 
     ```python
-    pitch, length, r_minor = 0.5, 8.0, 1.2  # shank dia 2.4 (minor)
+    pitch, length, r_minor, r_major = 0.5, 8.0, 1.2, 1.5
     h = Helix(pitch=pitch, height=length, radius=r_minor)  # curve: NOT inside BuildPart
-    pl = Plane(origin=h @ 0, z_dir=h % 0)
-    sec = pl * Polygon((0.0, 0.15), (0.3, 0.0), (0.0, -0.15), align=None)  # tip reaches dia 3.0 (major)
-    ridge = sweep(sec, path=h)
+    start = h @ 0
+    radial = (start.X / math.hypot(start.X, start.Y), start.Y / math.hypot(start.X, start.Y), 0.0)
+    plane = Plane(origin=start, z_dir=h % 0, x_dir=radial)
+    tooth = plane * Polygon((r_major - r_minor + 0.05, 0.0), (0.0, pitch * 0.4), (0.0, -pitch * 0.4), align=None)
+    ridge = sweep(tooth, path=h)
     part = Pos(0, 0, length / 2) * Cylinder(r_minor, length) + ridge
     ```
 
