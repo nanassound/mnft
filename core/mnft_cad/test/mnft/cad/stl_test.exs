@@ -106,6 +106,7 @@ defmodule Mnft.Cad.StlTest do
     assert block =~ ~s([Uploaded STL mesh "bracket.stl" — reverse-engineer this part)
     assert block =~ "treat them as millimetres"
     assert block =~ "Mesh: 44 triangles, 1 body, watertight, volume 37,609.75, area 25,488.86."
+    refute block =~ "Faces:"
     assert block =~ "Bounding box: x -23.09..23.09, y -20.0..20.0, z 0.0..90.0 (46.19 x 40.0 x 90.0)."
     assert block =~ "z=7.5: (23.09, 0.0) -> (11.55, -20.0) -> (-11.55, -20.0) -> (-23.09, 0.0)"
     assert block =~ "x=0.0: (20.0, 0.0) -> (-20.0, 0.0) -> (-20.0, 90.0) -> (-17.0, 90.0)"
@@ -132,6 +133,26 @@ defmodule Mnft.Cad.StlTest do
 
     block = Stl.format_block("part.stl", Jason.encode!(profile))
     assert block =~ "Mesh: 44 triangles, 3 bodies, not watertight,"
+  end
+
+  test "format_block: face_types histogram emits a Faces line between Mesh and bbox" do
+    profile =
+      put_in(@profile, ["stats", "face_types"], %{
+        "cylinder" => 3,
+        "cone" => 1,
+        "plane" => 12,
+        "sphere" => 1,
+        "torus" => 2,
+        "bspline" => 0
+      })
+
+    block = Stl.format_block("part.step", Jason.encode!(profile))
+    assert block =~ "Faces: 12 planes, 3 cylinders, 1 cone, 2 tori, 1 sphere.\n"
+    assert block =~ ~r/Mesh: [^\n]+\nFaces: [^\n]+\nBounding box:/
+
+    # all-zero histogram emits nothing
+    zero = put_in(@profile, ["stats", "face_types"], %{"plane" => 0})
+    refute Stl.format_block("part.step", Jason.encode!(zero)) =~ "Faces:"
   end
 
   test "format_block: caps by dropping trailing sections" do

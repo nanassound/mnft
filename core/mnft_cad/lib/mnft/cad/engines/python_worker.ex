@@ -126,10 +126,11 @@ defmodule Mnft.Cad.Engines.PythonWorker do
 
       %{
         ok: true,
-        stage: String.to_existing_atom(result["stage"] || "exec"),
+        stage: stage_atom(result["stage"]),
         error: result["error"],
         artifacts: artifacts,
         mesh: result["mesh"],
+        renders: result["renders"] || [],
         exec_ms: result["exec_ms"] || 0
       }
     else
@@ -147,7 +148,7 @@ defmodule Mnft.Cad.Engines.PythonWorker do
   defp normalize({:ok, result}, _model_dir) do
     %{
       ok: false,
-      stage: String.to_existing_atom(result["stage"] || "exec"),
+      stage: stage_atom(result["stage"]),
       error: result["error"],
       artifacts: nil,
       mesh: nil,
@@ -158,4 +159,10 @@ defmodule Mnft.Cad.Engines.PythonWorker do
   defp normalize({:error, reason}, _model_dir) do
     %{ok: false, stage: :exec, error: reason, artifacts: nil, mesh: nil, exec_ms: 0}
   end
+
+  # Wire-string stage -> atom without to_existing_atom: a cold VM may not have
+  # loaded any module carrying the :static_check literal, and the rescue above
+  # would turn every static_check rejection into a bogus "runner failure".
+  defp stage_atom("static_check"), do: :static_check
+  defp stage_atom(_), do: :exec
 end

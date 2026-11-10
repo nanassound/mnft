@@ -238,7 +238,20 @@ def execute(source: str, model_dir: Path, dialect: str = "build123d") -> dict:
         "bbox_mm": raw.get("bbox_mm"),
         "volume_mm3": raw.get("volume_mm3"),
     }
+    result["renders"] = _renders_of(stl)
     return result
+
+
+def _renders_of(stl: Path) -> list:
+    """Base64 PNGs (front/top/right/iso) of the built part — the web refine
+    loop attaches them to the model's own repair prompt. Best effort: a
+    render failure never fails a good build."""
+    try:
+        from cad_worker import stlprofile
+
+        return stlprofile._renders(stlprofile._load(str(stl)))
+    except Exception:
+        return []
 
 
 def _run_harness(workdir: Path) -> dict:

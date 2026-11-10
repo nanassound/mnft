@@ -243,7 +243,7 @@ defmodule Mnft.Cad.Stl do
         sections = profile["sections"] || []
         cap = max(cfg()[:max_block_chars] - (String.length(header) + String.length(footer)), 0)
 
-        mesh_line(stats) <> bbox_line(stats) <> section_lines(sections, cap)
+        mesh_line(stats) <> face_types_line(stats) <> bbox_line(stats) <> section_lines(sections, cap)
       else
         _ -> ""
       end
@@ -258,6 +258,25 @@ defmodule Mnft.Cad.Stl do
       "#{if stats["watertight"], do: "watertight", else: "not watertight"}, " <>
       "volume #{n2(stats["volume"])}, area #{n2(stats["area"])}.\n"
   end
+
+  @face_order ~w(plane cylinder cone torus sphere bspline)
+
+  # stepprofile's face histogram (absent for pure STL profiles):
+  # "Faces: 12 planes, 3 cylinders, 1 cone." — canonical key order, non-zero
+  # entries only, trailing period.
+  defp face_types_line(%{"face_types" => types}) when is_map(types) do
+    parts =
+      for kind <- @face_order, n = types[kind], is_integer(n), n > 0 do
+        "#{n} #{if n == 1, do: kind, else: plural_kind(kind)}"
+      end
+
+    if parts == [], do: "", else: "Faces: #{Enum.join(parts, ", ")}.\n"
+  end
+
+  defp face_types_line(_stats), do: ""
+
+  defp plural_kind("torus"), do: "tori"
+  defp plural_kind(kind), do: kind <> "s"
 
   defp bbox_line(stats) do
     [x0, y0, z0] = stats["bbox_min"]

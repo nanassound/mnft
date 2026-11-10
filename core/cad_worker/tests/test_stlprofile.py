@@ -153,3 +153,49 @@ def test_cli_truncated_binary_exit1(tmp_path):
     payload = json.loads(proc.stdout)
     assert payload["ok"] is False
     assert "corrupt binary STL" in payload["error"]
+
+
+# --- dense mesh: long section loops must not hit the recursion limit ----------
+
+def _binary_cylinder(path: Path, radius: float = 20.0, height: float = 10.0,
+                     steps: int = 4000):
+    """Fine-tessellated closed cylinder: `steps` side quads + two cap fans.
+
+    A z-plane crosses every side quad, so each z section chains a loop with
+    ~2 * steps segments — far past CPython's recursion limit for the old
+    recursive loop chainer.
+    """
+    ring = [(radius * math.cos(2 * math.pi * k / steps),
+             radius * math.sin(2 * math.pi * k / steps)) for k in range(steps)]
+    facets = []
+    for k in range(steps):
+        x0, y0 = ring[k]
+        x1, y1 = ring[(k + 1) % steps]
+        th = 2 * math.pi * (k + 0.5) / steps
+        normal = (math.cos(th), math.sin(th), 0.0)
+        facets.append((normal, (x0, y0, 0.0), (x1, y1, 0.0), (x1, y1, height)))
+        facets.append((normal, (x0, y0, 0.0), (x1, y1, height), (x0, y0, height)))
+        facets.append(((0, 0, -1), (0, 0, 0.0), (x1, y1, 0.0), (x0, y0, 0.0)))
+        facets.append(((0, 0, 1), (0, 0, height), (x0, y0, height), (x1, y1, height)))
+    with open(path, "wb") as f:
+        f.write(b"test cylinder".ljust(80, b"\0"))
+        f.write(struct.pack("<I", len(facets)))
+        for normal, a, b, c in facets:
+            f.write(struct.pack("<12fH", *normal, *a, *b, *c, 0))
+
+
+def test_dense_cylinder_sections_no_recursion_limit(tmp_path):
+    stl = tmp_path / "cyl.stl"
+    _binary_cylinder(stl)
+    result = sp.analyze(str(stl))
+    assert result["ok"] is True
+    assert result["stats"]["triangles"] == 4 * 4000
+    assert result["stats"]["watertight"] is True
+    assert result["stats"]["components"] == 1
+    assert result["stats"]["volume"] == pytest.approx(math.pi * 20 * 20 * 10, rel=1e-3)
+    zsecs = _sections_by_axis(result, "z")
+    assert len(zsecs) == sp.Z_SECTIONS
+    for s in zsecs:
+        assert len(s["loops"]) == 1
+        for loop in s["loops"]:
+            assert len(loop) <= sp.PT_MAX
