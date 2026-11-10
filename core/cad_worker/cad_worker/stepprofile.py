@@ -72,15 +72,38 @@ def analyze(path: str) -> dict:
 @contextmanager
 def _quiet_stdout():
     """Silence OCCT's C-level stdout chatter (STEP parse banners) so the CLI
-    keeps its one-JSON-line stdout contract; chatter goes to stderr instead."""
+    keeps its one-JSON-line stdout contract; chatter goes to stderr instead.
+
+    Belt: remove OCCT's default message printers at the source. Braces:
+    redirect fd 1 to stderr — and flush all C streams INSIDE the window,
+    because on Linux OCCT buffers the banner in std::cout and the buffer
+    would otherwise flush onto the restored stdout after we leave."""
+    _remove_occt_printers()
     sys.stdout.flush()
     saved = os.dup(1)
     os.dup2(2, 1)
     try:
         yield
+        try:
+            import ctypes
+
+            ctypes.CDLL(None).fflush(None)
+        except Exception:
+            pass
     finally:
         os.dup2(saved, 1)
         os.close(saved)
+
+
+def _remove_occt_printers():
+    try:
+        from OCP.Message import Message, Message_PrinterOStream
+
+        Message.DefaultMessenger_s().RemovePrinters(
+            Message_PrinterOStream.get_type_descriptor_s()
+        )
+    except Exception:
+        pass
 
 
 def main(argv: list[str]) -> int:
