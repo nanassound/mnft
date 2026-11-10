@@ -22,6 +22,7 @@ defmodule Mnft.Cad.Engines.Build123d do
       %{ok: boolean, stage: "static_check" | "exec", error: term,
         artifacts: %{model_id: String.t(), stl: path, step: path, glb: path, script: path | nil} | nil,
         mesh: %{triangles: term, bbox_mm: term, volume_mm3: term} | nil,
+        renders: list of base64 PNGs — best-effort views of the built part ([] on failure),
         exec_ms: integer}
 
   Artifacts are absolute file paths (or nil), scoped

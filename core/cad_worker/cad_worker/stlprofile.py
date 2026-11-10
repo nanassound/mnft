@@ -150,6 +150,16 @@ def _chain_loops(segs):
         steps = [0]
 
         def dfs(last_pt):
+            """Explicit-stack DFS; identical semantics to the recursive form.
+
+            Section loops can run thousands of segments, past CPython's
+            recursion limit, so each frame is (point, adj iterator, entered
+            segment). The entered segment's undo (chain pop + used discard)
+            belongs to the parent frame in the recursive form; here the child
+            carries it and applies it when its iterator exhausts with no loop
+            found. A found loop unwinds every frame WITHOUT undo, so `used`
+            keeps exactly the winning path's segments.
+            """
             nonlocal best
             if best is not None or steps[0] > budget:
                 return
@@ -157,20 +167,37 @@ def _chain_loops(segs):
             if len(chain) > 2 and key(last_pt) == key(chain[0]):
                 best = list(chain)
                 return
-            for j, _p in adj.get(key(last_pt), []):
+            frames = [(last_pt, iter(adj.get(key(last_pt), [])), None)]
+            while frames:
+                pt, it, entered_j = frames[-1]
+                if best is not None:      # unwind without undo, like `return`
+                    frames.pop()
+                    continue
+                pair = next(it, None)
+                if pair is None:          # frame exhausted -> recursive return
+                    frames.pop()
+                    if entered_j is not None:
+                        chain.pop()
+                        used.discard(entered_j)
+                    continue
+                j, _p = pair
                 if j in used:
                     continue
                 x, y = seg_by_id[j]
-                nxt = y if key(x) == key(last_pt) else x
-                if key(nxt) == key(last_pt):
+                nxt = y if key(x) == key(pt) else x
+                if key(nxt) == key(pt):
                     continue
                 used.add(j)
                 chain.append(nxt)
-                dfs(nxt)
-                if best is not None:
-                    return
-                chain.pop()
-                used.discard(j)
+                if steps[0] > budget:     # child aborts at entry: undo here
+                    chain.pop()
+                    used.discard(j)
+                    continue
+                steps[0] += 1
+                if len(chain) > 2 and key(nxt) == key(chain[0]):
+                    best = list(chain)    # loop top unwinds without undo
+                    continue
+                frames.append((nxt, iter(adj.get(key(nxt), [])), j))
 
         dfs(chain[-1])
         return (best, used) if best else (None, None)
