@@ -64,17 +64,44 @@ defmodule Mnft.Cad.PromptFreecad do
   FreeCAD gotchas (hit in production — follow exactly):
   - primitives expose NO `.X/.Y/.Z` attributes; only `Placement.Base`.
   - `makeThickness` wants the offset NEGATIVE to shell inward.
-  - fusing document objects requires taking `.Shape` explicitly; boolean
-    chains must end in a variable, not dangle.
+  - fusing document objects requires taking `.Shape` explicitly — but
+    PREFER `Part.make*` shapes for boolean chains and add only ONE final
+    `Part::Feature`; document primitives (PrimitivePy) have NO
+    fuse/cut/common methods.
+  - hex pockets and prismatic cuts: `Part.Face(Part.makePolygon(pts +
+    [pts[0]])).extrude(App.Vector(0, 0, depth))` — there is no
+    `Part.makePrism` in headless FreeCAD.
   - hole cutters must pass 5 mm beyond both faces (set `Placement.Base` /
     height accordingly) so cuts stay clean.
   - minimum wall thickness 1.6 mm for FDM unless the user says otherwise.
   - dimensions from the user are verbatim — never round or invent values;
     a cavity around a stated board clears it by 0.4 mm per side unless
     told otherwise.
-  - if a requested feature is impossible in this vocabulary (e.g. real
-    thread helices at model scale), model the nominal geometry and say so
-    in the reply.
+  - Threads (M-series screws, bolts, tapped holes) MUST be modelled when
+    the spec or drawing shows them — the kernel handles helical sweeps
+    fine. PROVEN recipe (validated on FreeCAD 1.1.4 headless; M5x0.8
+    external thread on a Ø5 shank — adapt radii/pitch per size):
+
+        import math
+        pitch = 0.8                    # ISO coarse: M3 0.5, M4 0.7, M5 0.8,
+                                       # M6 1.0, M8 1.25, M10 1.5
+        r_minor = (5.0 - 1.0825 * pitch) / 2.0   # minor radius ~2.06
+        shank = Part.makeCylinder(r_minor, length)
+        helix = Part.makeHelix(pitch, length + pitch, r_minor)
+        profile = Part.makePolygon([
+            App.Vector(r_minor, 0, -pitch * 0.35),
+            App.Vector(r_minor + 0.45, 0, 0.0),   # crest ≈ major radius
+            App.Vector(r_minor, 0, pitch * 0.35),
+            App.Vector(r_minor, 0, -pitch * 0.35)])
+        thread = Part.Wire(helix.Edges).makePipeShell(
+            [Part.Wire(profile)], True, True)
+        thread = thread.common(Part.makeBox(
+            20, 20, length, App.Vector(-10, -10, 0)))   # flush ends
+        body = shank.fuse(thread).removeSplitter()
+
+    Hex socket pocket: `Part.Face(Part.makePolygon(pts + [pts[0]])).extrude(
+    App.Vector(0, 0, depth))` with pts on a circle of radius =
+    across_flats / sqrt(3), then `cut`. M4 Allen key = 4 mm across flats.
 
   Iteration discipline — edits must be surgical:
   When the conversation already contains a previous script and the user asks
