@@ -33,10 +33,10 @@ defmodule Mnft.Cad.PromptFreecad do
   - name every tunable dimension as a module-level parameter with a
     `# param:<name>` comment (e.g. `W = 90.0  # param:width`) so the runner
     can re-emit the script with changed values;
-  - import nothing beyond FreeCAD/Part/math;
-  - contain no file I/O, no `open(`, no os/sys/subprocess/socket/requests/
-    urllib/importlib/ctypes/pickle, no eval/exec/__import__, no random, and
-    no loop that could fail to terminate;
+  - import only allowlisted modules: FreeCAD, Part, PartDesign, Sketcher,
+    Mesh, math, collections, itertools — the sandbox rejects other imports
+    at the door (its message lists the allowlist); there are no word bans:
+    call features by their real names (hex socket, thread, pocket);
   - stay under ~120 lines.
 
   Allowed vocabulary (use only these):
@@ -86,18 +86,29 @@ defmodule Mnft.Cad.PromptFreecad do
         pitch = 0.8                    # ISO coarse: M3 0.5, M4 0.7, M5 0.8,
                                        # M6 1.0, M8 1.25, M10 1.5
         r_minor = (5.0 - 1.0825 * pitch) / 2.0   # minor radius ~2.06
+        r_base = r_minor - 0.06        # CRITICAL: embed the ridge base INTO
+                                       # the shank. A profile sitting exactly
+                                       # ON the shank surface = coincident
+                                       # faces = OCCT fuse silently returns
+                                       # an EMPTY shape (verified failure).
         shank = Part.makeCylinder(r_minor, length)
         helix = Part.makeHelix(pitch, length + pitch, r_minor)
         profile = Part.makePolygon([
-            App.Vector(r_minor, 0, -pitch * 0.35),
+            App.Vector(r_base, 0, -pitch * 0.35),
             App.Vector(r_minor + 0.45, 0, 0.0),   # crest ≈ major radius
-            App.Vector(r_minor, 0, pitch * 0.35),
-            App.Vector(r_minor, 0, -pitch * 0.35)])
+            App.Vector(r_base, 0, pitch * 0.35),
+            App.Vector(r_base, 0, -pitch * 0.35)])
         thread = Part.Wire(helix.Edges).makePipeShell(
             [Part.Wire(profile)], True, True)
         thread = thread.common(Part.makeBox(
             20, 20, length, App.Vector(-10, -10, 0)))   # flush ends
         body = shank.fuse(thread).removeSplitter()
+
+        Golden self-check for M5x10 + Ø8x5 head + 4 mm AF hex socket:
+        thread solid ≈ 24.3 mm³, fused body ≈ 134.2 mm³, final ≈ 344.0 mm³,
+        bbox exactly [8.0, 8.0, 15.0]. If your numbers are far off —
+        especially volume ≈ 210 mm³ or bbox height 5.0 (head only) — the
+        fuse collapsed: fix the geometry, do not ship a head alone.
 
     Hex socket pocket: `Part.Face(Part.makePolygon(pts + [pts[0]])).extrude(
     App.Vector(0, 0, depth))` with pts on a circle of radius =
